@@ -1,0 +1,8 @@
+{
+  "synthetic_only": true,
+  "manual_review": "2026-11-14; capture programmatically enforces synthetic-only data (4 seeded transactions, 'Synthetic provider' merchant, TEST-CHECKING/TEST-SAVINGS accounts) and refuses non-synthetic installations; dimensions and PNG structure verified",
+  "images": [
+    {"path": "docs/screenshots/dashboard.png", "sha256": "71a05635302cb8a34557205ead0aed8c9d1e5f467d3e3d9d728f138c40a4d420"},
+    {"path": "docs/screenshots/mobile.png", "sha256": "4bfccf4f80af5edcd051911c5d0719e9e43047ae8b35477d869323005d350331"}
+  ]
+}

@@ -1,0 +1,87 @@
+name: finsight
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finsight
+      POSTGRES_USER: finsight
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U finsight -d finsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    security_opt: [no-new-privileges:true]
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    env_file: .env
+    environment:
+      FINSIGHT_DATABASE_URL: postgresql+psycopg://finsight:${POSTGRES_PASSWORD}@db:5432/finsight
+    command: [alembic, upgrade, head]
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      FINSIGHT_DATABASE_URL: postgresql+psycopg://finsight:${POSTGRES_PASSWORD}@db:5432/finsight
+    volumes:
+      - import_data:/data/imports
+      - app_data:/data/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 1g
+    cpus: 2
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      FINSIGHT_DATABASE_URL: postgresql+psycopg://finsight:${POSTGRES_PASSWORD}@db:5432/finsight
+    command: [python, -m, app.jobs]
+    volumes:
+      - import_data:/data/imports
+      - app_data:/data/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 1g
+    cpus: 2
+  web:
+    build:
+      context: ./apps/web
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+volumes:
+  postgres_data:
+  import_data:
+  app_data:

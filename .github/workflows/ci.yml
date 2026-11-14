@@ -1,0 +1,101 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: finsight
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: finsight_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U finsight -d finsight_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --require-hashes -r infrastructure/docker/api-requirements.lock
+      - run: pip install --no-deps -e ./apps/api
+      - run: pytest apps/api/tests tests/security tests/integration -q
+        env:
+          FINSIGHT_TEST_POSTGRES_URL: postgresql+psycopg://finsight:synthetic-ci-only@localhost:5432/finsight_test
+      - run: pip install pip-audit && pip-audit
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --run
+      - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+  privacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/privacy_check.py --reviewed-images docs/screenshots/reviewed.json
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate ephemeral synthetic-only configuration
+        run: |
+          cp .env.example .env
+          python - <<'PY'
+          from pathlib import Path
+          import secrets
+          p = Path('.env')
+          text = p.read_text()
+          for key in ('POSTGRES_PASSWORD', 'FINSIGHT_BOOTSTRAP_SECRET'):
+              text = text.replace(key + '=\n', key + '=' + secrets.token_hex(32) + '\n')
+          p.write_text(text)
+          PY
+      - run: docker compose config --quiet
+      - run: docker compose up -d --build --wait --wait-timeout 240
+      - run: curl --fail --retry 10 --retry-delay 2 http://localhost:8080/api/health
+      - run: pip install openpyxl
+      - run: python scripts/compose_smoke.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix apps/web
+      - run: npx --prefix apps/web playwright install --with-deps chromium
+      - run: FINSIGHT_SYNTHETIC_SMOKE=1 node tests/e2e/deployed.mjs
+      - name: Backup and restore synthetic database
+        run: |
+          bash scripts/backup.sh backups/ci.dump
+          docker compose stop api worker
+          bash scripts/restore.sh backups/ci.dump --confirm-replace-database
+          docker compose up -d api worker
+          python scripts/compose_smoke.py --verify-only
+      - if: always()
+        run: docker compose down --volumes
