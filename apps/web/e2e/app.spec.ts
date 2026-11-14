@@ -232,6 +232,25 @@ test('cashflow and category charts expose real API values and a text alternative
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= (visualViewport?.width || innerWidth) + 1)).toBe(true)
 })
 
+test('populated charts stay inside the viewport after desktop-to-mobile resize', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await mocks(page)
+  await page.route('**/api/overview?**', route => route.fulfill({ json: {
+    currencies: [{ currency: 'EUR', income: '100.00', expenses: '40.00', surplus: '60.00', savings_rate: '0.6' }],
+    trends: [{ month: '2026-11', currency: 'EUR', income: '100.00', expenses: '40.00' }],
+    categories: [{ currency: 'EUR', category: 'Synthetic category', amount: '40.00' }], warnings: [],
+  } }))
+  await page.goto('/')
+  await expect(page.locator('.recharts-pie-sector').first()).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 1 && [...document.querySelectorAll('.recharts-wrapper')].every(element => element.getBoundingClientRect().right <= innerWidth + 1))
+  await expect(page.locator('.chart-container')).toHaveCSS('height', '240px')
+  await expect(page.locator('.donut-container')).toHaveCSS('height', '200px')
+  const png = await page.screenshot({ fullPage: true, scale: 'css' })
+  // PNG IHDR width: catches screenshot surfaces widened by stale chart measurements.
+  expect(png.readUInt32BE(16)).toBe(390)
+})
+
 test('large table amounts retain exact decimal cents in the browser', async ({ page }) => {
   await mocks(page)
   await page.route('**/api/transactions?**', route => route.fulfill({ json: { items: [{ ...transaction, amount: '123456789012345.67' }], total: 1 } }))

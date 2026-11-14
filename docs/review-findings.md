@@ -1,5 +1,13 @@
 # FinSight source review — security and financial integration
 
+## Integrator verification addendum — 2026-11-14
+
+The original review below is retained as a dated inspection record, not a current release-blocker list. Subsequent verification resolved items **1 and 10**: the shipped proxy preserves `$http_host`, deployed browser/API tests accept same-origin login and reject hostile origins, and the importer atomically rejects nested, cyclic and self-referencing split graphs. `test_nested_splits.py` covers permutations and partial/repeated imports. The final pre-MCP combined suite passed **216 tests and 66 subtests**; real PostgreSQL overlap/import-revision tests passed. A populated dashboard also passed the mobile width guard at 390px after waiting for the chart resize, rather than masking overflow.
+
+The actual [baseline GitHub CI run](https://github.com/philiplorenz-code/finsight/actions/runs/43637165777) passed API/PostgreSQL tests and dependency audit, frontend build/unit/browser tests, publication/secret scans, clean Compose startup, deployed same-origin auth/import/browser checks and synthetic backup/restore verification. Docker configuration is in `infrastructure/docker/api.Dockerfile`, not `apps/api/Dockerfile`. This evidence does not imply full target-story acceptance or an independent security audit. See [release status](release-status.md) for deferred requirements and the separately reviewed MCP increment.
+
+---
+
 Review / follow-up date: 2026-11-14. Only source/configuration/test files were read. No private `.env`, actual workbook, application database, provider, or deployment was accessed. No tests were executed by this reviewer. “Fixed in source” below means implementation and targeted test assertions were inspected, not that this reviewer observed a passing run. Original descriptions/line references are retained for traceability; follow-up references identify current source.
 
 ## Follow-up summary

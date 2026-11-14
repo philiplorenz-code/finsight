@@ -1,0 +1,6 @@
+# Synthetic CI/local rehearsal only; never use this HTTP override on a public host.
+services:
+  api:
+    environment:
+      MCP_ENABLED: 'true'
+      APP_ENV: development

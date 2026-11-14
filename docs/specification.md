@@ -27,6 +27,7 @@ This specification describes the target product, not a claim that every feature 
 10. **Jobs/notifications:** persistent PostgreSQL jobs, safe concurrent claims, retries/history, watched stable files without deletion; local-time reminders/quiet hours, stale-import suppression, weekly/monthly/report-ready/anomaly triggers; ntfy generic messages, configurable server/auth, notification history.
 11. **Interface:** responsive accessible React/TypeScript dashboard, light/dark themes, DE/EN, import progress, empty/error/loading states and clear uncertainty.
 12. **Operations:** Compose, migrations, non-root services, health checks, persistent volumes, secrets in environment, backup/restore, CI/dependency/secret scans, documented retention and disclosure policy.
+13. **MCP connectivity:** optional standard Streamable HTTP MCP endpoint for external assistants; disabled by default; OAuth 2.1 authorization-code + PKCE, explicit owner consent, revocable least-privilege read-only scopes, bounded typed finance tools, resolvable evidence and view/filter descriptors. Native MCP resources document semantics and native prompts encode reusable analysis workflows ("skills"). No arbitrary SQL, writes, file reads, secret/source-reference exposure or automatic data transmission. External-client model charges are outside FinSight's internal AI budget. ChatGPT compatibility requires a reachable HTTPS deployment and supported client capabilities; do not claim untested live-client certification.
 
 ## Non-functional acceptance gates
 

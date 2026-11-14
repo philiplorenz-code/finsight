@@ -115,8 +115,21 @@ def transactions(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le
                  account_id: str | None = None, category: str | None = None, currency: str | None = None,
                  min_amount: Decimal | None = None, max_amount: Decimal | None = None,
                  merchant: str | None = None, is_transfer: bool | None = None, contract: str | None = None,
-                 tag: str | None = None, db: Session = Depends(get_db), user=Depends(current_user)):
+                 tag: str | None = None,
+                 view: Literal["included_spending", "all_transactions", "owned_liquid"] | None = None,
+                 db: Session = Depends(get_db), user=Depends(current_user)):
     query = select(Transaction).where(Transaction.user_id == user.id)
+    if view is not None:
+        # MCP evidence links must resolve to exactly the same canonical view.
+        # The default explorer remains all transactions for backward compatibility.
+        query = query.join(Account, Account.id == Transaction.account_id).where(Account.user_id == user.id)
+        if currency:
+            query = query.where(Account.currency == currency)
+        if view != "all_transactions":
+            query = query.where(Account.included.is_(True), Account.ownership != "external",
+                                Transaction.is_transfer.is_(False), Transaction.split_role.notin_(["parent", "excluded"]))
+        if view == "owned_liquid":
+            query = query.where(Account.ownership == "owned", Account.purpose != "investment")
     if search:
         query = query.where(or_(Transaction.merchant.icontains(search, autoescape=True), Transaction.description.icontains(search, autoescape=True)))
     for value, predicate in [(start, Transaction.booking_date >= start if start else None),

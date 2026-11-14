@@ -21,7 +21,7 @@ export function Layout() {
   const location = useLocation()
   const client = useQueryClient()
   const logout = useMutation({ mutationFn: () => send('/auth/logout'), onSuccess: () => { client.clear(); window.location.assign('/') } })
-  const title = [...navigation, { key: 'insights', path: '/insights' }, { key: 'settings', path: '/settings' }].find(n => n.path === location.pathname)?.key || 'overview'
+   const title = [...navigation, { key: 'insights', path: '/insights' }, { key: 'settings', path: '/settings' }, { key: 'settings', path: '/settings/mcp' }, { key: 'settings', path: '/mcp/authorize' }].find(n => n.path === location.pathname)?.key || 'overview'
   useEffect(() => {
     if (!open) return
     const previous = document.activeElement as HTMLElement

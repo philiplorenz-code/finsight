@@ -254,6 +254,16 @@
 .settings-save > span { display: flex; gap: 7px; align-items: center; }
 .settings-form > .notice { margin-bottom: 0; }
 .notification-history { margin-top: 24px; }
+.mcp-settings-link { margin-bottom: 22px; }
+.mcp-section, .mcp-consent { min-width: 0; overflow-wrap: anywhere; }
+.mcp-section .button, .mcp-consent .button { white-space: normal; }
+.mcp-connection { border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.mcp-consent { margin-bottom: 22px; }
+.mcp-destinations { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.mcp-destinations dt { font-weight: 600; }
+.mcp-destinations dd { margin: 4px 0 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chart-container, .donut-container { min-width: 0; }
+.chart-container .recharts-responsive-container, .donut-container .recharts-responsive-container { max-width: 100%; }
 .skip-link { position: fixed; top: -100px; left: 20px; z-index: 100; padding: 10px 20px; background: var(--accent); color: var(--panel); border-radius: 6px; }
 .skip-link:focus { top: 15px; }
 .mobile-only { display: none; }

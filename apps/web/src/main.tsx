@@ -18,6 +18,8 @@ const Buckets = lazy(() => import('./pages/buckets'))
 const Contracts = lazy(() => import('./pages/contracts'))
 const Insights = lazy(() => import('./pages/insights'))
 const Settings = lazy(() => import('./pages/settings'))
+const Mcp = lazy(() => import('./pages/mcp'))
+const McpAuthorize = lazy(() => import('./pages/mcp-authorize'))
 const client = new QueryClient({
   mutationCache: new MutationCache({ onError: error => { if (error instanceof ApiError && error.status === 401) client.invalidateQueries({ queryKey: ['session'] }) } }),
   queryCache: new QueryCache({ onError: (error, query) => { if (error instanceof ApiError && error.status === 401 && query.queryKey[0] !== 'session') client.invalidateQueries({ queryKey: ['session'] }) } }),
@@ -25,6 +27,6 @@ const client = new QueryClient({
 })
 function App() {
   useEffect(() => { document.documentElement.lang = localStorage.getItem('finsight-language') === 'en' ? 'en' : 'de' }, [])
-  return <QueryClientProvider client={client}><LocaleProvider><ThemeProvider><BrowserRouter><AuthGate><Suspense fallback={<div className="state" role="status">FinSight …</div>}><Routes><Route element={<Layout />}><Route index element={<Overview />} /><Route path="accounts" element={<Accounts />} /><Route path="transactions" element={<Transactions />} /><Route path="imports" element={<Imports />} /><Route path="buckets" element={<Buckets />} /><Route path="contracts" element={<Contracts />} /><Route path="insights" element={<Insights />} /><Route path="settings" element={<Settings />} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></AuthGate></BrowserRouter></ThemeProvider></LocaleProvider></QueryClientProvider>
+  return <QueryClientProvider client={client}><LocaleProvider><ThemeProvider><BrowserRouter><AuthGate><Suspense fallback={<div className="state" role="status">FinSight …</div>}><Routes><Route element={<Layout />}><Route index element={<Overview />} /><Route path="accounts" element={<Accounts />} /><Route path="transactions" element={<Transactions />} /><Route path="imports" element={<Imports />} /><Route path="buckets" element={<Buckets />} /><Route path="contracts" element={<Contracts />} /><Route path="insights" element={<Insights />} /><Route path="settings" element={<Settings />} /><Route path="settings/mcp" element={<Mcp />} /><Route path="mcp/authorize" element={<McpAuthorize />} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes></Suspense></AuthGate></BrowserRouter></ThemeProvider></LocaleProvider></QueryClientProvider>
 }
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>)

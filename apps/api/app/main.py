@@ -1,19 +1,39 @@
 import importlib
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 from . import models
 from .auth import require_csrf, router as auth_router
 from .db import get_db
 from .routes import router as finance_router
 from .limits import RequestSizeLimit
+from .mcp_server import CanonicalEndpoint, enabled as mcp_enabled, http_app as mcp_http_app, mcp
+from .mcp_auth import router as mcp_auth_router
 
-app = FastAPI(title="FinSight API", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+@asynccontextmanager
+async def lifespan(app):
+    if mcp_enabled():
+        async with mcp.session_manager.run():
+            yield
+    else:
+        yield
+
+
+app = FastAPI(title="FinSight API", version="0.1.0", docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=lifespan)
 app.add_middleware(RequestSizeLimit)
+app.router.routes.append(Route("/mcp", endpoint=CanonicalEndpoint(mcp_http_app), methods=["GET", "POST", "DELETE", "OPTIONS"]))
+app.mount("/mcp", mcp_http_app)
 app.include_router(auth_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(finance_router, prefix="/api", dependencies=[Depends(require_csrf)])
+
+# OAuth routes have absolute root discovery and /api/mcp paths. Their module
+# applies CSRF selectively: public OAuth exchanges must not inherit cookie CSRF.
+app.include_router(mcp_auth_router)
 
 for module_name in ("ai", "notifications", "jobs"):
     try:

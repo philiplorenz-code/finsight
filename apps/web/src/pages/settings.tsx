@@ -5,6 +5,7 @@ import { api, items, send } from '../lib/api'
 import { formatDate, useLocale } from '../lib/i18n'
 import { useTheme } from '../lib/theme'
 import { Badge, Button, DataTable, Feedback, Field, Notice, PageHeader, Panel, QueryState } from '../components/ui'
+import { McpSettingsLink } from '../components/mcp'
 
 export type AIPolicy = {
   budget_currency: string | null
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const query = useQuery({ queryKey: ['settings'], queryFn: () => api<SettingsData>('/settings') })
   return <>
     <PageHeader title={t('settings')} description={t('settingsIntro')} />
+    <div className="mcp-settings-link"><McpSettingsLink /></div>
     <Panel title={t('appearance')} action={<Monitor size={19} />}>
       <div className="settings-appearance">
         <Field label={t('language')}><select value={language} onChange={e => setLanguage(e.target.value as 'de' | 'en')}><option value="de">Deutsch</option><option value="en">English</option></select></Field>
