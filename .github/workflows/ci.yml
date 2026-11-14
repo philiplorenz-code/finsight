@@ -60,7 +60,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python scripts/privacy_check.py --reviewed-images docs/screenshots/reviewed.json
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
