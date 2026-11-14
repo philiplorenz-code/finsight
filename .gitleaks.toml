@@ -1,0 +1,17 @@
+title = "FinSight gitleaks configuration"
+
+# The repository's authoritative privacy gate is scripts/privacy_check.py, which
+# scans staged and historical content. This configuration only narrows a known
+# gitleaks false positive: empty placeholder assignments in .env.example are read
+# as the start of a secret whose "value" is the following non-empty example line.
+# The allowlist below is intentionally narrow and matches only example placeholders,
+# never real credential values.
+[allowlist]
+description = "example placeholders without secrets"
+regexes = [
+  '''(?m)^NTFY_REMINDER_DAYS=14$''',
+  '''(?m)^NTFY_REMINDER_TIME=09:00$''',
+  '''(?m)^NTFY_QUIET_START=22:00$''',
+  '''(?m)^NTFY_QUIET_END=08:00$''',
+  '''(?m)^AI_MONTHLY_BUDGET_EUR=5\.00$''',
+]

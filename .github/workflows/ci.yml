@@ -58,6 +58,8 @@ jobs:
           python-version: '3.12'
       - run: python scripts/privacy_check.py --reviewed-images docs/screenshots/reviewed.json
       - uses: gitleaks/gitleaks-action@v2
+        with:
+          config: .gitleaks.toml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   compose:
@@ -95,7 +97,8 @@ jobs:
           bash scripts/backup.sh backups/ci.dump
           docker compose stop api worker
           bash scripts/restore.sh backups/ci.dump --confirm-replace-database
-          docker compose up -d api worker
+          docker compose up -d --wait --wait-timeout 120 api worker
+          curl --fail --retry 15 --retry-delay 2 http://localhost:8080/api/health
           python scripts/compose_smoke.py --verify-only
       - if: always()
         run: docker compose down --volumes

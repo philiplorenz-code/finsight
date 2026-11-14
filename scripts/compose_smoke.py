@@ -48,7 +48,21 @@ def main() -> None:
             # Do not print server bodies or potentially sensitive values.
             raise RuntimeError(f"Smoke request failed: {method} {path.split('?')[0]} HTTP {exc.code}") from None
 
-    assert request("/health")["status"] == "ok"
+    def wait_for_health(timeout=90.0, interval=2.0):
+        import time
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                with opener.open(Request(args.base_url + "/health", headers={"Origin": origin}), timeout=10) as response:
+                    if json.load(response).get("status") == "ok":
+                        return
+            except (HTTPError, OSError):
+                pass
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Service did not become healthy in time")
+            time.sleep(interval)
+
+    wait_for_health()
     credentials = {"email": "smoke@example.invalid", "password": hashlib.sha256((bootstrap + "synthetic-smoke").encode()).hexdigest()}
     try:
         opener.open(Request(args.base_url + "/auth/login", data=json.dumps(credentials).encode(),
