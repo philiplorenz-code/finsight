@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift } from 'lucide-react'
 import { send } from '../lib/api'
 import { useLocale, type TranslationKey } from '../lib/i18n'
 import { Brand } from './auth'
@@ -11,7 +11,7 @@ import { useTheme } from '../lib/theme'
 const navigation = [
   { key: 'overview', path: '/', icon: LayoutDashboard }, { key: 'accounts', path: '/accounts', icon: Wallet },
   { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank },
-  { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
+  { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'wishlist', path: '/wishlist', icon: Gift }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
 ] as const
 export function Layout() {
   const { t, language, setLanguage } = useLocale()
