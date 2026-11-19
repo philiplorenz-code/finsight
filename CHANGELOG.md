@@ -13,6 +13,7 @@
 
 - Transfers: money moved between your own accounts is detected by amount/date matching (also after each import) so it no longer counts as income or spending; "Umbuchungen prüfen" on the transactions page previews and applies it (migration 0006).
 - Income rules: optional "from day X count in the next month" so month-end salary is attributed to the month it pays for (migration 0005).
+- Web: upgrade vite 6 → 8 together with @vitejs/plugin-react 4 → 6 (plugin-react 4 does not support vite 8); build, typecheck and unit tests pass.
 - Wishlist saving-plan chart: expected and conservative cash path over 24 months against the cumulative price of open wishes.
 
 - Analysis page with seven charts: income by source, income vs outgoings, monthly surplus, surplus rate, cumulative surplus, spending by category and largest payees.
