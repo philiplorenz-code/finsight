@@ -5,6 +5,7 @@ import json
 import re
 import zipfile
 from collections import Counter, defaultdict
+from functools import lru_cache
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -50,8 +51,15 @@ ALIASES = {
 }
 
 
+@lru_cache(maxsize=4096)
+def _norm(text: str) -> str:
+    return re.sub(r"[\s_\-:/]+", "", text.strip().casefold())
+
+
 def norm(value):
-    return re.sub(r"[\s_\-:/]+", "", str(value).strip().casefold())
+    # Called once per column per row (over a million times for a 13k-row export) with only a few dozen
+    # distinct header strings, so the result is cached.
+    return _norm(str(value))
 
 
 LOOKUP = {norm(alias): field for field, aliases in ALIASES.items() for alias in aliases}

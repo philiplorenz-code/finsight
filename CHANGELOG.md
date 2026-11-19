@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Imports: the upload form imports in the background (immediate response, status updates automatically, interrupted runs are marked failed after 30 minutes) so a large export no longer blocks the web process; header normalisation is cached (about 1.2 million calls per 13k-row export); `scripts/bench-import.py` profiles the importer. A 13k-row re-import of a real export measured about 7 s on PostgreSQL. Closes #47.
 - AI analyst: free-form questions about your finances on the Insights page, answered from rounded aggregates of your own analysis (never single bookings; names only on request) with a "what is sent" preview; budgets and consent reuse the existing AI controls. Progress on #19.
 - Tests: the synthetic workbook helper now produces byte-identical files for identical rows (zip and document timestamps pinned); the duplicate-import test failed rarely when two uploads straddled a clock boundary.
 - Contracts: recurring payments (monthly to yearly, tolerating a missing booking) are detected and classified as insurance, housing, loan, subscription, utility or other; totals per class, cancellation/renegotiation checklist with price increases, stopped contracts, and confirm / dismiss / rename / reclassify decisions that survive re-imports (migration 0010). Closes #37.

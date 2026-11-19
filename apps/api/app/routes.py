@@ -5,11 +5,11 @@ from pathlib import PurePath
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from .auth import current_user
 from .config import settings
@@ -210,10 +210,68 @@ async def preview(file: UploadFile = File(...), user=Depends(current_user)):
             "warnings": warnings, "accounts": len({r["account_key"] for r in rows})}
 
 
+STALE_IMPORT_MINUTES = 30
+
+
+def expire_stale_imports(db, user_id):
+    """A background import that never finished (process restart) must not look 'processing' forever."""
+    from .models import now
+    from datetime import timedelta
+    cutoff = now() - timedelta(minutes=STALE_IMPORT_MINUTES)
+    changed = False
+    for record in db.scalars(select(Import).where(Import.user_id == user_id, Import.status == "processing")):
+        created = record.created_at if record.created_at.tzinfo else record.created_at.replace(tzinfo=cutoff.tzinfo)
+        if created < cutoff:
+            record.status = "failed"
+            record.summary = {"error": "Import interrupted", "retry": "Upload the file again; source uploads are not retained"}
+            changed = True
+    if changed:
+        db.commit()
+
+
+def run_background_import(bind, user_id, data, filename, full_snapshot):
+    """Runs after the HTTP response, in its own session; the upload request never waits for the import."""
+    digest = hashlib.sha256(data).hexdigest()
+    with sessionmaker(bind=bind, expire_on_commit=False)() as session:
+        try:
+            user = session.get(User, user_id)
+            ingest(session, user, data, filename, full_snapshot)
+        except BaseException as exc:
+            session.rollback()
+            record = session.scalar(select(Import).where(Import.user_id == user_id, Import.sha256 == digest))
+            if record is not None and record.status != "completed":
+                unsafe = isinstance(exc, HTTPException)
+                record.status = "failed"
+                record.summary = {"error": "Invalid or unsafe workbook" if unsafe else "Import failed",
+                                  "retry": "Re-upload corrected workbook; source uploads are not retained"}
+                session.commit()
+            if not isinstance(exc, Exception):
+                raise
+
+
 @router.post("/imports")
-async def upload(file: UploadFile = File(...), full_snapshot: bool = Form(False), db: Session = Depends(get_db), user=Depends(current_user)):
+async def upload(background_tasks: BackgroundTasks, file: UploadFile = File(...), full_snapshot: bool = Form(False),
+                 background: bool = Form(False), db: Session = Depends(get_db), user=Depends(current_user)):
     filename = PurePath(file.filename or "upload.xlsx").name[:255]
     data = await upload_bytes(file)
+    if background:
+        digest = hashlib.sha256(data).hexdigest()
+        lock_owner(db, user.id)
+        record = db.scalar(select(Import).where(Import.user_id == user.id, Import.sha256 == digest).execution_options(populate_existing=True))
+        if record is None or record.status != "completed":
+            if record is None:
+                record = Import(user_id=user.id, filename=filename, sha256=digest, status="processing", row_count=0, summary={})
+                db.add(record)
+                db.commit()
+                background_tasks.add_task(run_background_import, db.get_bind(), user.id, data, filename, full_snapshot)
+            elif record.status == "failed":
+                record.status, record.summary = "processing", {}
+                db.commit()
+                background_tasks.add_task(run_background_import, db.get_bind(), user.id, data, filename, full_snapshot)
+            # status "processing": the same file is already being imported; report it instead of starting a second run
+            from fastapi.responses import JSONResponse
+            return JSONResponse({**serialize(record), "duplicate": False, "background": True}, status_code=202)
+        db.rollback()  # an identical completed import is answered below without queueing anything
     try:
         record, duplicate = ingest(db, user, data, filename, full_snapshot)
     except HTTPException:
@@ -244,11 +302,13 @@ async def upload(file: UploadFile = File(...), full_snapshot: bool = Form(False)
 
 @router.get("/imports")
 def imports(db: Session = Depends(get_db), user=Depends(current_user)):
+    expire_stale_imports(db, user.id)
     return serialize(list(db.scalars(select(Import).where(Import.user_id == user.id).order_by(Import.created_at.desc()))))
 
 
 @router.get("/imports/{ident}")
 def get_import(ident: str, db: Session = Depends(get_db), user=Depends(current_user)):
+    expire_stale_imports(db, user.id)
     return serialize(owned(db, Import, ident, user))
 
 
