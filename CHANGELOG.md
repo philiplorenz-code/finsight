@@ -15,6 +15,7 @@
 
 - Analysis page with seven charts: income by source, income vs outgoings, monthly surplus, surplus rate, cumulative surplus, spending by category and largest payees.
 
+- Wishlist: baseline warnings, assumptions and confidence are shown in German in the German UI.
 - Income source rules: split income into employment (Bauhaus), business and unassigned, with per-source averages and weak-quarter values on the wishlist.
 - Tests: the concurrent MCP owner-isolation test now uses a file-backed SQLite database; the shared single connection caused rare CI failures.
 

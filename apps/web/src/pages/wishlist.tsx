@@ -21,6 +21,30 @@ type Wishlist = {
   prefs: { self_names: string[]; reserve_months: number; monthly_tax_reserve: string }
   wishes: WishItem[]; disclaimer: string
 }
+const DE_MESSAGES: Record<string, string> = {
+  'No account is marked as owned; classify accounts before relying on this assessment': 'Kein Konto ist als eigenes Konto markiert; ordne die Konten zu, bevor du dich auf diese Einschätzung verlässt.',
+  'Some transfers are uncertain; the consumption figure may be slightly off': 'Einige Umbuchungen sind unsicher; der Konsum kann leicht abweichen.',
+  'Transaction data is stale; import a fresh export': 'Die Buchungsdaten sind veraltet; importiere einen aktuellen Export.',
+  'Tax accounts exist but no tax outflow was found; set a monthly tax reserve': 'Es gibt Steuerkonten, aber keine Steuerzahlung wurde gefunden; lege eine monatliche Steuerrücklage fest.',
+  'No tax cost is modelled; if you owe tax on irregular income, set a monthly tax reserve': 'Steuern sind nicht eingerechnet; falls du auf unregelmäßige Einnahmen Steuern schuldest, lege eine monatliche Steuerrücklage fest.',
+  'Some observed balances are stale': 'Einige beobachtete Kontostände sind veraltet.',
+  'No observed balances; cash on hand is assumed to be zero': 'Keine beobachteten Kontostände; vorhandenes Geld wird mit null angesetzt.',
+  'Running costs of this and earlier wishes would consume the whole expected surplus': 'Die Folgekosten dieses und früherer Wünsche würden den gesamten erwarteten Überschuss aufbrauchen.',
+  'Surplus = income - consumption - tax, excluding transfers, savings and your own transfers': 'Überschuss = Einnahmen − Konsum − Steuer, ohne Umbuchungen, Sparen und eigene Überweisungen.',
+  'Conservative = lower quartile of monthly surplus; expected = 12-month average': 'Konservativ = unteres Quartil des Monatsüberschusses; erwartet = 12-Monats-Durchschnitt.',
+  'Cash on hand uses observed balances, which are not a complete net worth': 'Das vorhandene Geld basiert auf beobachteten Kontoständen und ist kein vollständiges Vermögen.',
+}
+const DE_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^Only (\d+) complete month\(s\) of data are available$/, m => `Nur ${m[1]} vollständige(r) Monat(e) an Daten verfügbar.`],
+  [/^Wish is in (\w+); assessment covers (\w+) only$/, m => `Der Wunsch ist in ${m[1]}; die Einschätzung deckt nur ${m[2]} ab.`],
+]
+const DE_CONFIDENCE: Record<string, string> = { low: 'niedrig', medium: 'mittel', high: 'hoch' }
+function localize(message: string, language: string) {
+  if (language !== 'de') return message
+  if (DE_MESSAGES[message]) return DE_MESSAGES[message]
+  for (const [re, fn] of DE_PATTERNS) { const m = message.match(re); if (m) return fn(m) }
+  return message
+}
 const tone: Record<string, string> = { affordable: 'success', save_up: '', tight: 'warning', not_now: 'danger', unsupported_currency: 'warning' }
 
 export default function WishlistPage() {
@@ -42,7 +66,7 @@ export default function WishlistPage() {
     <Notice>{data?.disclaimer ?? t('wishDisclaimer')}</Notice>
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>
       {data && <>
-        <Panel title={t('wishBasis')} description={`${t('wishMonths')}: ${data.baseline.months_used} · ${t('wishConfidence')}: ${data.baseline.confidence}`}>
+        <Panel title={t('wishBasis')} description={`${t('wishMonths')}: ${data.baseline.months_used} · ${t('wishConfidence')}: ${language === 'de' ? DE_CONFIDENCE[data.baseline.confidence] ?? data.baseline.confidence : data.baseline.confidence}`}>
           <div className="stat-grid">
             <div className="detail-stat"><span>{t('wishIncome')}</span><Money value={data.baseline.monthly_income} currency={data.baseline.currency} /></div>
             <div className="detail-stat"><span>{t('wishConsumption')}</span><Money value={data.baseline.monthly_consumption} currency={data.baseline.currency} /></div>
@@ -51,8 +75,8 @@ export default function WishlistPage() {
             <div className="detail-stat"><span>{t('wishSurplusConservative')}</span><Money value={data.baseline.conservative_surplus} currency={data.baseline.currency} /></div>
             <div className="detail-stat"><span>{t('wishUsableCash')}</span><Money value={data.baseline.usable_cash} currency={data.baseline.currency} /></div>
           </div>
-          {data.baseline.warnings.map((w, i) => <Notice warning key={i}>{w}</Notice>)}
-          <details><summary>{t('wishAssumptions')}</summary><ul>{data.baseline.assumptions.map((a, i) => <li key={i}>{a}</li>)}</ul></details>
+          {data.baseline.warnings.map((w, i) => <Notice warning key={i}>{localize(w, language)}</Notice>)}
+          <details><summary>{t('wishAssumptions')}</summary><ul>{data.baseline.assumptions.map((a, i) => <li key={i}>{localize(a, language)}</li>)}</ul></details>
         </Panel>
         <Panel title={t('incomeSources')}>
           <div className="stat-grid">{(['employment', 'business', 'other'] as const).map(k => { const s = data.baseline.income_sources?.[k]; return s && <div className="detail-stat" key={k}><span>{t(`src_${k}` as never)} · {Math.round(Number(s.share) * 100)} %</span><Money value={s.monthly_average} currency={data.baseline.currency} /><span className="muted">{t('srcWorst')}: <Money value={s.monthly_lower_quartile} currency={data.baseline.currency} /> · {t('srcMonths')}: {s.months_with_income}/{data.baseline.months_used}</span></div> })}</div>
@@ -74,9 +98,9 @@ export default function WishlistPage() {
             {w.due_date && <div className="bucket-meta muted"><span>{t('due')}</span><span>{formatDate(w.due_date, language)} · {w.assessment.on_time_conservative ? t('wishOnTime') : w.assessment.on_time_expected ? t('wishOnTimeExpected') : t('wishLate')}</span></div>}
             {Number(w.follow_up_monthly_cost) > 0 && <div className="bucket-meta muted"><span>{t('wishFollowUp')}</span><Money value={w.follow_up_monthly_cost} currency={w.currency} /></div>}
             {w.assessment.share_of_annual_surplus != null && <div className="bucket-meta muted"><span>{t('wishShare')}</span><span>{(Number(w.assessment.share_of_annual_surplus) * 100).toFixed(0)} %</span></div>}
-            {w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{m}</Notice>)}
+            {w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{localize(m, language)}</Notice>)}
           </>}
-          {w.assessment?.verdict === 'unsupported_currency' && w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{m}</Notice>)}
+          {w.assessment?.verdict === 'unsupported_currency' && w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{localize(m, language)}</Notice>)}
           <div className="bucket-actions">
             <Button variant="outline" onClick={() => update.mutate({ id: w.id, status: 'bought' })}><Check size={15} />{t('wishBought')}</Button>
             <Button variant="ghost" aria-label={`${t('delete')}: ${w.name}`} onClick={() => remove.mutate(w.id)}><Trash2 size={17} /></Button>
