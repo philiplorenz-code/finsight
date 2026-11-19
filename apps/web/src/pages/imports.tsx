@@ -55,7 +55,7 @@ function DataQuality() {
   const de = language === 'de'
   const query = useQuery({ queryKey: ['data-quality'], queryFn: () => api<Gaps>('/data-quality') })
   const data = query.data
-  if (!data) return null
+  if (!data || !Array.isArray(data.accounts)) return null
   if (!data.accounts.length) return <Panel title={de ? 'Datenqualität' : 'Data quality'}><p className="muted">{de ? 'Keine Lücken in den Buchungen deiner Konten gefunden.' : 'No gaps found in your accounts\' bookings.'}</p></Panel>
   return <Panel title={de ? 'Datenqualität' : 'Data quality'} description={de
     ? `Monate ohne oder mit auffallend wenigen Buchungen und Konten, die früher enden als die übrigen Daten. Das verfälscht Durchschnitte und senkt die Sicherheit der Wunsch-Bewertung. Hervorgehoben: Lücken in den letzten 12 Monaten (ab ${data.window_start_month}). Ein frischer Export oder „inaktiv“ beim Konto löst das.`
