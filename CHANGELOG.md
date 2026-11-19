@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Web: upgrade vite 6 → 8 together with @vitejs/plugin-react 4 → 6 (plugin-react 4 does not support vite 8); build, typecheck and unit tests pass.
 - Wishlist saving-plan chart: expected and conservative cash path over 24 months against the cumulative price of open wishes.
 
 - Analysis page with seven charts: income by source, income vs outgoings, monthly surplus, surplus rate, cumulative surplus, spending by category and largest payees.
