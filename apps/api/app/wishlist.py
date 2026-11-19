@@ -21,6 +21,7 @@ from .auth import current_user
 from .db import get_db
 from .finance import ZERO, contracts, eligible, latest_balance, local_today, serialize
 from .income import SOURCES, load_rules, match_rule, shifts_to_next_month, source_stats
+from .business import TAX_RESERVE_RATE, is_business_expense, load_business_rules
 from .locking import lock_owner
 from .savings import savings_insights
 from .models import Account, Allocation, Transaction, Wish, WishlistPrefs
@@ -93,6 +94,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     expense_by_category: dict[date, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
     expense_by_merchant: dict[str, Decimal] = defaultdict(lambda: ZERO)
     rules = load_rules(db, user_id)
+    business_rules = load_business_rules(db, user_id)
+    business_expenses: dict[date, Decimal] = defaultdict(lambda: ZERO)
     expenses: dict[date, Decimal] = defaultdict(lambda: ZERO)
     tax_paid = ZERO
     if data_through:
@@ -121,6 +124,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 income_by_source[source][key] += tx.amount
                 if source == "other":
                     unassigned[(tx.merchant or "").strip() or "?"] += tx.amount
+            elif is_business_expense(tx, business_rules):
+                business_expenses[key] += -tx.amount
             else:
                 expenses[key] += -tx.amount
                 label = (tx.category_override or tx.category or "").strip() or "Uncategorized"
@@ -139,9 +144,20 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         warnings.append("Tax accounts exist but no tax outflow was found; set a monthly tax reserve")
     if not tax_ids and prefs["monthly_tax_reserve"] == ZERO:
         warnings.append("No tax cost is modelled; if you owe tax on irregular income, set a monthly tax reserve")
-    surplus_series = [income[m] - expenses[m] - tax_monthly for m in months]
+    surplus_series = [income[m] - expenses[m] - business_expenses[m] - tax_monthly for m in months]
     expected = sum(surplus_series, ZERO) / count if count else ZERO
     conservative = min(lower_quartile(surplus_series), expected) if count else ZERO
+    # Business income is the volatile part: also assume its weak-quarter value instead of its average.
+    business_income = [income_by_source["business"][m] for m in months]
+    business_average = sum(business_income, ZERO) / count if count else ZERO
+    business_weak = lower_quartile(business_income) if count else ZERO
+    if count and business_average > business_weak:
+        conservative = min(conservative, expected - (business_average - business_weak))
+    business_profit = business_average - (sum((business_expenses[m] for m in months), ZERO) / count if count else ZERO)
+    business = {"income_monthly": business_average, "income_weak_quarter": business_weak,
+                "expenses_monthly": sum((business_expenses[m] for m in months), ZERO) / count if count else ZERO,
+                "profit_monthly": business_profit,
+                "tax_reserve_suggestion": max(ZERO, business_profit) * TAX_RESERVE_RATE, "tax_reserve_rate": TAX_RESERVE_RATE}
     consumption = sum((expenses[m] for m in months), ZERO) / count if count else ZERO
     monthly_income = sum((income[m] for m in months), ZERO) / count if count else ZERO
 
@@ -157,6 +173,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         "months": [m.isoformat() for m in months],
         "income": {s: [income_by_source[s][m] for m in months] for s in SOURCES},
         "expenses": [expenses[m] for m in months],
+        "business_expenses": [business_expenses[m] for m in months],
         "tax": [tax_monthly for _ in months],
         "surplus": surplus_series,
         "categories": {c: [expense_by_category[m].get(c, ZERO) for m in months] for c in top_categories},
@@ -188,14 +205,15 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     usable = max(ZERO, cash - allocated - reserve)
     confident = count >= MIN_MONTHS_FOR_MEDIUM_CONFIDENCE and observed and not any("stale" in w for w in warnings)
     return {"currency": currency, "months_used": count, "data_through": data_through,
-            "series": series, "savings": savings, "income_sources": sources, "unassigned_income": top_unassigned,
+            "series": series, "savings": savings, "business": business, "income_sources": sources, "unassigned_income": top_unassigned,
             "monthly_income": monthly_income, "monthly_consumption": consumption, "monthly_tax": tax_monthly,
             "expected_surplus": expected, "conservative_surplus": conservative,
             "cash_on_hand": cash, "allocated": allocated, "reserve_months": prefs["reserve_months"],
             "reserve": reserve, "usable_cash": usable,
             "confidence": "medium" if confident else "low",
             "assumptions": ["Surplus = income - consumption - tax, excluding transfers, savings and your own transfers",
-                            "Conservative = lower quartile of monthly surplus; expected = 12-month average",
+                            "Conservative = lower quartile of monthly surplus, and business income at its weak-quarter value; expected = 12-month average",
+                            "Business expenses (your rules) are reported apart from private consumption but still reduce the surplus",
                             "Cash on hand uses observed balances, which are not a complete net worth"],
             "warnings": sorted(set(warnings))}
 
@@ -314,7 +332,7 @@ def get_analytics(currency: str = "EUR", db: Session = Depends(get_db), user=Dep
         raise HTTPException(422, "Invalid currency")
     base = baseline(db, user.id, currency)
     return serialize({"currency": currency, "months_used": base["months_used"], "data_through": base["data_through"],
-                      "monthly_tax": base["monthly_tax"], "series": base["series"], "savings": base["savings"],
+                      "monthly_tax": base["monthly_tax"], "series": base["series"], "savings": base["savings"], "business": base["business"],
                       "income_sources": base["income_sources"]})
 
 

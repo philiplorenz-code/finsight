@@ -79,3 +79,9 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - `GET /api/net-worth?currency=EUR`: observed balances of owned included accounts plus manual holdings, each split into the user's share (`mine`) and the part that belongs to others (`others`). Negative account balances count as liabilities. Returns `totals` (`assets_mine/others`, `liabilities_mine/others`, `net_worth_mine/others/gross`, `monthly_debt_service`), `accounts`, `holdings` (liabilities include `months_left`/`payoff_date` from payment and interest rate) and a 24-month account-balance `history`.
 - `POST /api/holdings`, `PATCH /api/holdings/{id}`, `DELETE /api/holdings/{id}`: `name`, `kind` (`asset|liability`), `category` (`car|property|loan|depot|cash|other`), `value`, `currency`, `share` (0-100, the user's percentage), optional `monthly_payment`, `interest_rate`, `note`.
 - `PATCH /api/accounts/{id}` accepts `owner_share` (0-100).
+
+## Business expense rules
+
+- `GET/POST /api/business-rules`, `PATCH/DELETE /api/business-rules/{id}`: `name`, optional `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), optional exact `category` (effective category, case-insensitive), optional `account_id`, `position`. A rule needs at least one condition and matches an outflow when all set conditions hold.
+- Matching outflows count as business expenses: they leave private consumption, categories and top payees, and appear as `series.business_expenses`; the total surplus is unchanged.
+- Wishlist and analytics responses carry `business`: `income_monthly`, `income_weak_quarter`, `expenses_monthly`, `profit_monthly`, and `tax_reserve_suggestion` (30 % of positive profit, a rough planning figure that is never applied automatically). The conservative surplus additionally assumes business income at its weak-quarter value.
