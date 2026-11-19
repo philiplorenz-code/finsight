@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Monitor, ShieldCheck, Sparkles } from 'lucide-react'
+import { Bell, KeyRound, Monitor, ShieldCheck, Sparkles } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import { formatDate, useLocale } from '../lib/i18n'
 import { useTheme } from '../lib/theme'
@@ -33,6 +33,7 @@ export default function SettingsPage() {
         <Field label={t('theme')}><div className="segmented"><button aria-pressed={!dark} onClick={() => { if (dark) toggle() }}>{t('light')}</button><button aria-pressed={dark} onClick={() => { if (!dark) toggle() }}>{t('dark')}</button></div></Field>
       </div>
     </Panel>
+    <AccountSecurity />
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>{query.data && <IntegrationSettings initial={query.data} />}</QueryState>
     <NotificationHistory />
   </>
@@ -121,4 +122,45 @@ function NotificationHistory() {
       <DataTable headers={[t('date'), language === 'de' ? 'Ereignis' : 'Event', t('status'), language === 'de' ? 'Hinweis' : 'Note']}>{items(query.data).map(n => <tr key={n.id}><td>{formatDate(n.created_at, language)}</td><td>{n.event}</td><td><Badge>{n.state}</Badge></td><td className="muted">{n.reason || '—'}</td></tr>)}</DataTable>
     </QueryState>
   </Panel></div>
+}
+
+
+function AccountSecurity() {
+  const { language } = useLocale()
+  const de = language === 'de'
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api<{ email: string }>('/auth/me') })
+  const [pw, setPw] = useState({ current: '', next: '', repeat: '' })
+  const [mail, setMail] = useState({ current: '', email: '' })
+  const mismatch = pw.next !== pw.repeat
+  const changePassword = useMutation({
+    mutationFn: () => send<{ sessions_revoked: number }>('/auth/change-password', { current_password: pw.current, new_password: pw.next }),
+    onSuccess: () => setPw({ current: '', next: '', repeat: '' }),
+  })
+  const changeEmail = useMutation({
+    mutationFn: () => send<{ email: string }>('/auth/change-email', { current_password: mail.current, email: mail.email }),
+    onSuccess: () => { setMail({ current: '', email: '' }); me.refetch() },
+  })
+  return <Panel title={de ? 'Anmeldedaten' : 'Sign-in'} action={<KeyRound size={19} />} description={de
+    ? `Angemeldet als ${me.data?.email ?? '…'}. Für jede Änderung brauchst du dein aktuelles Passwort. Nach einer Passwortänderung werden alle anderen Geräte abgemeldet.`
+    : `Signed in as ${me.data?.email ?? '…'}. Changes need your current password; after a password change all other devices are signed out.`}>
+    <div className="settings-grid-2">
+      <form className="form-stack" onSubmit={e => { e.preventDefault(); if (!mismatch) changePassword.mutate() }}>
+        <h3>{de ? 'Passwort ändern' : 'Change password'}</h3>
+        <Field label={de ? 'Aktuelles Passwort' : 'Current password'}><input required type="password" autoComplete="current-password" value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} /></Field>
+        <Field label={de ? 'Neues Passwort' : 'New password'} hint={de ? 'Mindestens 12 Zeichen.' : 'At least 12 characters.'}><input required type="password" autoComplete="new-password" minLength={12} maxLength={1024} value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} /></Field>
+        <Field label={de ? 'Neues Passwort wiederholen' : 'Repeat new password'}><input required type="password" autoComplete="new-password" value={pw.repeat} onChange={e => setPw({ ...pw, repeat: e.target.value })} /></Field>
+        {pw.repeat && mismatch && <Notice warning>{de ? 'Die beiden neuen Passwörter stimmen nicht überein.' : 'The two new passwords do not match.'}</Notice>}
+        <Feedback error={changePassword.error} success={changePassword.isSuccess} />
+        {changePassword.isSuccess && <p className="muted">{de ? `Passwort geändert, ${changePassword.data?.sessions_revoked ?? 0} andere Sitzung(en) abgemeldet.` : `Password changed, ${changePassword.data?.sessions_revoked ?? 0} other session(s) signed out.`}</p>}
+        <Button busy={changePassword.isPending} disabled={mismatch || pw.next.length < 12}>{de ? 'Passwort ändern' : 'Change password'}</Button>
+      </form>
+      <form className="form-stack" onSubmit={e => { e.preventDefault(); changeEmail.mutate() }}>
+        <h3>{de ? 'E-Mail ändern' : 'Change e-mail'}</h3>
+        <Field label={de ? 'Neue E-Mail-Adresse' : 'New e-mail address'}><input required type="email" autoComplete="email" maxLength={254} value={mail.email} onChange={e => setMail({ ...mail, email: e.target.value })} /></Field>
+        <Field label={de ? 'Aktuelles Passwort' : 'Current password'}><input required type="password" autoComplete="current-password" value={mail.current} onChange={e => setMail({ ...mail, current: e.target.value })} /></Field>
+        <Feedback error={changeEmail.error} success={changeEmail.isSuccess} />
+        <Button busy={changeEmail.isPending}>{de ? 'E-Mail ändern' : 'Change e-mail'}</Button>
+      </form>
+    </div>
+  </Panel>
 }

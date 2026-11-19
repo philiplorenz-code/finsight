@@ -110,3 +110,9 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 
 - `POST /api/imports` with form field `background=true` creates the import record (`status: processing`) and returns `202` at once; the import runs after the response in its own session. Poll `GET /api/imports` (or `/imports/{id}`) until `status` is `completed` or `failed`. An identical completed file still answers `200` with `duplicate: true`; an identical file that is already running is reported (`202`) and not started twice. Without `background` the import stays synchronous.
 - A `processing` import older than 30 minutes (for example after a restart) is shown as `failed` with `error: "Import interrupted"`; upload the file again.
+
+## Changing credentials
+
+- `POST /api/auth/change-password` `{current_password, new_password (12-1024 chars)}`: verifies the current password (403 otherwise), requires a different new password (422), stores a new Argon2 hash and deletes all other sessions of the user while the calling session stays valid. Returns `{ok, sessions_revoked}`.
+- `POST /api/auth/change-email` `{current_password, email}`: verifies the current password, normalizes the address (trim, lowercase), rejects invalid (422) or taken (409) addresses.
+- Both calls share the login rate limit (10 attempts per client per 15 minutes, 429 afterwards) and require the CSRF token.
