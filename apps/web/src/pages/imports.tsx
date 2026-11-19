@@ -5,6 +5,7 @@ import { api, items } from '../lib/api'
 import type { Import } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
 import { Badge, Button, DataTable, Feedback, Notice, PageHeader, Panel, QueryState } from '../components/ui'
+import { NewAccountsPrompt } from '../components/new-accounts'
 
 type Preview = { row_count?: number; columns?: string[]; warnings?: string[]; preview?: Record<string, unknown>[]; rows?: Record<string, unknown>[]; preview_id?: string }
 export default function ImportsPage() {
@@ -40,6 +41,7 @@ export default function ImportsPage() {
       </div>}
     </Panel>
     {items(query.data).some(i => i.status === 'processing') && <Notice>{language === 'de' ? 'Ein Import läuft im Hintergrund. Du kannst die Seite verlassen; der Status aktualisiert sich automatisch.' : 'An import is running in the background. You can leave this page; the status updates automatically.'}</Notice>}
+    <NewAccountsPrompt />
     <DataQuality />
     <Panel title={t('history')} description={t('reconciliation')}>
       <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!items(query.data).length}>

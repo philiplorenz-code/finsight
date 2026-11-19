@@ -334,6 +334,7 @@ def ingest(db, user, data, filename, full_snapshot=False):
     db.add(record)
     db.flush()
     added = changed = unchanged = 0
+    new_accounts = 0
     touched, seen, balances = set(), set(), {}
     for row in rows:
         account = accounts.get(row["account_key"])
@@ -342,6 +343,7 @@ def ingest(db, user, data, filename, full_snapshot=False):
             db.add(account)
             db.flush()
             accounts[account.source_key] = account
+            new_accounts += 1
         touched.add(account.id)
         key = (account.id, row["source_key"])
         seen.add(key)
@@ -422,7 +424,7 @@ def ingest(db, user, data, filename, full_snapshot=False):
     from .category_rules import apply_category_rules
     apply_category_rules(db, user.id)
     record.status = "completed"
-    record.summary = {"added": added, "changed": changed, "unchanged": unchanged, "missing": missing,
+    record.summary = {"added": added, "changed": changed, "unchanged": unchanged, "missing": missing, "new_accounts": new_accounts,
                       "columns": headers, "unknown_columns": unknown, "warnings": sorted(set(warnings)), "full_snapshot": full_snapshot}
     db.commit()
     return record, False

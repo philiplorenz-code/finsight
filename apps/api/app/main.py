@@ -12,6 +12,7 @@ from .db import get_db
 from .routes import router as finance_router
 from .income import router as income_router
 from .transfers import router as transfers_router
+from .account_setup import router as account_setup_router
 from .category_rules import router as category_rules_router
 from .ai_analyst import router as ai_analyst_router
 from .recurring import router as recurring_router
@@ -42,6 +43,7 @@ app.include_router(finance_router, prefix="/api", dependencies=[Depends(require_
 app.include_router(wishlist_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(income_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(transfers_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(account_setup_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(category_rules_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(ai_analyst_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(recurring_router, prefix="/api", dependencies=[Depends(require_csrf)])

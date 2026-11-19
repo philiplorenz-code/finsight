@@ -7,6 +7,7 @@ import { overviewForCurrency, periodDates, type RawOverview } from '../lib/adapt
 import { formatDate, useLocale } from '../lib/i18n'
 import { Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { CashflowChart, SpendingChart } from '../components/charts'
+import { NewAccountsPrompt } from '../components/new-accounts'
 
 export default function OverviewPage() {
   const { t, language } = useLocale()
@@ -51,6 +52,7 @@ export default function OverviewPage() {
         <div className="stat-top"><span>{t(label)}</span><span className={`stat-icon ${color}`}><Icon size={18} /></span></div>
         <Money value={value} currency={currency} /><p><span className={`tiny-dot ${color}`} />{note}</p>
       </article>)}</div>
+      <NewAccountsPrompt />
       <DataHints warnings={data?.warnings} language={language} />
       <div className="charts-grid"><CashflowChart trends={data?.trends} currency={currency} /><SpendingChart categories={data?.categories} currency={currency} /></div>
       <div className="bottom-grid">
