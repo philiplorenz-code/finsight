@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from .auth import current_user
 from .db import get_db
-from .finance import ZERO, latest_balance, local_today, serialize
+from .finance import ZERO, balance_is_stale, latest_balance, local_today, serialize
 from .locking import lock_owner
 from .models import Account, Holding
 
@@ -70,7 +70,7 @@ def net_worth(db: Session, user_id: str, currency: str = "EUR") -> dict:
         if not obs:
             missing += 1
             continue
-        if (today - obs.observed_date).days > 7:
+        if balance_is_stale(account, obs, today):
             stale += 1
         mine, others = split(obs.amount, account.owner_share)
         rows.append({"id": account.id, "name": account.name, "purpose": account.purpose, "balance": obs.amount,

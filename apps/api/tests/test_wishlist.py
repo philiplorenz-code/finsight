@@ -303,3 +303,19 @@ def test_business_rules_split_expenses_and_make_conservative_cautious(owner, db)
     assert len(owner.get("/api/business-rules").json()) == 2
     assert owner.delete(f"/api/business-rules/{rid}").status_code == 200
     assert owner.delete(f"/api/business-rules/{rid}").status_code == 404
+
+
+def test_full_snapshot_confirms_balance_freshness(owner, db):
+    from app.models import Account
+    assert upload(owner, [booking("old", "10", day="2026-01-05", **{"Kontostand": "100"})]).status_code == 200
+    account = owner.get("/api/accounts").json()[0]
+    assert owner.patch(f"/api/accounts/{account['id']}", json={"ownership": "owned"}).status_code == 200
+    assert owner.get("/api/net-worth").json()["stale_balances"] == 1, "last booking is months old"
+    partial = upload(owner, [booking("old", "10", day="2026-01-05", **{"Kontostand": "100"}), booking("n1", "5", day="2026-01-06", **{"Kontostand": "105"})])
+    assert partial.status_code == 200 and owner.get("/api/net-worth").json()["stale_balances"] == 1, "a non-full import confirms nothing"
+    full = upload(owner, [booking("old", "10", day="2026-01-05", **{"Kontostand": "100"}), booking("n2", "7", day="2026-01-07", **{"Kontostand": "112"})],
+                  data={"full_snapshot": "true"})
+    assert full.status_code == 200
+    db.expire_all()
+    assert db.query(Account).one().confirmed_through is not None
+    assert owner.get("/api/net-worth").json()["stale_balances"] == 0, "the account is in the latest full import"

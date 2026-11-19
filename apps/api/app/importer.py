@@ -15,6 +15,7 @@ from openpyxl.utils.datetime import from_excel
 from sqlalchemy import select
 
 from .config import settings
+from .finance import local_today
 from .locking import lock_owner
 from .models import Account, Balance, Import, Transaction, TransactionRevision
 
@@ -366,6 +367,10 @@ def ingest(db, user, data, filename, full_snapshot=False):
                 tx.missing_from_latest = True
                 missing += 1
         warnings.append("Missing records flagged only for accounts present in this explicitly declared full snapshot")
+        confirmed_on = local_today(db, user.id)
+        for account in accounts.values():
+            if account.id in touched:
+                account.confirmed_through = confirmed_on
     for (account_id, observed_date), amount in balances.items():
         db.add(Balance(account_id=account_id, import_id=record.id, observed_date=observed_date, amount=amount))
     db.flush()
