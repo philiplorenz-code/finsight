@@ -52,6 +52,7 @@ class Account(Base):
     ownership: Mapped[str] = mapped_column(String(20), default="unknown")
     purpose: Mapped[str] = mapped_column(String(80), default="checking")
     inactive: Mapped[bool] = mapped_column(Boolean, default=False)
+    owner_share: Mapped[Decimal] = mapped_column(Numeric(7, 4), default=Decimal(100))
 
 
 class Import(Base):
@@ -197,4 +198,22 @@ class IncomeRule(Base):
     account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     shift_from_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class Holding(Base):
+    """Manually tracked asset or liability (car, loan, property, depot) with the user's ownership share."""
+    __tablename__ = "holdings"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(300))
+    kind: Mapped[str] = mapped_column(String(20))
+    category: Mapped[str] = mapped_column(String(40), default="other")
+    value: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    share: Mapped[Decimal] = mapped_column(Numeric(7, 4), default=Decimal(100))
+    monthly_payment: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
+    interest_rate: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    valued_on: Mapped[date] = mapped_column(Date, default=date.today)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
