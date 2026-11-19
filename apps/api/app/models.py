@@ -160,3 +160,26 @@ class Setting(Base):
     __tablename__ = "settings"
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
     data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class Wish(Base):
+    __tablename__ = "wishes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(300))
+    price: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    priority: Mapped[int] = mapped_column(Integer, default=3)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    follow_up_monthly_cost: Mapped[Decimal] = mapped_column(Numeric(24, 8), default=Decimal("0"))
+    note: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class WishlistPrefs(Base):
+    __tablename__ = "wishlist_prefs"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    self_names: Mapped[list] = mapped_column(JSON, default=list)
+    reserve_months: Mapped[int] = mapped_column(Integer, default=3)
+    monthly_tax_reserve: Mapped[Decimal] = mapped_column(Numeric(24, 8), default=Decimal("0"))

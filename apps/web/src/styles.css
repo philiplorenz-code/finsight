@@ -295,3 +295,10 @@
   input:not([type=checkbox]), select, textarea, .search-field input, .period-controls select, .transaction-toolbar > select { font-size: 16px; }
   .dialog { margin: auto; overscroll-behavior: contain; }
 }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 24px; }
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 6px; }
+.badge.success { background: #e1f1e4; color: #2f6b3d; }
+.dark .badge.success { background: #1f3326; color: #9fd3ac; }
+.badge.danger { background: #f6e1de; color: #8a3a31; }
+.dark .badge.danger { background: #3d2623; color: #e6a79f; }
