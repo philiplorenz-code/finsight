@@ -12,6 +12,7 @@ from .db import get_db
 from .routes import router as finance_router
 from .income import router as income_router
 from .transfers import router as transfers_router
+from .ai_analyst import router as ai_analyst_router
 from .recurring import router as recurring_router
 from .quality import router as quality_router
 from .business import router as business_router
@@ -40,6 +41,7 @@ app.include_router(finance_router, prefix="/api", dependencies=[Depends(require_
 app.include_router(wishlist_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(income_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(transfers_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(ai_analyst_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(recurring_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(quality_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(business_router, prefix="/api", dependencies=[Depends(require_csrf)])

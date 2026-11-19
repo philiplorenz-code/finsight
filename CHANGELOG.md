@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- AI analyst: free-form questions about your finances on the Insights page, answered from rounded aggregates of your own analysis (never single bookings; names only on request) with a "what is sent" preview; budgets and consent reuse the existing AI controls. Progress on #19.
 - Tests: the synthetic workbook helper now produces byte-identical files for identical rows (zip and document timestamps pinned); the duplicate-import test failed rarely when two uploads straddled a clock boundary.
 - Contracts: recurring payments (monthly to yearly, tolerating a missing booking) are detected and classified as insurance, housing, loan, subscription, utility or other; totals per class, cancellation/renegotiation checklist with price increases, stopped contracts, and confirm / dismiss / rename / reclassify decisions that survive re-imports (migration 0010). Closes #37.
 - Data quality: per-account report of empty months, unusually quiet months and accounts that end earlier than the rest (imports page); gaps in the analysis window lower the wishlist confidence and add a hint. Closes #42.

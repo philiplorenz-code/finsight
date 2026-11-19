@@ -1,0 +1,118 @@
+"""AI analyst with a local fake provider: no network, no real data."""
+import asyncio
+import json
+from datetime import date
+from decimal import Decimal
+
+import pytest
+from sqlalchemy import select
+
+import app.ai_analyst as analyst
+from app.ai import AIBlocked, AIPolicy, AIRun
+from app.models import Finding, User
+from app.wishlist import baseline
+from conftest import booking, upload
+from test_wishlist import workbook
+
+
+def enable(db, user_id, **kwargs):
+    values = dict(owner_id=user_id, enabled=True, external_consent=True, proactive_consent=False, model="synthetic/model",
+                  prices={"synthetic/model": {"input": "1", "output": "2", "currency": "EUR", "verified": True}},
+                  total_limit=Decimal("5"), monthly_limit=Decimal("5"), run_limit=Decimal("1"), budget_currency="EUR",
+                  channel_limits={"chat": "5"}, max_concurrent=2, max_input_tokens=8000, max_output_tokens=800,
+                  max_steps=3, max_tools=1, timeout_seconds=5)
+    values.update(kwargs)
+    row = AIPolicy(**values)
+    db.add(row)
+    db.commit()
+    return row
+
+
+class Fake:
+    def __init__(self, answer="Kurzantwort: ok.", usage=None):
+        self.calls, self.answer = [], answer
+        self.usage = {"prompt_tokens": 1200, "completion_tokens": 80} if usage is None else usage
+
+    async def __call__(self, model, messages, max_tokens, timeout, **kwargs):
+        self.calls.append({"model": model, "messages": messages})
+        return self.answer, self.usage
+
+
+def seed(owner, db):
+    workbook(owner, [booking("shop", "-100", day="2026-03-10", **{"Kategorie": "Einkaufen", "Empfänger": "Geheimer Laden"})])
+    assert owner.post("/api/income-rules", json={"name": "B", "source": "employment", "pattern": "synthetic"}).status_code == 201
+    return db.scalar(select(User.id))
+
+
+def test_context_is_aggregated_rounded_and_has_no_names_by_default(owner, db):
+    uid = seed(owner, db)
+    owner.post("/api/wishes", json={"name": "Privates Wunsch", "price": "999.49", "priority": 1})
+    ctx = analyst.build_context(db, uid)
+    text = json.dumps(ctx, ensure_ascii=False)
+    assert "Geheimer Laden" not in text and "Privates Wunsch" not in text and "Synthetic shop" not in text
+    assert ctx["currency"] == "EUR" and ctx["months_analyzed"] == 6
+    assert ctx["monthly_averages"]["income"] == 3000 and isinstance(ctx["monthly_averages"]["income"], int)
+    assert ctx["open_wishes"][0]["price"] == 999 and "name" not in ctx["open_wishes"][0]
+    assert {"recent_months", "spending_categories", "recurring_contracts", "net_worth", "data_quality"} <= set(ctx)
+    assert len(ctx["recent_months"]) <= 12 and all(set(r) == {"month", "income", "private_spending", "business_spending", "surplus"} for r in ctx["recent_months"])
+    with_names = analyst.build_context(db, uid, include_names=True)
+    assert with_names["open_wishes"][0]["name"] == "Privates Wunsch"
+
+
+def test_names_are_cleaned_and_bounded():
+    assert analyst.clean("a\nb\x00c   d" + "x" * 100, 10) == "a b c dxxx"
+    assert analyst.euro(None) == 0 and analyst.euro("999.49") == 999 and analyst.euro("999.5") in (999, 1000)
+
+
+def test_ask_charges_the_budget_stores_a_finding_and_returns_what_was_sent(owner, db):
+    uid = seed(owner, db)
+    enable(db, uid)
+    fake = Fake()
+    result = asyncio.run(analyst.execute_ask(db, uid, analyst.AskRequest(question="Wo kann ich sparen?"), provider=fake))
+    assert result["answer"] == "Kurzantwort: ok." and result["sent"]["currency"] == "EUR"
+    sent = fake.calls[0]["messages"]
+    assert sent[0]["role"] == "system" and "keine Anlage" in sent[0]["content"]
+    assert "Wo kann ich sparen?" in sent[1]["content"] and "Geheimer Laden" not in sent[1]["content"]
+    run = db.scalar(select(AIRun))
+    assert run.state == "settled" and run.input_tokens == 1200 and run.charged == Decimal("1200") / 10**6 * 1 + Decimal("80") / 10**6 * 2
+    assert db.scalar(select(Finding).where(Finding.kind == "ai")).body == "Kurzantwort: ok."
+
+
+def test_ask_is_blocked_without_consent_and_sends_nothing(owner, db):
+    uid = seed(owner, db)
+    fake = Fake()
+    with pytest.raises(AIBlocked, match="external_ai_disabled"):
+        asyncio.run(analyst.execute_ask(db, uid, analyst.AskRequest(question="Hallo Welt"), provider=fake))
+    enable(db, uid, enabled=True, external_consent=False)
+    with pytest.raises(AIBlocked, match="external_ai_disabled"):
+        asyncio.run(analyst.execute_ask(db, uid, analyst.AskRequest(question="Hallo Welt"), provider=fake))
+    assert fake.calls == []
+
+
+def test_unverified_usage_keeps_liability_and_empty_answers_are_rejected(owner, db):
+    uid = seed(owner, db)
+    enable(db, uid)
+    with pytest.raises(AIBlocked, match="provider_usage_unverified"):
+        asyncio.run(analyst.execute_ask(db, uid, analyst.AskRequest(question="Hallo Welt"), provider=Fake(usage={})))
+    assert db.scalar(select(AIRun)).state == "uncertain"
+    with pytest.raises(AIBlocked, match="output_limit"):
+        asyncio.run(analyst.execute_ask(db, uid, analyst.AskRequest(question="Nochmal"), provider=Fake(answer="  ")))
+
+
+def test_endpoint_preview_and_ask_with_fake_provider(owner, db, monkeypatch):
+    uid = seed(owner, db)
+    preview = owner.get("/api/ai/context").json()
+    assert preview["context"]["months_analyzed"] == 6 and "Finanzanalyst" in preview["system_prompt"]
+    assert owner.get("/api/ai/context?currency=eur").status_code == 422
+    assert owner.post("/api/ai/ask", json={"question": "x"}).status_code == 422, "too short"
+    assert owner.post("/api/ai/ask", json={"question": "Hallo Welt", "bogus": 1}).status_code == 422
+    assert owner.post("/api/ai/ask", json={"question": "Hallo Welt"}).status_code == 409, "no consent configured"
+    enable(db, uid)
+    monkeypatch.setitem(analyst.PROVIDER, "call", Fake())
+    ok = owner.post("/api/ai/ask", json={"question": "Wo kann ich sparen?"})
+    assert ok.status_code == 200 and ok.json()["answer"] and ok.json()["sent"]["currency"] == "EUR"
+
+
+def test_requires_login(client):
+    assert client.get("/api/ai/context").status_code in {401, 403}
+    assert client.post("/api/ai/ask", json={"question": "Hallo Welt"}).status_code in {401, 403}
