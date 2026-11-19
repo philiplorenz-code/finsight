@@ -234,3 +234,39 @@ def test_transfer_detection_pairs_owned_accounts_and_keeps_salary(owner, db):
     assert not any(t.is_transfer for t in db.query(Transaction).filter(Transaction.merchant.in_(["Bauhaus AG", "Vermieter"])))
     again = owner.post("/api/transfers/detect").json()
     assert again["pairs"] == 1 and again["newly_marked"] == 2, "recomputed from scratch, same result"
+
+
+def test_savings_insights_fixed_variable_and_potential(owner, db):
+    from app.savings import is_fixed, savings_insights
+    months = [date(2026, m, 1) for m in range(1, 9)]
+    by_cat = {m: {"Miete": D(800), "Essen": D(200) if i < 5 else D(350), "Einmalig": D(900) if i == 2 else D(0)}
+              for i, m in enumerate(months)}
+    out = savings_insights(months, by_cat, {"items": [{"name": "Netflix", "monthly_cost": "12", "period": "monthly", "source": "export"}]})
+    assert out["enough_data"] and out["recurring_monthly"] == D(12)
+    cats = {c["category"]: c for c in out["categories"]}
+    assert cats["Miete"]["fixed"] and not cats["Essen"]["fixed"]
+    assert cats["Essen"]["delta"] == D(350) - D(200), "last 3 months against the 5 before"
+    assert out["potential_monthly"] == D(150) and out["potential_categories"] == ["Essen"]
+    assert "Einmalig" not in out["potential_categories"], "a single one-off month is not a trend"
+    assert out["fixed_monthly"] == D(800)
+    assert len(out["fixed_by_month"]) == len(out["variable_by_month"]) == 8
+    assert not is_fixed([D(100), D(0), D(0), D(100)])
+    short = savings_insights(months[:3], {m: by_cat[m] for m in months[:3]})
+    assert short["enough_data"] is False and short["potential_monthly"] == 0
+
+
+def test_analytics_includes_savings_but_wishlist_does_not(owner):
+    workbook(owner)
+    data = owner.get("/api/analytics").json()
+    assert data["savings"]["enough_data"] is True and "categories" in data["savings"]
+    assert "savings" not in owner.get("/api/wishlist").json()["baseline"]
+
+
+def test_savings_rent_with_gap_and_spike_is_fixed_not_a_trend():
+    from app.savings import savings_insights
+    rent = [950, 950, 950, 950, 950, 950, 950, 0, 0, 950, 950, 1260]
+    months = [date(2025 + (m > 11), (m % 12) + 1, 1) for m in range(12)]
+    out = savings_insights(months, {m: {"Miete": D(rent[i])} for i, m in enumerate(months)})
+    row = out["categories"][0]
+    assert row["fixed"] and row["delta"] == 0
+    assert out["potential_monthly"] == 0 and out["fixed_monthly"] > 0

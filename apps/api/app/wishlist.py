@@ -19,9 +19,10 @@ from sqlalchemy.orm import Session
 
 from .auth import current_user
 from .db import get_db
-from .finance import ZERO, eligible, latest_balance, local_today, serialize
+from .finance import ZERO, contracts, eligible, latest_balance, local_today, serialize
 from .income import SOURCES, load_rules, match_rule, shifts_to_next_month, source_stats
 from .locking import lock_owner
+from .savings import savings_insights
 from .models import Account, Allocation, Transaction, Wish, WishlistPrefs
 
 router = APIRouter(tags=["wishlist"])
@@ -165,6 +166,9 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                           for m, v in sorted(expense_by_merchant.items(), key=lambda kv: -kv[1])[:10]],
     }
 
+    recurring = {"items": [i for i in contracts(db, user_id)["items"] if i["currency"] == currency]}
+    savings = savings_insights(months, expense_by_category, recurring)
+
     cash = ZERO
     observed = 0
     for account in accounts:
@@ -184,7 +188,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     usable = max(ZERO, cash - allocated - reserve)
     confident = count >= MIN_MONTHS_FOR_MEDIUM_CONFIDENCE and observed and not any("stale" in w for w in warnings)
     return {"currency": currency, "months_used": count, "data_through": data_through,
-            "series": series, "income_sources": sources, "unassigned_income": top_unassigned,
+            "series": series, "savings": savings, "income_sources": sources, "unassigned_income": top_unassigned,
             "monthly_income": monthly_income, "monthly_consumption": consumption, "monthly_tax": tax_monthly,
             "expected_surplus": expected, "conservative_surplus": conservative,
             "cash_on_hand": cash, "allocated": allocated, "reserve_months": prefs["reserve_months"],
@@ -292,7 +296,7 @@ def overview_payload(db, user, currency="EUR"):
     wishes = list(db.scalars(select(Wish).where(Wish.user_id == user.id).order_by(Wish.created_at)))
     assessments = {a["id"]: a for a in assess(base, wishes, today)}
     prefs = get_prefs(db, user.id)
-    return serialize({"baseline": {k: v for k, v in base.items() if k != "series"}, "prefs": prefs,
+    return serialize({"baseline": {k: v for k, v in base.items() if k not in {"series", "savings"}}, "prefs": prefs,
                       "wishes": [{**wish_json(w), "assessment": assessments.get(w.id)} for w in wishes],
                       "disclaimer": "Planning aid based on your own data; not financial, tax or investment advice."})
 
@@ -310,7 +314,7 @@ def get_analytics(currency: str = "EUR", db: Session = Depends(get_db), user=Dep
         raise HTTPException(422, "Invalid currency")
     base = baseline(db, user.id, currency)
     return serialize({"currency": currency, "months_used": base["months_used"], "data_through": base["data_through"],
-                      "monthly_tax": base["monthly_tax"], "series": base["series"],
+                      "monthly_tax": base["monthly_tax"], "series": base["series"], "savings": base["savings"],
                       "income_sources": base["income_sources"]})
 
 

@@ -3,13 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
-import { Notice, PageHeader, Panel, QueryState } from '../components/ui'
+import { Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Series = {
   months: string[]; income: Record<string, string[]>; expenses: string[]; tax: string[]; surplus: string[]
   categories: Record<string, string[]>; other_categories: string[]; top_merchants: { merchant: string; total: string }[]
 }
-type Analytics = { currency: string; months_used: number; data_through: string | null; series: Series }
+type SavingsCat = { category: string; average: string; recent: string; prior: string; delta: string; share: string; fixed: boolean; months_with_spend: number }
+type Savings = {
+  enough_data: boolean; categories: SavingsCat[]; fixed_monthly: string; variable_monthly: string; fixed_by_month: string[]; variable_by_month: string[]
+  potential_monthly: string; potential_categories: string[]; recurring_monthly: string
+  recurring: { name: string; monthly_cost: string; period: string; price_change: string | null; source: string }[]
+}
+type Analytics = { currency: string; months_used: number; data_through: string | null; series: Series; savings: Savings }
 
 const palette = ['#287a68', '#d5aa64', '#7a8c96', '#91b7a5', '#c8b7a8', '#bcccbf', '#b5654f', '#5b7fa6', '#9b8fb5']
 const SOURCE_COLORS: Record<string, string> = { employment: '#287a68', business: '#d5aa64', other: '#7a8c96' }
@@ -96,6 +102,7 @@ export default function AnalysisPage() {
             <Bar isAnimationActive={false} stackId="cat" name={t('chOtherCategories')} dataKey="other_cat" fill="#cfd6d2" />
           </BarChart></ChartBox>
         </Panel>
+        {data.savings && <SavingsSection savings={data.savings} months={view.rows.map(r => r.month)} currency={data.currency} de={language === 'de'} money={money} grid={grid} xAxis={xAxis} yAxis={yAxis} tip={tip} legend={legend} common={common} />}
         <Panel title={t('chTopMerchants')}>
           <div className="chart-container tall" role="img" aria-label={t('chTopMerchants')}><ResponsiveContainer width="100%" height="100%">
             <BarChart data={view.merchants} layout="vertical" margin={{ left: 20, right: 16, top: 8, bottom: 0 }}>{grid}
@@ -105,5 +112,46 @@ export default function AnalysisPage() {
         </Panel>
       </div>)}
     </QueryState>
+  </>
+}
+
+
+type SectionProps = { savings: Savings; months: string[]; currency: string; de: boolean; money: (v: unknown) => string; grid: React.ReactElement; xAxis: React.ReactElement; yAxis: React.ReactElement; tip: React.ReactElement; legend: React.ReactElement; common: object }
+function SavingsSection({ savings, months, currency, de, grid, xAxis, yAxis, tip, legend, common }: SectionProps) {
+  const rows = months.map((month, i) => ({ month, fixed: Number(savings.fixed_by_month[i]), variable: Number(savings.variable_by_month[i]) }))
+  const trend = savings.categories.filter(c => !c.fixed).slice(0, 8).map(c => ({ name: c.category, prior: Number(c.prior), recent: Number(c.recent) }))
+  const rising = savings.categories.filter(c => Number(c.delta) > 0 && c.months_with_spend >= 4 && !c.fixed).sort((a, b) => Number(b.delta) - Number(a.delta)).slice(0, 5)
+  return <>
+    <Panel title={de ? 'Sparpotenzial' : 'Savings potential'} description={de ? 'Rechnerisch aus deinen eigenen Zahlen, ohne Prognose: fest = fast jeden Monat in ähnlicher Höhe, variabel = der Rest.' : 'Plain arithmetic on your own data: fixed = about the same almost every month, variable = the rest.'}>
+      <div className="stat-grid">
+        <div className="detail-stat"><span>{de ? 'Fixkosten pro Monat' : 'Fixed per month'}</span><Money value={savings.fixed_monthly} currency={currency} /></div>
+        <div className="detail-stat"><span>{de ? 'Variable Ausgaben pro Monat' : 'Variable per month'}</span><Money value={savings.variable_monthly} currency={currency} /></div>
+        <div className="detail-stat"><span>{de ? 'Wiederkehrende Verträge' : 'Recurring contracts'}</span><Money value={savings.recurring_monthly} currency={currency} /></div>
+        <div className="detail-stat"><span>{de ? 'Mehrausgaben gegenüber früher' : 'Extra vs. before'}</span><Money value={savings.potential_monthly} currency={currency} /></div>
+      </div>
+      {savings.enough_data
+        ? <p className="muted">{Number(savings.potential_monthly) > 0
+          ? (de ? `Wenn ${rising.map(r => r.category).join(', ')} wieder auf den früheren Schnitt zurückgehen, bleiben rechnerisch pro Monat mehr übrig (Spalte „Mehrausgaben“). Einmalige Ausreißer sind ausgeschlossen: Es zählen nur Kategorien mit Ausgaben in mindestens 4 Monaten.` : 'If the rising categories return to their earlier average, this much more is left each month.')
+          : (de ? 'Keine Kategorie ist zuletzt auffällig gestiegen.' : 'No category has risen noticeably.')}</p>
+        : <Notice>{de ? 'Für Trends braucht es mindestens 6 vollständige Monate.' : 'Trends need at least 6 complete months.'}</Notice>}
+    </Panel>
+    <Panel title={de ? 'Fixkosten und variable Ausgaben' : 'Fixed and variable spending'}>
+      <ChartBox label="fixed and variable"><BarChart data={rows} {...common}>{grid}{xAxis}{yAxis}{tip}{legend}
+        <Bar isAnimationActive={false} stackId="fv" name={de ? 'Fix' : 'Fixed'} dataKey="fixed" fill="#287a68" />
+        <Bar isAnimationActive={false} stackId="fv" name={de ? 'Variabel' : 'Variable'} dataKey="variable" fill="#d5aa64" />
+      </BarChart></ChartBox>
+    </Panel>
+    {savings.enough_data && trend.length > 0 && <Panel title={de ? 'Kategorien: letzte 3 Monate gegen früher' : 'Categories: last 3 months vs before'} description={de ? 'Typischer Monat (Median), nur variable Kategorien; Lücken und einzelne Ausreißer verzerren das nicht.' : 'Typical month (median), variable categories only; gaps and single spikes do not distort it.'}>
+      <div className="chart-container tall" role="img" aria-label="category trend"><ResponsiveContainer width="100%" height="100%">
+        <BarChart data={trend} layout="vertical" margin={{ left: 20, right: 16, top: 8, bottom: 0 }}>{grid}
+          <XAxis type="number" axisLine={false} tickLine={false} tick={axis} /><YAxis type="category" dataKey="name" width={120} axisLine={false} tickLine={false} tick={axis} />{tip}{legend}
+          <Bar isAnimationActive={false} name={de ? 'Früher' : 'Before'} dataKey="prior" fill="#bcccbf" radius={[0, 6, 6, 0]} />
+          <Bar isAnimationActive={false} name={de ? 'Letzte 3 Monate' : 'Last 3 months'} dataKey="recent" fill="#b5654f" radius={[0, 6, 6, 0]} />
+        </BarChart></ResponsiveContainer></div>
+    </Panel>}
+    {savings.recurring.length > 0 && <Panel title={de ? 'Wiederkehrende Kosten' : 'Recurring costs'} description={de ? 'Verträge und Abos aus dem Export bzw. erkannt (Schätzung). Prüfe, was du kündigen oder neu verhandeln kannst.' : 'Contracts and subscriptions from the export or inferred (estimate).'}>
+      <table className="data-table"><thead><tr><th>{de ? 'Name' : 'Name'}</th><th>{de ? 'Pro Monat' : 'Per month'}</th><th>{de ? 'Rhythmus' : 'Period'}</th><th>{de ? 'Preisänderung' : 'Price change'}</th></tr></thead>
+        <tbody>{savings.recurring.map(r => <tr key={r.name}><td>{r.name}</td><td><Money value={r.monthly_cost} currency={currency} /></td><td>{r.period}</td><td>{r.price_change && Number(r.price_change) !== 0 ? <Money value={r.price_change} currency={currency} className={Number(r.price_change) > 0 ? 'negative-text' : ''} /> : '—'}</td></tr>)}</tbody></table>
+    </Panel>}
   </>
 }
