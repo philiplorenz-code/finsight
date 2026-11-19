@@ -209,3 +209,28 @@ def test_month_end_pay_counts_for_following_month(owner, db):
     assert [D(x) for x in shifted] == [0, 400, 0, 1000, 0, 0], "30 Mar counts for April; 30 Jun leaves the window"
     assert owner.patch(f"/api/income-rules/{rid}", json={"shift_from_day": None}).json()["shift_from_day"] is None
     assert [D(x) for x in owner.get("/api/analytics").json()["series"]["income"]["employment"]] == [0, 400, 1000, 0, 0, 1000]
+
+
+def test_transfer_detection_pairs_owned_accounts_and_keeps_salary(owner, db):
+    from app.models import Account, Transaction
+    workbook(owner)
+    sav = {"Konto-ID": "savings-2", "Konto": "Savings"}
+    assert upload(owner, [booking("t-in", "700", day="2026-03-12", **sav),
+                          booking("pay-in", "800", day="2026-04-05", **{**sav, "Empfänger": "Bauhaus AG"})]).status_code == 200
+    assert upload(owner, [booking("t-out", "-700", day="2026-03-10"),
+                          booking("rent", "-800", day="2026-04-06", **{"Empfänger": "Vermieter"})]).status_code == 200
+    accounts = {a["name"]: a for a in owner.get("/api/accounts").json()}
+    assert owner.patch(f"/api/accounts/{accounts['Savings']['id']}", json={"ownership": "owned"}).status_code == 200
+    assert owner.post("/api/income-rules", json={"name": "B", "source": "employment", "pattern": "bauhaus"}).status_code == 201
+
+    dry = owner.post("/api/transfers/detect?dry_run=true").json()
+    assert dry["applied"] is False and dry["pairs"] == 1, "salary must not pair with rent"
+    assert db.query(Transaction).filter(Transaction.transfer_auto.is_(True)).count() == 0
+    done = owner.post("/api/transfers/detect").json()
+    assert done["pairs"] == 1 and done["newly_marked"] == 2
+    db.expire_all()
+    marked = {t.source_key for t in db.query(Transaction).filter(Transaction.transfer_auto.is_(True))}
+    assert len(marked) == 2
+    assert not any(t.is_transfer for t in db.query(Transaction).filter(Transaction.merchant.in_(["Bauhaus AG", "Vermieter"])))
+    again = owner.post("/api/transfers/detect").json()
+    assert again["pairs"] == 1 and again["newly_marked"] == 2, "recomputed from scratch, same result"

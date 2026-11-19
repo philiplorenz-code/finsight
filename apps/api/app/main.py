@@ -11,6 +11,7 @@ from .auth import require_csrf, router as auth_router
 from .db import get_db
 from .routes import router as finance_router
 from .income import router as income_router
+from .transfers import router as transfers_router
 from .wishlist import router as wishlist_router
 from .limits import RequestSizeLimit
 from .mcp_server import CanonicalEndpoint, enabled as mcp_enabled, http_app as mcp_http_app, mcp
@@ -34,6 +35,7 @@ app.include_router(auth_router, prefix="/api", dependencies=[Depends(require_csr
 app.include_router(finance_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(wishlist_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(income_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(transfers_router, prefix="/api", dependencies=[Depends(require_csrf)])
 
 # OAuth routes have absolute root discovery and /api/mcp paths. Their module
 # applies CSRF selectively: public OAuth exchanges must not inherit cookie CSRF.

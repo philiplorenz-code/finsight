@@ -404,6 +404,8 @@ def ingest(db, user, data, filename, full_snapshot=False):
         tx.transfer_uncertain = len(matches) != 1
     if any(t.transfer_uncertain for t in flagged):
         warnings.append("One-sided or ambiguous transfers excluded from consumption; counterpart ownership unverified")
+    from .transfers import detect_transfers
+    detect_transfers(db, user.id)
     record.status = "completed"
     record.summary = {"added": added, "changed": changed, "unchanged": unchanged, "missing": missing,
                       "columns": headers, "unknown_columns": unknown, "warnings": sorted(set(warnings)), "full_snapshot": full_snapshot}

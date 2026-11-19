@@ -68,3 +68,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 ## Analytics
 
 - `GET /api/analytics?currency=EUR` returns `series` with aligned monthly arrays (`months`, `income` per source, `expenses`, `tax`, `surplus`, `categories` for the top 8 spending categories, `other_categories`) plus `top_merchants`, using the same filters as the wishlist baseline (own accounts, no transfers, no savings). Decimal values are strings.
+
+## Transfer detection
+
+- `POST /api/transfers/detect[?dry_run=true]`: pairs outflows and inflows of the same amount (±3 days) between two owned accounts one-to-one (nearest date first) and marks both as transfers (`transfer_auto`). Bookings classified as employment/business income by an income rule are never paired. Auto marks are recomputed from scratch on each run and after every import. Returns `pairs`, `newly_marked`, `newly_marked_inflow_total`, `applied`.

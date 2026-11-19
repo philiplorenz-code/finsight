@@ -34,7 +34,7 @@ export default function TransactionsPage() {
   const rows = items(query.data)
   const total = !Array.isArray(query.data) ? query.data?.total : undefined
   const hasMore = !Array.isArray(query.data) && query.data?.has_more !== undefined ? query.data.has_more : total !== undefined ? page * 25 < total : rows.length === 25
-  return <><PageHeader title={t('transactions')} description={t('transactionsIntro')} /><div className="panel transaction-panel">
+  return <><PageHeader title={t('transactions')} description={t('transactionsIntro')} action={<TransferCheck />} /><div className="panel transaction-panel">
     <div className="transaction-toolbar"><form className="search-field" onSubmit={e => { e.preventDefault(); update('search', search) }}><Search size={17} /><input aria-label={t('search')} placeholder={language === 'de' ? 'Buchungen durchsuchen …' : 'Search transactions…'} value={search} onChange={e => setSearch(e.target.value)} /><Button variant="ghost" type="submit">{t('search')}</Button></form><select aria-label={t('account')} value={params.get('account_id') || ''} onChange={e => update('account_id', e.target.value)}><option value="">{t('all')} · {t('accounts')}</option>{items(accounts.data).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select><Button variant="outline" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}><SlidersHorizontal size={16} />Filter</Button></div>
     <div className="filter-grid">
       <Field label={language === 'de' ? 'Buchungsansicht' : 'Transaction view'}><select value={view} onChange={e => update('view', e.target.value)}>
@@ -66,4 +66,26 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
       </form><details className="source-details"><summary>{t('source')}</summary><pre>{JSON.stringify(query.data.source || {}, null, 2)}</pre></details>
     </>}</QueryState>
   </Dialog>
+}
+
+
+type TransferResult = { pairs: number; newly_marked: number; newly_marked_inflow_total: string; applied: boolean }
+function TransferCheck() {
+  const { language } = useLocale()
+  const de = language === 'de'
+  const client = useQueryClient()
+  const [result, setResult] = useState<TransferResult | null>(null)
+  const run = useMutation({
+    mutationFn: (dry: boolean) => send<TransferResult>(`/transfers/detect${dry ? '?dry_run=true' : ''}`),
+    onSuccess: r => { setResult(r); if (r.applied) client.invalidateQueries() },
+  })
+  return <div className="transfer-check">
+    <Button variant="outline" busy={run.isPending} onClick={() => run.mutate(true)}><ArrowLeftRight size={16} />{de ? 'Umbuchungen prüfen' : 'Check transfers'}</Button>
+    {result && <p className="muted">{result.applied
+      ? (de ? `${result.newly_marked} Buchungen als Umbuchung markiert.` : `${result.newly_marked} bookings marked as transfers.`)
+      : result.newly_marked === 0
+        ? (de ? 'Keine neuen Umbuchungen gefunden.' : 'No new transfers found.')
+        : <>{de ? `${result.pairs} Paare zwischen eigenen Konten gefunden, ${result.newly_marked} Buchungen würden als Umbuchung markiert (Eingänge: ` : `${result.pairs} pairs between own accounts, ${result.newly_marked} bookings would become transfers (inflows: `}<Money value={result.newly_marked_inflow_total} currency="EUR" />) <Button variant="ghost" busy={run.isPending} onClick={() => run.mutate(false)}>{de ? 'Anwenden' : 'Apply'}</Button></>}</p>}
+    <Feedback error={run.error} />
+  </div>
 }
