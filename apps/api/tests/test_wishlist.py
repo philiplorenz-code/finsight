@@ -150,3 +150,32 @@ def test_api_crud_validation_and_isolation(owner, db):
 
 def test_wishlist_requires_login(client):
     assert client.get("/api/wishlist").status_code in {401, 403}
+
+
+def test_income_rules_split_sources_and_validate(owner, db):
+    workbook(owner, [booking("biz", "1200", day="2026-04-05", **{"Empfänger": "Kunde GmbH"}),
+                     booking("pay", "500", day="2026-05-05", **{"Empfänger": "Bauhaus AG", "Verwendungszweck": "Gehalt"})])
+    base = baseline(db, user_id(db), today=date(2026, 7, 5))
+    assert base["income_sources"]["other"]["monthly_average"] == D(3000) + D(1700) / 6
+    assert {x["merchant"] for x in base["unassigned_income"]} >= {"Kunde GmbH", "Bauhaus AG"}
+    assert owner.post("/api/income-rules", json={"name": "x", "source": "business"}).status_code == 422
+    assert owner.post("/api/income-rules", json={"name": "x", "source": "bogus", "pattern": "a"}).status_code == 422
+    assert owner.post("/api/income-rules", json={"name": "x", "source": "business", "pattern": "a",
+                                                  "account_id": "nope"}).status_code == 422
+    r = owner.post("/api/income-rules", json={"name": "Bauhaus", "source": "employment", "pattern": "bauhaus",
+                                               "match_field": "merchant", "position": 0})
+    assert r.status_code == 201
+    owner.post("/api/income-rules", json={"name": "Gewerbe", "source": "business", "pattern": "kunde", "position": 1})
+    base = baseline(db, user_id(db), today=date(2026, 7, 5))
+    src = base["income_sources"]
+    assert src["employment"]["monthly_average"] == D(500) / 6
+    assert src["business"]["monthly_average"] == D(1200) / 6
+    assert src["other"]["monthly_average"] == D(3000)
+    assert base["monthly_income"] == D(3000) + D(1700) / 6
+    assert sum(s["share"] for s in src.values()) == D(1) or abs(sum(s["share"] for s in src.values()) - 1) < D("0.0001")
+    rid = r.json()["id"]
+    assert owner.patch(f"/api/income-rules/{rid}", json={"pattern": "", "account_id": None}).status_code == 422
+    assert owner.patch(f"/api/income-rules/{rid}", json={"source": "business"}).json()["source"] == "business"
+    assert len(owner.get("/api/income-rules").json()) == 2
+    assert owner.delete(f"/api/income-rules/{rid}").status_code == 200
+    assert owner.delete(f"/api/income-rules/{rid}").status_code == 404

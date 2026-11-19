@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from .auth import current_user
 from .db import get_db
 from .finance import ZERO, eligible, latest_balance, local_today, serialize
+from .income import SOURCES, classify, load_rules, source_stats
 from .locking import lock_owner
 from .models import Account, Allocation, Transaction, Wish, WishlistPrefs
 
@@ -86,6 +87,9 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
 
     months: list[date] = []
     income: dict[date, Decimal] = defaultdict(lambda: ZERO)
+    income_by_source: dict[str, dict[date, Decimal]] = {s: defaultdict(lambda: ZERO) for s in SOURCES}
+    unassigned: dict[str, Decimal] = defaultdict(lambda: ZERO)
+    rules = load_rules(db, user_id)
     expenses: dict[date, Decimal] = defaultdict(lambda: ZERO)
     tax_paid = ZERO
     if data_through:
@@ -107,6 +111,10 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 continue
             if tx.amount >= 0:
                 income[key] += tx.amount
+                source = classify(tx, rules)
+                income_by_source[source][key] += tx.amount
+                if source == "other":
+                    unassigned[(tx.merchant or "").strip() or "?"] += tx.amount
             else:
                 expenses[key] += -tx.amount
         if any(tx.transfer_uncertain for tx in in_cashflow if month_start(tx.booking_date) in window):
@@ -128,6 +136,9 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     consumption = sum((expenses[m] for m in months), ZERO) / count if count else ZERO
     monthly_income = sum((income[m] for m in months), ZERO) / count if count else ZERO
 
+    sources = source_stats({s: [income_by_source[s][m] for m in months] for s in SOURCES})
+    top_unassigned = [{"merchant": m, "total": v} for m, v in sorted(unassigned.items(), key=lambda kv: -kv[1])[:10]]
+
     cash = ZERO
     observed = 0
     for account in accounts:
@@ -147,6 +158,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     usable = max(ZERO, cash - allocated - reserve)
     confident = count >= MIN_MONTHS_FOR_MEDIUM_CONFIDENCE and observed and not any("stale" in w for w in warnings)
     return {"currency": currency, "months_used": count, "data_through": data_through,
+            "income_sources": sources, "unassigned_income": top_unassigned,
             "monthly_income": monthly_income, "monthly_consumption": consumption, "monthly_tax": tax_monthly,
             "expected_surplus": expected, "conservative_surplus": conservative,
             "cash_on_hand": cash, "allocated": allocated, "reserve_months": prefs["reserve_months"],

@@ -59,3 +59,8 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - `POST /api/wishes`, `PATCH /api/wishes/{id}`, `DELETE /api/wishes/{id}`: `name`, `price` (decimal string, > 0), `currency`, `priority` 1-5, `due_date`, `follow_up_monthly_cost`, `note`, `status` (`open|bought|dropped`).
 - `PUT /api/wishlist/prefs`: `self_names`, `reserve_months`, `monthly_tax_reserve`.
 - Verdicts: `affordable`, `save_up` (conservative <= 12 months), `tight` (expected <= 24 months), `not_now`, `unsupported_currency`. The assessment is a planning aid, not financial, tax or investment advice.
+
+## Income source rules
+
+- `GET /api/income-rules`, `POST /api/income-rules`, `PATCH /api/income-rules/{id}`, `DELETE /api/income-rules/{id}`: `name`, `source` (`employment|business|other`), `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), optional `account_id`, `position`. A rule needs a pattern or an account. Rules apply in `position` order, the first match wins, and unmatched income is `other`.
+- `GET /api/wishlist` adds `baseline.income_sources` (per source: `monthly_average`, `monthly_lower_quartile`, `months_with_income`, `share`) and `baseline.unassigned_income` (largest unassigned payers). The total surplus is unchanged; the split is informational.

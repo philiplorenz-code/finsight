@@ -16,7 +16,7 @@ type Assessment = {
 }
 type WishItem = { id: string; name: string; price: string; currency: string; priority: number; due_date?: string | null; follow_up_monthly_cost: string; note: string; status: string; assessment: Assessment | null }
 type Wishlist = {
-  baseline: { currency: string; months_used: number; data_through?: string | null; monthly_income: string; monthly_consumption: string; monthly_tax: string; expected_surplus: string; conservative_surplus: string; cash_on_hand: string; reserve: string; usable_cash: string; confidence: string; assumptions: string[]; warnings: string[] }
+  baseline: { currency: string; months_used: number; data_through?: string | null; monthly_income: string; income_sources: Record<string, { monthly_average: string; monthly_lower_quartile: string; months_with_income: number; share: string }>; unassigned_income: { merchant: string; total: string }[]; monthly_consumption: string; monthly_tax: string; expected_surplus: string; conservative_surplus: string; cash_on_hand: string; reserve: string; usable_cash: string; confidence: string; assumptions: string[]; warnings: string[] }
   prefs: { self_names: string[]; reserve_months: number; monthly_tax_reserve: string }
   wishes: WishItem[]; disclaimer: string
 }
@@ -52,6 +52,7 @@ export default function WishlistPage() {
   const query = useQuery({ queryKey: ['wishlist'], queryFn: () => api<Wishlist>('/wishlist') })
   const [create, setCreate] = useState(false)
   const [prefs, setPrefs] = useState(false)
+  const [rules, setRules] = useState(false)
   const refresh = () => client.invalidateQueries({ queryKey: ['wishlist'] })
   const update = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => send(`/wishes/${id}`, { status }, 'PATCH'), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (id: string) => send(`/wishes/${id}`, undefined, 'DELETE'), onSuccess: refresh })
@@ -60,7 +61,7 @@ export default function WishlistPage() {
   const open = data?.wishes.filter(w => w.status === 'open') ?? []
   const closed = data?.wishes.filter(w => w.status !== 'open') ?? []
   return <>
-    <PageHeader title={t('wishlist')} description={t('wishlistIntro')} action={<><Button variant="outline" onClick={() => setPrefs(true)}><Settings2 size={17} />{t('wishPrefs')}</Button><Button onClick={() => setCreate(true)}><Plus size={17} />{t('wishAdd')}</Button></>} />
+    <PageHeader title={t('wishlist')} description={t('wishlistIntro')} action={<><Button variant="outline" onClick={() => setRules(true)}>{t('incomeRules')}</Button><Button variant="outline" onClick={() => setPrefs(true)}><Settings2 size={17} />{t('wishPrefs')}</Button><Button onClick={() => setCreate(true)}><Plus size={17} />{t('wishAdd')}</Button></>} />
     <Notice>{data?.disclaimer ?? t('wishDisclaimer')}</Notice>
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>
       {data && <>
@@ -75,6 +76,9 @@ export default function WishlistPage() {
           </div>
           {data.baseline.warnings.map((w, i) => <Notice warning key={i}>{localize(w, language)}</Notice>)}
           <details><summary>{t('wishAssumptions')}</summary><ul>{data.baseline.assumptions.map((a, i) => <li key={i}>{localize(a, language)}</li>)}</ul></details>
+        </Panel>
+        <Panel title={t('incomeSources')}>
+          <div className="stat-grid">{(['employment', 'business', 'other'] as const).map(k => { const s = data.baseline.income_sources?.[k]; return s && <div className="detail-stat" key={k}><span>{t(`src_${k}` as never)} · {Math.round(Number(s.share) * 100)} %</span><Money value={s.monthly_average} currency={data.baseline.currency} /><span className="muted">{t('srcWorst')}: <Money value={s.monthly_lower_quartile} currency={data.baseline.currency} /> · {t('srcMonths')}: {s.months_with_income}/{data.baseline.months_used}</span></div> })}</div>
         </Panel>
         {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}
         <div className="buckets-grid">{open.map(w => <Panel key={w.id} className="bucket-card">
@@ -105,6 +109,7 @@ export default function WishlistPage() {
       </>}
     </QueryState>
     {create && <WishCreate onClose={() => setCreate(false)} onDone={refresh} />}
+    {rules && data && <IncomeRules unassigned={data.baseline.unassigned_income ?? []} onClose={() => setRules(false)} onDone={refresh} />}
     {prefs && data && <Prefs current={data.prefs} onClose={() => setPrefs(false)} onDone={refresh} />}
   </>
 }
@@ -148,6 +153,39 @@ function Prefs({ current, onClose, onDone }: { current: Wishlist['prefs']; onClo
       </div>
       <Feedback error={mutation.error} />
       <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={mutation.isPending}>{t('save')}</Button></div>
+    </form>
+  </Dialog>
+}
+
+type Rule = { id: string; name: string; source: string; pattern: string; match_field: string; account_id: string | null; position: number }
+
+function IncomeRules({ unassigned, onClose, onDone }: { unassigned: { merchant: string; total: string }[]; onClose: () => void; onDone: () => void }) {
+  const { t } = useLocale()
+  const client = useQueryClient()
+  const rulesQuery = useQuery({ queryKey: ['income-rules'], queryFn: () => api<Rule[]>('/income-rules') })
+  const accounts = useQuery({ queryKey: ['accounts-light'], queryFn: () => api<{ id: string; name: string }[]>('/accounts') })
+  const empty = { name: '', source: 'employment', pattern: '', match_field: 'any', account_id: '' }
+  const [form, setForm] = useState(empty)
+  const done = () => { client.invalidateQueries({ queryKey: ['income-rules'] }); onDone() }
+  const add = useMutation({
+    mutationFn: () => send('/income-rules', { name: form.name, source: form.source, pattern: form.pattern, match_field: form.match_field, account_id: form.account_id || null, position: rulesQuery.data?.length ?? 0 }),
+    onSuccess: () => { setForm(empty); done() },
+  })
+  const remove = useMutation({ mutationFn: (id: string) => send(`/income-rules/${id}`, undefined, 'DELETE'), onSuccess: done })
+  return <Dialog title={t('incomeRules')} onClose={onClose}>
+    <p className="muted">{t('ruleOrderHint')}</p>
+    {rulesQuery.data?.length ? <ul>{rulesQuery.data.map(r => <li key={r.id}><Badge>{t(`src_${r.source}` as never)}</Badge> {r.name}{r.pattern && <> · „{r.pattern}“</>} <Button variant="ghost" aria-label={`${t('delete')}: ${r.name}`} onClick={() => remove.mutate(r.id)}><Trash2 size={15} /></Button></li>)}</ul> : <p className="muted">{t('ruleNone')}</p>}
+    {unassigned.length > 0 && <details><summary>{t('ruleUnassigned')}</summary><ul>{unassigned.map(u => <li key={u.merchant}>{u.merchant} · <Money value={u.total} currency="EUR" /> <Button variant="ghost" type="button" onClick={() => setForm({ ...form, name: u.merchant, pattern: u.merchant, match_field: 'merchant' })}>{t('ruleUse')}</Button></li>)}</ul></details>}
+    <form className="form-stack" onSubmit={e => { e.preventDefault(); add.mutate() }}>
+      <Field label={t('ruleName')}><input required maxLength={200} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
+      <div className="form-grid">
+        <Field label={t('ruleSource')}><select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>{['employment', 'business', 'other'].map(k => <option key={k} value={k}>{t(`src_${k}` as never)}</option>)}</select></Field>
+        <Field label={t('ruleField')}><select value={form.match_field} onChange={e => setForm({ ...form, match_field: e.target.value })}>{[['any', 'ruleAny'], ['merchant', 'ruleMerchant'], ['description', 'ruleDescription']].map(([v, k]) => <option key={v} value={v}>{t(k as never)}</option>)}</select></Field>
+        <Field label={t('rulePattern')} hint={t('rulePatternHint')}><input maxLength={200} value={form.pattern} onChange={e => setForm({ ...form, pattern: e.target.value })} /></Field>
+        <Field label={t('ruleAccount')}><select value={form.account_id} onChange={e => setForm({ ...form, account_id: e.target.value })}><option value="">{t('ruleAnyAccount')}</option>{accounts.data?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+      </div>
+      <Feedback error={add.error} />
+      <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={add.isPending}>{t('ruleAdd')}</Button></div>
     </form>
   </Dialog>
 }
