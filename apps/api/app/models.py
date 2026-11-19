@@ -84,6 +84,7 @@ class Transaction(Base):
     category_override: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_transfer: Mapped[bool] = mapped_column(Boolean, default=False)
     transfer_uncertain: Mapped[bool] = mapped_column(Boolean, default=False)
+    transfer_auto: Mapped[bool] = mapped_column(Boolean, default=False)
     split_parent_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     split_role: Mapped[str] = mapped_column(String(20), default="none")
     contract_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
