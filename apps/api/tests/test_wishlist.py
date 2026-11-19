@@ -193,3 +193,19 @@ def test_analytics_series_align_with_baseline(owner, db):
     assert s["top_merchants"] and D(s["top_merchants"][0]["total"]) > 0
     assert "series" not in owner.get("/api/wishlist").json()["baseline"]
     assert owner.get("/api/analytics?currency=eur").status_code == 422
+
+
+def test_month_end_pay_counts_for_following_month(owner, db):
+    workbook(owner, [booking("p3", "1000", day="2026-03-30", **{"Empfänger": "Bauhaus AG"}),
+                     booking("p6", "1000", day="2026-06-30", **{"Empfänger": "Bauhaus AG"}),
+                     booking("p2", "400", day="2026-02-10", **{"Empfänger": "Bauhaus AG"})])
+    base_rule = {"name": "Bauhaus", "source": "employment", "pattern": "bauhaus", "match_field": "merchant"}
+    assert owner.post("/api/income-rules", json={**base_rule, "shift_from_day": 40}).status_code == 422
+    rid = owner.post("/api/income-rules", json=base_rule).json()["id"]
+    plain = owner.get("/api/analytics").json()["series"]["income"]["employment"]
+    assert [D(x) for x in plain] == [0, 400, 1000, 0, 0, 1000]
+    assert owner.patch(f"/api/income-rules/{rid}", json={"shift_from_day": 25}).json()["shift_from_day"] == 25
+    shifted = owner.get("/api/analytics").json()["series"]["income"]["employment"]
+    assert [D(x) for x in shifted] == [0, 400, 0, 1000, 0, 0], "30 Mar counts for April; 30 Jun leaves the window"
+    assert owner.patch(f"/api/income-rules/{rid}", json={"shift_from_day": None}).json()["shift_from_day"] is None
+    assert [D(x) for x in owner.get("/api/analytics").json()["series"]["income"]["employment"]] == [0, 400, 1000, 0, 0, 1000]

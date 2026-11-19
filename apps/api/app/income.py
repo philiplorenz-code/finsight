@@ -3,6 +3,8 @@
 Rules are evaluated in `position` order; the first match wins. A rule matches when its optional
 account equals the booking's account and its pattern (case-insensitive substring; empty = any)
 appears in the merchant, the description or either. Unmatched income is "other".
+A rule with `shift_from_day` counts matching bookings made on or after that day of the month in the
+following month (salary paid at month end covers the next month).
 """
 from __future__ import annotations
 
@@ -33,7 +35,7 @@ def load_rules(db, user_id) -> list[IncomeRule]:
                            .order_by(IncomeRule.position, IncomeRule.created_at)))
 
 
-def classify(tx, rules) -> str:
+def match_rule(tx, rules) -> IncomeRule | None:
     merchant = (tx.merchant or "").casefold()
     description = (tx.description or "").casefold()
     for rule in rules:
@@ -42,8 +44,18 @@ def classify(tx, rules) -> str:
         pattern = (rule.pattern or "").strip().casefold()
         haystack = {"merchant": merchant, "description": description}.get(rule.match_field, f"{merchant}\n{description}")
         if not pattern or pattern in haystack:
-            return rule.source
-    return "other"
+            return rule
+    return None
+
+
+def classify(tx, rules) -> str:
+    rule = match_rule(tx, rules)
+    return rule.source if rule else "other"
+
+
+def shifts_to_next_month(tx, rule) -> bool:
+    """Pay booked at month end (from `shift_from_day`) belongs to the following month."""
+    return bool(rule and rule.shift_from_day and tx.booking_date.day >= rule.shift_from_day)
 
 
 def source_stats(series: dict[str, list[Decimal]]) -> dict[str, dict]:
@@ -71,6 +83,7 @@ class RuleBody(BaseModel):
     match_field: MatchField = "any"
     account_id: str | None = None
     position: int = Field(default=0, ge=0, le=1000)
+    shift_from_day: int | None = Field(default=None, ge=1, le=31)
 
 
 class RulePatch(BaseModel):
@@ -81,6 +94,7 @@ class RulePatch(BaseModel):
     match_field: MatchField | None = None
     account_id: str | None = None
     position: int | None = Field(default=None, ge=0, le=1000)
+    shift_from_day: int | None = Field(default=None, ge=1, le=31)
 
 
 def check_account(db, user, account_id):
@@ -127,7 +141,7 @@ def patch_rule(ident: str, body: RulePatch, db: Session = Depends(get_db), user=
     if "account_id" in changes:
         check_account(db, user, changes["account_id"])
     for key, value in changes.items():
-        if value is None and key != "account_id":
+        if value is None and key not in ("account_id", "shift_from_day"):
             raise HTTPException(422, f"{key} cannot be null")
     pattern = (changes["pattern"] if "pattern" in changes else rule.pattern or "").strip()
     account_id = changes["account_id"] if "account_id" in changes else rule.account_id

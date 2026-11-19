@@ -159,24 +159,24 @@ function Prefs({ current, onClose, onDone }: { current: Wishlist['prefs']; onClo
   </Dialog>
 }
 
-type Rule = { id: string; name: string; source: string; pattern: string; match_field: string; account_id: string | null; position: number }
+type Rule = { id: string; name: string; source: string; pattern: string; match_field: string; account_id: string | null; position: number; shift_from_day: number | null }
 
 function IncomeRules({ unassigned, onClose, onDone }: { unassigned: { merchant: string; total: string }[]; onClose: () => void; onDone: () => void }) {
   const { t } = useLocale()
   const client = useQueryClient()
   const rulesQuery = useQuery({ queryKey: ['income-rules'], queryFn: () => api<Rule[]>('/income-rules') })
   const accounts = useQuery({ queryKey: ['accounts-light'], queryFn: () => api<{ id: string; name: string }[]>('/accounts') })
-  const empty = { name: '', source: 'employment', pattern: '', match_field: 'any', account_id: '' }
+  const empty = { name: '', source: 'employment', pattern: '', match_field: 'any', account_id: '', shift_from_day: '' }
   const [form, setForm] = useState(empty)
   const done = () => { client.invalidateQueries({ queryKey: ['income-rules'] }); onDone() }
   const add = useMutation({
-    mutationFn: () => send('/income-rules', { name: form.name, source: form.source, pattern: form.pattern, match_field: form.match_field, account_id: form.account_id || null, position: rulesQuery.data?.length ?? 0 }),
+    mutationFn: () => send('/income-rules', { name: form.name, source: form.source, pattern: form.pattern, match_field: form.match_field, account_id: form.account_id || null, shift_from_day: form.shift_from_day ? Number(form.shift_from_day) : null, position: rulesQuery.data?.length ?? 0 }),
     onSuccess: () => { setForm(empty); done() },
   })
   const remove = useMutation({ mutationFn: (id: string) => send(`/income-rules/${id}`, undefined, 'DELETE'), onSuccess: done })
   return <Dialog title={t('incomeRules')} onClose={onClose}>
     <p className="muted">{t('ruleOrderHint')}</p>
-    {rulesQuery.data?.length ? <ul>{rulesQuery.data.map(r => <li key={r.id}><Badge>{t(`src_${r.source}` as never)}</Badge> {r.name}{r.pattern && <> · „{r.pattern}“</>} <Button variant="ghost" aria-label={`${t('delete')}: ${r.name}`} onClick={() => remove.mutate(r.id)}><Trash2 size={15} /></Button></li>)}</ul> : <p className="muted">{t('ruleNone')}</p>}
+    {rulesQuery.data?.length ? <ul>{rulesQuery.data.map(r => <li key={r.id}><Badge>{t(`src_${r.source}` as never)}</Badge> {r.name}{r.pattern && <> · „{r.pattern}“</>}{r.shift_from_day && <> · {t('ruleShiftBadge').replace('{day}', String(r.shift_from_day))}</>} <Button variant="ghost" aria-label={`${t('delete')}: ${r.name}`} onClick={() => remove.mutate(r.id)}><Trash2 size={15} /></Button></li>)}</ul> : <p className="muted">{t('ruleNone')}</p>}
     {unassigned.length > 0 && <details><summary>{t('ruleUnassigned')}</summary><ul>{unassigned.map(u => <li key={u.merchant}>{u.merchant} · <Money value={u.total} currency="EUR" /> <Button variant="ghost" type="button" onClick={() => setForm({ ...form, name: u.merchant, pattern: u.merchant, match_field: 'merchant' })}>{t('ruleUse')}</Button></li>)}</ul></details>}
     <form className="form-stack" onSubmit={e => { e.preventDefault(); add.mutate() }}>
       <Field label={t('ruleName')}><input required maxLength={200} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
@@ -184,6 +184,7 @@ function IncomeRules({ unassigned, onClose, onDone }: { unassigned: { merchant: 
         <Field label={t('ruleSource')}><select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>{['employment', 'business', 'other'].map(k => <option key={k} value={k}>{t(`src_${k}` as never)}</option>)}</select></Field>
         <Field label={t('ruleField')}><select value={form.match_field} onChange={e => setForm({ ...form, match_field: e.target.value })}>{[['any', 'ruleAny'], ['merchant', 'ruleMerchant'], ['description', 'ruleDescription']].map(([v, k]) => <option key={v} value={v}>{t(k as never)}</option>)}</select></Field>
         <Field label={t('rulePattern')} hint={t('rulePatternHint')}><input maxLength={200} value={form.pattern} onChange={e => setForm({ ...form, pattern: e.target.value })} /></Field>
+        <Field label={t('ruleShift')} hint={t('ruleShiftHint')}><input type="number" min={1} max={31} placeholder="25" value={form.shift_from_day} onChange={e => setForm({ ...form, shift_from_day: e.target.value })} /></Field>
         <Field label={t('ruleAccount')}><select value={form.account_id} onChange={e => setForm({ ...form, account_id: e.target.value })}><option value="">{t('ruleAnyAccount')}</option>{accounts.data?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
       </div>
       <Feedback error={add.error} />

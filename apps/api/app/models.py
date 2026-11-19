@@ -195,4 +195,5 @@ class IncomeRule(Base):
     match_field: Mapped[str] = mapped_column(String(20), default="any")
     account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
+    shift_from_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

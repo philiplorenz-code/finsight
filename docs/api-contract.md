@@ -62,7 +62,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 
 ## Income source rules
 
-- `GET /api/income-rules`, `POST /api/income-rules`, `PATCH /api/income-rules/{id}`, `DELETE /api/income-rules/{id}`: `name`, `source` (`employment|business|other`), `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), optional `account_id`, `position`. A rule needs a pattern or an account. Rules apply in `position` order, the first match wins, and unmatched income is `other`.
+- `GET /api/income-rules`, `POST /api/income-rules`, `PATCH /api/income-rules/{id}`, `DELETE /api/income-rules/{id}`: `name`, `source` (`employment|business|other`), `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), optional `account_id`, `position`, optional `shift_from_day` (1-31; income booked on or after that day counts for the following month, e.g. month-end salary). A rule needs a pattern or an account. Rules apply in `position` order, the first match wins, and unmatched income is `other`.
 - `GET /api/wishlist` adds `baseline.income_sources` (per source: `monthly_average`, `monthly_lower_quartile`, `months_with_income`, `share`) and `baseline.unassigned_income` (largest unassigned payers). The total surplus is unchanged; the split is informational.
 
 ## Analytics
