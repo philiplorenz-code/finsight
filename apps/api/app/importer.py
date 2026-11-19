@@ -419,6 +419,8 @@ def ingest(db, user, data, filename, full_snapshot=False):
         warnings.append("One-sided or ambiguous transfers excluded from consumption; counterpart ownership unverified")
     from .transfers import detect_transfers
     detect_transfers(db, user.id)
+    from .category_rules import apply_category_rules
+    apply_category_rules(db, user.id)
     record.status = "completed"
     record.summary = {"added": added, "changed": changed, "unchanged": unchanged, "missing": missing,
                       "columns": headers, "unknown_columns": unknown, "warnings": sorted(set(warnings)), "full_snapshot": full_snapshot}

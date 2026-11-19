@@ -159,7 +159,7 @@ def tx_predicates(owner_id, query, start, end):
     if query.account_id:
         clauses.append(Account.id == query.account_id)
     if query.category is not None:
-        clauses.append(func.coalesce(Transaction.category_override, Transaction.category) == query.category)
+        clauses.append(func.coalesce(Transaction.category_override, Transaction.rule_category, Transaction.category) == query.category)
     if query.view != "all_transactions":
         clauses.extend([Account.included.is_(True), Account.ownership != "external",
                         Transaction.is_transfer.is_(False), Transaction.split_role.notin_(["parent", "excluded"])])
@@ -280,11 +280,11 @@ def execute_tool(kind: str, query: Query) -> Result:
             for tx in db.scalars(statement.order_by(Transaction.booking_date.desc(), Transaction.id).offset(offset).limit(query.page_size)):
                 items.append(Item(id=tx.id, currency=tx.currency, amount=money(tx.amount),
                                   booking_date=tx.booking_date.isoformat(), account_id=tx.account_id,
-                                  category=(tx.category_override or tx.category)[:300],
+                                  category=tx.effective_category[:300],
                                   merchant=tx.merchant[:120] if query.include_names else None,
                                   link="/transactions?" + urlencode({"transaction_id": tx.id}), evidence=[tx.id]))
         elif kind == "get_category_breakdown":
-            category = func.coalesce(Transaction.category_override, Transaction.category)
+            category = func.coalesce(Transaction.category_override, Transaction.rule_category, Transaction.category)
             statement = select(category.label("category"), func.sum(-Transaction.amount).label("amount"),
                                func.count(Transaction.id).label("count")).join(Account, Account.id == Transaction.account_id).where(
                 *tx_predicates(actor.owner_id, query, start, end), Transaction.amount < ZERO).group_by(category)

@@ -36,7 +36,7 @@ def is_business_expense(tx, rules) -> bool:
         return False
     merchant = (tx.merchant or "").casefold()
     description = (tx.description or "").casefold()
-    category = (tx.category_override or tx.category or "").strip().casefold()
+    category = (tx.effective_category or "").strip().casefold()
     for rule in rules:
         if rule.account_id and rule.account_id != tx.account_id:
             continue

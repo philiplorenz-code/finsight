@@ -113,7 +113,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 continue
             if tx.merchant.strip().casefold() in self_names:
                 continue
-            if (tx.category_override or tx.category or "").strip().casefold() in SAVING_CATEGORIES:
+            if (tx.effective_category or "").strip().casefold() in SAVING_CATEGORIES:
                 continue
             if tx.account_id in tax_ids:
                 if tx.amount < 0:
@@ -129,7 +129,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 business_expenses[key] += -tx.amount
             else:
                 expenses[key] += -tx.amount
-                label = (tx.category_override or tx.category or "").strip() or "Uncategorized"
+                label = (tx.effective_category or "").strip() or "Uncategorized"
                 expense_by_category[key][label] += -tx.amount
                 expense_by_merchant[(tx.merchant or "").strip() or "?"] += -tx.amount
         if any(tx.transfer_uncertain for tx in in_cashflow if month_start(tx.booking_date) in window):

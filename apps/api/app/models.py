@@ -85,6 +85,8 @@ class Transaction(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     category: Mapped[str] = mapped_column(String(300), default="Uncategorized")
     category_override: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # Category assigned by the user's category rules; never touches the imported category.
+    rule_category: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_transfer: Mapped[bool] = mapped_column(Boolean, default=False)
     transfer_uncertain: Mapped[bool] = mapped_column(Boolean, default=False)
     transfer_auto: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -95,6 +97,11 @@ class Transaction(Base):
     source: Mapped[dict] = mapped_column(JSON, default=dict)
     import_id: Mapped[str] = mapped_column(ForeignKey("imports.id"))
     missing_from_latest: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    @property
+    def effective_category(self) -> str:
+        """Manual correction first, then the user's category rule, then the imported category."""
+        return self.category_override or self.rule_category or self.category
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
@@ -245,4 +252,33 @@ class ContractDecision(Base):
     decision: Mapped[str] = mapped_column(String(20))
     name: Mapped[str | None] = mapped_column(String(300), nullable=True)
     kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class CategoryRule(Base):
+    """Assigns a category to matching bookings without touching the imported data (first matching rule wins)."""
+    __tablename__ = "category_rules"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    pattern: Mapped[str] = mapped_column(String(200), default="")
+    match_field: Mapped[str] = mapped_column(String(20), default="any")
+    flow: Mapped[str] = mapped_column(String(10), default="any")
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
+    category: Mapped[str] = mapped_column(String(300))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class TransferRejection(Base):
+    """A detected transfer pair the user rejected; the pair is never marked as a transfer again."""
+    __tablename__ = "transfer_rejections"
+    __table_args__ = (UniqueConstraint("user_id", "key"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    key: Mapped[str] = mapped_column(String(80))
+    amount: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    booking_date: Mapped[date] = mapped_column(Date)
+    label: Mapped[str] = mapped_column(String(300), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
