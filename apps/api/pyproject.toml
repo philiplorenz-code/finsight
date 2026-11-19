@@ -19,3 +19,4 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["concurrent_db: use a file-backed sqlite database so parallel requests do not share one connection"]
