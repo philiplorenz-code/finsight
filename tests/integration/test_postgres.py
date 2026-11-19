@@ -23,6 +23,7 @@ def pg_sessions():
     import app.ai  # noqa: F401 -- register models
     import app.jobs  # noqa: F401
     import app.notifications  # noqa: F401
+    import app.mcp_auth  # noqa: F401
 
     schema = "test_" + uuid.uuid4().hex
     admin = create_engine(url)
@@ -130,3 +131,90 @@ def test_concurrent_overlapping_import_revisions(pg_sessions):
         assert Decimal("-10") in history
         assert len(set(history)) == 2, "Serialized revisions must not both retain the same stale source"
         assert set(history + [transaction.amount]) == {Decimal("-10"), Decimal("-20"), Decimal("-30")}
+
+
+def test_mcp_single_use_codes_and_refresh_family_replay_on_postgresql(pg_sessions, monkeypatch):
+    """Separate HTTP requests and DB sessions must serialize token-family changes."""
+    import base64
+    import hashlib
+    import json
+    from datetime import timedelta
+    from fastapi import FastAPI, HTTPException
+    from fastapi.testclient import TestClient
+    from app import mcp_auth as oauth
+    from app.db import get_db
+    from app.models import User
+
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setenv("APP_URL", "https://synthetic-finance.example.invalid")
+    resource = oauth.resource_url()
+    verifier = "synthetic-verifier-" + "a" * 48
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    redirect = "https://synthetic-client.example.invalid/callback"
+    with pg_sessions() as session:
+        user = User(email="synthetic-mcp@example.invalid", password_hash="unusable", owner_slot=1)
+        client = oauth.MCPClient(name="Synthetic PostgreSQL client", redirect_uris=[redirect], scopes="finance:read")
+        session.add_all([user, client])
+        session.flush()
+        grant = oauth.MCPGrant(user_id=user.id, client_id=client.id, resource=resource, scopes="finance:read",
+                               expires_at=oauth.now() + timedelta(days=1))
+        session.add(grant)
+        session.flush()
+        session.add(oauth.MCPCode(id=oauth.digest("synthetic-code"), grant_id=grant.id,
+                                 redirect_uri=redirect, challenge=challenge,
+                                 expires_at=oauth.now() + timedelta(minutes=2)))
+        client_id, grant_id = client.id, grant.id
+        session.commit()
+
+    app = FastAPI()
+    app.include_router(oauth.router)
+
+    def database():
+        with pg_sessions() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = database
+
+    def concurrent_exchange(payload):
+        barrier = threading.Barrier(2)
+
+        def attempt(_):
+            with TestClient(app) as client:
+                barrier.wait(timeout=10)
+                response = client.post("/oauth/token", data=payload)
+                return response.status_code, response.json()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            return list(executor.map(attempt, range(2)))
+
+    results = concurrent_exchange({"grant_type": "authorization_code", "client_id": client_id,
+                                   "code": "synthetic-code", "code_verifier": verifier,
+                                   "redirect_uri": redirect, "resource": resource})
+    assert sorted(status for status, _ in results) == [200, 400]
+    tokens = next(body for status, body in results if status == 200)
+    with pg_sessions() as session:
+        assert session.get(oauth.MCPCode, oauth.digest("synthetic-code")).used
+        assert len(list(session.scalars(select(oauth.MCPToken)))) == 2
+        # Correctly bound replay deliberately revokes the winning family too.
+        assert session.get(oauth.MCPGrant, grant_id).revoked
+        with pytest.raises(HTTPException):
+            oauth.verify_bearer_in_session(session, tokens["access_token"])
+        # A separate, explicitly authorized family isolates the refresh race.
+        grant = oauth.MCPGrant(user_id=session.get(oauth.MCPGrant, grant_id).user_id,
+                               client_id=client_id, resource=resource, scopes="finance:read",
+                               expires_at=oauth.now() + timedelta(days=1))
+        session.add(grant)
+        session.flush()
+        grant_id = grant.id
+        tokens = json.loads(oauth.issue_tokens(session, grant, "finance:read").body)
+
+    results = concurrent_exchange({"grant_type": "refresh_token", "client_id": client_id,
+                                   "refresh_token": tokens["refresh_token"], "resource": resource})
+    assert sorted(status for status, _ in results) == [200, 400]
+    rotated = next(body for status, body in results if status == 200)
+    with pg_sessions() as session:
+        assert session.get(oauth.MCPGrant, grant_id).revoked
+        for token in (tokens["access_token"], rotated["access_token"]):
+            with pytest.raises(HTTPException) as error:
+                oauth.verify_bearer_in_session(session, token)
+            assert error.value.status_code == 401

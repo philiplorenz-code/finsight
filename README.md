@@ -13,8 +13,18 @@ Self-hosted, open-source personal finance intelligence: Finanzguru XLSX imports,
 - Plan irregular annual obligations without double-counting contributions.
 - Explore transactions while preserving their source evidence.
 - Optionally ask a bounded agent to explain deterministic financial analyses, with cost controls and explicit provider consent.
+- Connect an external assistant through opt-in, read-only MCP with OAuth consent, revocable scopes and reusable analysis prompts.
 
 German is the default interface language; English is available. Default formatting is EUR / Europe/Berlin. Different currencies are reported separately, never silently combined.
+
+<details>
+<summary>Dashboard preview — synthetic data only</summary>
+
+![FinSight desktop dashboard with synthetic demo data](docs/screenshots/dashboard.png)
+
+[Mobile preview](docs/screenshots/mobile.png). No actual financial export is shown.
+
+</details>
 
 ## Quick start: Docker Compose
 
@@ -42,6 +52,19 @@ Never run `docker compose down --volumes` against data you wish to keep. Standar
 
 See [`.env.example`](.env.example) and [configuration](docs/deployment/configuration.md). AI and ntfy are off by default. Enabling external AI requires explicit consent, a model allowlist, known conservative EUR token prices and budgets. Provider charges may differ from application estimates. No implicit model escalation or telemetry is intended.
 
+## Ask your finances through MCP
+
+FinSight offers an optional **Streamable HTTP MCP server** at `https://your-host/mcp`, independent of its internal AI agent. Set `MCP_ENABLED=true`, use a reachable HTTPS `APP_URL` and secure session cookies, then add the endpoint to an MCP-capable assistant using OAuth. In FinSight, review the client and requested permissions before granting access. Manage and revoke connections under **Settings → MCP**.
+
+- `finance:read`: currency-separated analyses, account coverage and planning views.
+- Optional `finance:transactions`: bounded transaction-level evidence, not raw banking references or source rows.
+- Typed read-only tools, documented financial definitions and view/filter descriptors.
+- Native MCP **prompts** act as portable workflow “skills” for common financial reviews; client support for prompts and resources varies.
+
+Authorization uses PKCE, short-lived access tokens and rotating refresh tokens. Connecting a client permits financial data to leave your server when that client queries it. Your assistant/provider's retention policy and fees apply; **FinSight's internal AI budgets do not limit external model charges**. Availability of custom MCP connections in ChatGPT depends on its current product and account capabilities. Protocol tests are not a claim of a verified live ChatGPT integration.
+
+See [MCP setup](docs/mcp.md), [tools and workflows](docs/mcp-tools.md) and [OAuth security](docs/mcp-auth.md).
+
 ## Technology
 
 - React, TypeScript, Vite, Tailwind, TanStack Query, React Router and Recharts.
@@ -62,6 +85,7 @@ Read [architecture](docs/architecture/overview.md), [financial semantics](docs/f
 | Configuration and troubleshooting | [Configuration](docs/deployment/configuration.md) |
 | Backup and recovery | [Backup/restore](docs/deployment/backup-restore.md) |
 | Privacy | [Privacy](docs/privacy.md), [security policy](SECURITY.md) |
+| External assistants and reusable workflows | [MCP](docs/mcp.md), [tool reference](docs/mcp-tools.md), [authorization](docs/mcp-auth.md) |
 | Development and tests | [Development](docs/development.md) |
 | Contributing | [Contribution guide](CONTRIBUTING.md) |
 

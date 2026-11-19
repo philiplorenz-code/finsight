@@ -1,6 +1,6 @@
 {
   "synthetic_only": true,
-  "manual_review": "2026-11-14; capture programmatically enforces synthetic-only data (4 seeded transactions, 'Synthetic provider' merchant, TEST-CHECKING/TEST-SAVINGS accounts) and refuses non-synthetic installations; dimensions and PNG structure verified",
+  "manual_review": "Integrator, 2026-11-14: exact desktop and mobile PNGs visually inspected via image reader; only seeded synthetic values (income 2000, expenses 720, surplus/observations 1280 EUR; Synthetic category), no private financial values or identifiers visible. Capture additionally refuses installations without the four synthetic transactions and TEST accounts. Mobile width verified at 390px.",
   "images": [
     {"path": "docs/screenshots/dashboard.png", "sha256": "71a05635302cb8a34557205ead0aed8c9d1e5f467d3e3d9d728f138c40a4d420"},
     {"path": "docs/screenshots/mobile.png", "sha256": "4bfccf4f80af5edcd051911c5d0719e9e43047ae8b35477d869323005d350331"}

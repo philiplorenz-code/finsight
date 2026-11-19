@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3 } from 'lucide-react'
 import { send } from '../lib/api'
 import { useLocale, type TranslationKey } from '../lib/i18n'
 import { Brand } from './auth'
@@ -11,7 +11,7 @@ import { useTheme } from '../lib/theme'
 const navigation = [
   { key: 'overview', path: '/', icon: LayoutDashboard }, { key: 'accounts', path: '/accounts', icon: Wallet },
   { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank },
-  { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
+  { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'analysis', path: '/analysis', icon: BarChart3 }, { key: 'wishlist', path: '/wishlist', icon: Gift }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
 ] as const
 export function Layout() {
   const { t, language, setLanguage } = useLocale()
@@ -21,7 +21,7 @@ export function Layout() {
   const location = useLocation()
   const client = useQueryClient()
   const logout = useMutation({ mutationFn: () => send('/auth/logout'), onSuccess: () => { client.clear(); window.location.assign('/') } })
-  const title = [...navigation, { key: 'insights', path: '/insights' }, { key: 'settings', path: '/settings' }].find(n => n.path === location.pathname)?.key || 'overview'
+   const title = [...navigation, { key: 'insights', path: '/insights' }, { key: 'settings', path: '/settings' }, { key: 'settings', path: '/settings/mcp' }, { key: 'settings', path: '/mcp/authorize' }].find(n => n.path === location.pathname)?.key || 'overview'
   useEffect(() => {
     if (!open) return
     const previous = document.activeElement as HTMLElement

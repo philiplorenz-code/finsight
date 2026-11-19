@@ -1,6 +1,6 @@
 /** Real browser + shipped proxy + live API. Isolated synthetic installation only. */
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
@@ -44,6 +44,13 @@ try {
   await page.getByLabel('Bis', { exact: true }).fill('2025-10-31')
   await loaded
   await page.locator('.stat-card').first().getByText(/2\.000/).waitFor()
+  await page.waitForFunction(() => {
+    const charts = [...document.querySelectorAll('.chart-container svg.recharts-surface, .donut-container svg.recharts-surface')]
+    return charts.length === 2 && charts.every(chart => {
+      const box = chart.getBoundingClientRect()
+      return box.width > 100 && box.height > 100
+    })
+  })
   assert.equal(pageErrors.length, 0)
   if (process.env.FINSIGHT_CAPTURE_SCREENSHOTS === '1') {
     const destination = new URL('../../docs/screenshots/', import.meta.url)
@@ -52,10 +59,57 @@ try {
   }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.waitForFunction(() => document.documentElement.scrollWidth <= window.innerWidth, null, { timeout: 5000 })
+  assert.ok(await page.locator('.donut-container svg.recharts-surface').evaluate(chart => chart.getBoundingClientRect().width > 100), 'Mobile SVG must have a visible viewport, not just sector geometry')
   if (process.env.FINSIGHT_CAPTURE_SCREENSHOTS === '1') {
     await page.screenshot({ path: new URL('../../docs/screenshots/mobile.png', import.meta.url).pathname, fullPage: true, animations: 'disabled' })
   }
-  console.log('Live synthetic browser checks passed: same-origin login, cookie session, CSRF rejection, API data and dashboard rendering.')
+  const expectMcp = process.env.FINSIGHT_EXPECT_MCP_ENABLED === '1'
+  const connections = await (await page.request.get(base + '/api/mcp/connections')).json()
+  assert.equal(connections.enabled, expectMcp)
+  await page.goto(base + '/settings/mcp')
+  await page.getByText(expectMcp ? 'Server aktiviert' : 'Server deaktiviert', { exact: true }).waitFor()
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true)
+  if (expectMcp) {
+    const callback = base + '/synthetic-mcp-callback'
+    // Emulate only the local test client's callback, not any FinSight API route.
+    await page.route(callback + '*', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Synthetic OAuth callback</title>' }))
+    const client = await (await page.request.post(base + '/oauth/register', { data: {
+      client_name: 'Synthetic browser client', redirect_uris: [callback], token_endpoint_auth_method: 'none',
+      scope: 'finance:read finance:transactions',
+    } })).json()
+    const verifier = randomBytes(48).toString('base64url')
+    const challenge = createHash('sha256').update(verifier).digest('base64url')
+    const state = randomBytes(24).toString('base64url')
+    const params = new URLSearchParams({ response_type: 'code', client_id: client.client_id, redirect_uri: callback,
+      scope: 'finance:read finance:transactions', resource: base + '/mcp', state,
+      code_challenge: challenge, code_challenge_method: 'S256' })
+    await page.goto(base + '/oauth/authorize?' + params)
+    await page.getByRole('heading', { name: 'Synthetic browser client', exact: true }).waitFor()
+    await page.getByText(callback, { exact: true }).waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Zugriff ausdrücklich erlauben', exact: true }).isDisabled(), true)
+    const checks = page.locator('.mcp-consent input[type="checkbox"]')
+    assert.equal(await checks.first().isChecked(), false, 'Transaction details remain opt-in')
+    await checks.last().check()
+    await page.getByRole('button', { name: 'Zugriff ausdrücklich erlauben', exact: true }).click()
+    await page.waitForURL(url => url.pathname === '/synthetic-mcp-callback' && url.searchParams.has('code'))
+    const returned = new URL(page.url())
+    assert.equal(returned.searchParams.get('state'), state)
+    const response = await page.request.post(base + '/oauth/token', { form: {
+      grant_type: 'authorization_code', client_id: client.client_id, code: returned.searchParams.get('code'),
+      code_verifier: verifier, redirect_uri: callback, resource: base + '/mcp',
+    } })
+    assert.equal(response.status(), 200)
+    const token = await response.json()
+    assert.equal(token.scope, 'finance:read', 'Unchecked transaction permission must not be granted')
+    await page.goto(base + '/settings/mcp')
+    await page.getByRole('button', { name: 'Verbindung widerrufen: Synthetic browser client', exact: true }).click()
+    await page.getByRole('button', { name: 'Verbindung widerrufen: Synthetic browser client', exact: true }).waitFor({ state: 'detached' })
+    const rejected = await page.request.post(base + '/mcp', { headers: { Authorization: `Bearer ${token.access_token}` },
+      data: { jsonrpc: '2.0', id: 100, method: 'tools/list', params: {} } })
+    assert.equal(rejected.status(), 401, 'UI revocation must invalidate actual protocol access')
+  }
+  assert.equal(pageErrors.length, 0)
+  console.log('Live synthetic browser checks passed: auth, CSRF, finance dashboard, mobile layout and MCP settings/consent state.')
 } catch {
   console.error('Live synthetic browser verification failed. Inspect locally without publishing browser traces or credentials.')
   process.exitCode = 1

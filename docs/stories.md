@@ -1,6 +1,6 @@
 # Delivery backlog and acceptance criteria
 
-Status begins **planned**; completion requires implementation plus tests. P0 is release-critical, P1 is product completeness, P2 is enhancement. Work packages are independently owned; integration is centrally reviewed.
+Completion requires implementation plus tests. P0 is release-critical, P1 is product completeness, P2 is enhancement. Work packages are independently owned; integration is centrally reviewed. The status table below records the alpha's actual reduced scope; priorities are not silently relaxed by publication.
 
 | ID | Priority | User story | Acceptance criteria | Package |
 |---|---|---|---|---|
@@ -23,8 +23,26 @@ Status begins **planned**; completion requires implementation plus tests. P0 is 
 | S17 | P0 | As operator I deploy and recover FinSight | Compose/migrations/health/non-root; backup and verified restore procedure | Integration |
 | S18 | P0 | As contributor I can test safely | Synthetic fixtures only; unit/integration/E2E; dependency and secret CI; real export ignored | All |
 | S19 | P0 | As maintainer I publish a privacy-reviewed OSS project | Apache-2.0, docs, templates, full history scan, authenticated public `finsight` repository | Integration |
+| S20 | P1 | As owner I connect ChatGPT or another MCP client | Disabled default; remote Streamable HTTP; OAuth PKCE with explicit consent; expiring/revocable credentials; isolation and rate limits | MCP auth |
+| S21 | P1 | As analyst I query finance through MCP | Typed bounded read-only overview/account/transaction/category/recurrence/bucket tools; currencies, filters, uncertainty and evidence preserved; no raw banking references | MCP tools |
+| S22 | P1 | As analyst I reuse financial analysis workflows | Native MCP prompts for monthly review, spending comparison, subscription audit, bucket funding and safe-to-spend; resources document definitions and tool chains; no unsupported certainty | MCP tools/UI |
 
-## Required regression matrix
+## Delivery status — 2026-11-14
+
+| Stories | Actual status |
+|---|---|
+| S01–S04 | Core auth/import/reimport/transfer/split paths implemented and regression-tested; unsupported nested/cyclic graphs rejected. |
+| S05–S06 | Core per-currency arithmetic and funding implemented; incomplete asset coverage, ambiguous same-day observations, historical allocation/settings versioning and some lifecycle UI remain. |
+| S07–S10 | Explorer, reversible corrections, account editing, recurrence evidence and responsive DE/EN dashboard implemented; complete revision-diff UI, richer recurrence/health analysis and warning translations remain. |
+| S11 | Partial: preview/upload/history work; persistent HTTP uploads/progress/retry need [#18](https://github.com/philiplorenz-code/finsight/issues/18). |
+| S12–S14 | Partial: bounded fixed-topic LangGraph graph, budget gates and opt-in scheduled jobs are tested; adaptive free-text analysis and complete proactive finding coverage need [#19](https://github.com/philiplorenz-code/finsight/issues/19). |
+| S15–S16 | Generic ntfy/outbox/reminder policy and stable-file durable jobs implemented; live ntfy delivery and exhaustive process-crash tests not performed. |
+| S17–S19 | Compose, actual synthetic restore/browser rehearsal, CI and privacy-reviewed public repository delivered; not an independent production-security audit. |
+| S20–S22 | MCP protocol/OAuth/scopes/management, 12 tools, 3 resources and 5 prompts implemented and tested locally through deployed proxy; live ChatGPT/public HTTPS verification pending operator setup. |
+
+See [release status](release-status.md) for evidence, limitations and linked follow-up issues.
+
+## Regression coverage
 
 Header mapping; identical/overlapping changed imports; paired and one-sided transfers; deposits/withdrawals; annual insurance; normalized obligations; no double counting; split reconciliation; null contracts; recurrence; future dates; incomplete months; negative balances; multiple accounts/currencies; renaming; 13k-row import; monthly budget exhaustion; concurrent reservations; loop limits/provider failure/disabled AI; ntfy failure and suppression; malformed/zip-bomb/formula uploads; unauthorized/CSRF; error redaction; backup/restore.
 

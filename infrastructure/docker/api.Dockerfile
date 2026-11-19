@@ -21,4 +21,4 @@ COPY --chown=finsight:finsight apps/api/alembic.ini ./
 COPY --chown=finsight:finsight apps/api/migrations ./migrations
 USER 10001:10001
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--no-proxy-headers"]

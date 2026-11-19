@@ -37,8 +37,13 @@ def booking(ident="booking-1", amount="-12.50", day="2026-01-15", **extra):
 
 
 @pytest.fixture
-def db():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+def db(request, tmp_path):
+    if request.node.get_closest_marker("concurrent_db"):
+        # StaticPool shares ONE sqlite connection, which is unsafe when tests deliberately run
+        # requests in parallel threads. A file database gives each session its own connection.
+        engine = create_engine(f"sqlite:///{tmp_path / 'concurrent.db'}", connect_args={"check_same_thread": False})
+    else:
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as session:
