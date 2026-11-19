@@ -351,3 +351,10 @@ def test_data_gaps_report_empty_low_and_ended_accounts(owner, db):
     assert first["empty_months"] == ["2026-03"] and first["ended_early_months"] == 3
     assert report["affected_accounts"] == 1 and report["last_complete_month"] == "2026-11"
     assert all("amount" not in str(a).lower() for a in report["accounts"]), "months and names only"
+
+
+def test_sporadic_accounts_are_not_reported_as_gaps():
+    from collections import Counter
+    from app.quality import assess_account
+    sporadic = Counter({m: 5 for m in (24300, 24302, 24305, 24309, 24311, 24313, 24315)})
+    assert assess_account(sporadic, 24316) is None

@@ -2,7 +2,7 @@
 
 Gaps silently distort averages, trends and the wish assessment, so they are reported per account and
 month (never with amounts). Only regularly used spending accounts are assessed: an account needs bookings
-in at least MIN_ACTIVE_MONTHS months, and savings or investment accounts are skipped because empty months
+in at least MIN_ACTIVE_MONTHS months and in at least 80% of the months between its first and last booking, and savings or investment accounts are skipped because empty months
 are normal there. Accounts marked inactive or excluded are skipped as well.
 """
 from __future__ import annotations
@@ -24,6 +24,7 @@ router = APIRouter(tags=["data-quality"])
 
 ASSESSED_PURPOSES = {"checking", "cash", "credit"}
 MIN_ACTIVE_MONTHS = 6
+MIN_COVERAGE = Decimal("0.8")  # share of months between first and last booking with any booking
 LOW_VOLUME_RATIO = Decimal("0.25")
 MIN_TYPICAL_BOOKINGS = 4
 ENDED_EARLY_AFTER_MONTHS = 2
@@ -53,6 +54,8 @@ def assess_account(counts: Counter, last_complete: int) -> dict | None:
     if len(counts) < MIN_ACTIVE_MONTHS:
         return None
     first, last = min(counts), max(counts)
+    if Decimal(len(counts)) / (last - first + 1) < MIN_COVERAGE:
+        return None  # used only now and then: empty months are normal here
     typical = median(list(counts.values()))
     empty = [m for m in range(first + 1, last) if m not in counts]
     low = []
