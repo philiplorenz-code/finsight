@@ -1,4 +1,5 @@
 import hashlib
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -136,6 +137,54 @@ def login(body: Credentials, request: Request, response: Response, db: DBSession
     if hasher.check_needs_rehash(user.password_hash):
         user.password_hash = hasher.hash(body.password)
     return sign_in(user, db, response)
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=12, max_length=1024)
+
+
+class EmailChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    email: str = Field(min_length=3, max_length=254)
+
+
+def require_current_password(user, password):
+    try:
+        valid = hasher.verify(user.password_hash, password)
+    except (VerificationError, InvalidHashError):
+        valid = False
+    if not valid:
+        raise HTTPException(403, "Current password is incorrect")
+
+
+@router.post("/change-password")
+def change_password(body: PasswordChange, request: Request, user: User = Depends(current_user), db: DBSession = Depends(get_db)):
+    rate_limit(request, db)
+    require_current_password(user, body.current_password)
+    if body.new_password == body.current_password:
+        raise HTTPException(422, "The new password must differ from the current one")
+    user.password_hash = hasher.hash(body.new_password)
+    # Other devices/browsers must sign in again with the new password; this session stays valid.
+    revoked = db.execute(delete(Session).where(Session.user_id == user.id, Session.id != request.state.session.id)).rowcount
+    db.commit()
+    return {"ok": True, "sessions_revoked": revoked}
+
+
+@router.post("/change-email")
+def change_email(body: EmailChange, request: Request, user: User = Depends(current_user), db: DBSession = Depends(get_db)):
+    rate_limit(request, db)
+    require_current_password(user, body.current_password)
+    email = body.email.strip().lower()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+", email):
+        raise HTTPException(422, "Enter a valid e-mail address")
+    user.email = email
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "E-mail address already in use") from None
+    return {"email": email}
 
 
 @router.get("/me")
