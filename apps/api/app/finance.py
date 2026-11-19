@@ -241,7 +241,8 @@ DECLARED_PERIODS = {"monatlich": ("monthly", 30), "monthly": ("monthly", 30), "1
 
 
 def contracts(db, user_id):
-    from .recurring import classify, infer_period, load_decisions, normalize_key, status_of
+    from collections import Counter
+    from .recurring import classify, group_key, infer_period, load_decisions, normalize_key, status_of
     today = local_today(db, user_id)
     txs = list(db.scalars(select(Transaction).where(Transaction.user_id == user_id,
                Transaction.booking_date <= today, Transaction.amount < 0).order_by(Transaction.booking_date)))
@@ -249,12 +250,16 @@ def contracts(db, user_id):
     groups = defaultdict(list)
     for tx in txs:
         if eligible(tx):
-            name = tx.contract_name or tx.merchant
-            groups[(bool(tx.contract_name), normalize_key(name) if not tx.contract_name else name, tx.currency)].append(tx)
+            declared, key = group_key(tx)
+            groups[(declared, key, tx.currency)].append(tx)
     items = []
-    for (source, group_key, currency), rows in groups.items():
+    for (source, gkey, currency), rows in groups.items():
         last = rows[-1]
-        name = (last.contract_name or last.merchant or "").strip()
+        if gkey.startswith("n:"):
+            name = gkey[2:].strip()  # the export names the contract itself
+        else:
+            names = Counter((r.merchant or "").strip() for r in rows if (r.merchant or "").strip())
+            name = names.most_common(1)[0][0] if names else ""
         if not name:
             continue
         period, days = None, None
@@ -265,7 +270,7 @@ def contracts(db, user_id):
                 inferred = infer_period([r.booking_date for r in rows], [-r.amount for r in rows])
                 period, days = inferred if inferred else (None, None)
         else:
-            if not group_key:
+            if gkey in {"m:", ""}:
                 continue
             inferred = infer_period([r.booking_date for r in rows], [-r.amount for r in rows])
             if not inferred:
@@ -273,7 +278,7 @@ def contracts(db, user_id):
             period, days = inferred
         if not source and not period:
             continue
-        key = normalize_key(name) or group_key
+        key = normalize_key(name) or gkey
         decision = decisions.get(key)
         cost = annual(-last.amount, period) if period else None
         kind = (decision.kind if decision and decision.kind else None) or classify(name, last.category_override or last.category)
@@ -289,7 +294,7 @@ def contracts(db, user_id):
                       "evidence": [row.id for row in rows]})
     visible = [i for i in items if i["decision"] != "dismissed"]
     dismissed = [i for i in items if i["decision"] == "dismissed"]
-    active = [i for i in visible if i["status"] == "active" and i["monthly_cost"]]
+    active = [i for i in visible if i["status"] == "active" and i["monthly_cost"] and i["kind"] != "savings"]  # savings plans are not costs
     totals = {}
     for item in active:
         t = totals.setdefault(item["currency"], {"monthly": ZERO, "yearly": ZERO, "by_kind": {}})

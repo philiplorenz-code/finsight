@@ -94,3 +94,28 @@ def test_decisions_survive_reimport_and_can_rename_reclassify(owner):
     assert "Mystery Abbuchung" in items(owner)
     assert owner.put("/api/contracts/decision", json={"key": key, "decision": "bogus"}).status_code == 422
     assert owner.put("/api/contracts/decision", json={"key": key, "decision": "confirm", "kind": "nope"}).status_code == 422
+
+
+def test_yes_no_contract_flag_is_not_a_contract_name_and_the_contract_id_groups(owner):
+    today = date.today()
+    start = date(today.year - 1, today.month, 5)
+    rows = []
+    for i, row in enumerate(series("Strom Muster", 55, start, 12, category="Strom")):
+        row.update({"Vertrag": "ja", "Vertrags-ID": "CONTRACT-A", "Vertragsturnus": "monatlich"})
+        rows.append(row)
+    for i, row in enumerate(series("Sparplan Depot", 100, start, 12, category="Sparen", prefix="sp")):
+        row.update({"Vertrag": "ja", "Vertrags-ID": "CONTRACT-B", "Vertragsturnus": "monatlich"})
+        rows.append(row)
+    for row in series("Kein Vertrag Laden", 9, start, 2, prefix="nv"):
+        row.update({"Vertrag": "nein"})
+        rows.append(row)
+    assert upload(owner, rows).status_code == 200
+    data = owner.get("/api/contracts").json()
+    found = {i["name"]: i for i in data["items"]}
+    assert "ja" not in found and "nein" not in found, "the yes/no flag is a marker, not a name"
+    assert found["Strom Muster"]["kind"] == "utility" and found["Strom Muster"]["period"] == "monthly"
+    assert found["Sparplan Depot"]["kind"] == "savings"
+    assert "Kein Vertrag Laden" not in found
+    eur = data["totals"]["EUR"]
+    assert "savings" not in eur["by_kind"] and D(eur["monthly"]) == 55, "savings plans are shown but are not costs"
+    assert all(c["kind"] != "savings" for c in data["cancellation_candidates"])

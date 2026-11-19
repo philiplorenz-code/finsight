@@ -34,9 +34,10 @@ AMOUNT_TOLERANCE = Decimal("0.20")
 MIN_STABLE_AMOUNTS = 0.7
 STOPPED_AFTER = Decimal("1.6")  # periods without a booking before a contract counts as stopped
 
-KINDS = ("insurance", "housing", "loan", "subscription", "utility", "other")
-Kind = Literal["insurance", "housing", "loan", "subscription", "utility", "other"]
+KINDS = ("insurance", "housing", "loan", "subscription", "utility", "savings", "other")
+Kind = Literal["insurance", "housing", "loan", "subscription", "utility", "savings", "other"]
 KEYWORDS = {
+    "savings": ("sparen", "sparplan", "kapitalanlage", "etf", "tagesgeld"),
     "loan": ("kredit", "darlehen", "tilgung", "finanzierung", "leasing"),
     "insurance": ("versicher", "haftpflicht", "hausrat", "rechtsschutz", "unfall", "berufsunf", "allianz", "huk", "ergo ",
                   "axa", "signal iduna", "barmenia", "debeka", "zurich", "generali", "devk", "cosmos", "tk ", "aok", "barmer"),
@@ -47,7 +48,7 @@ KEYWORDS = {
                      "adobe", "microsoft", "google", "dropbox", "openai", "anthropic", "patreon", "abo", "zeitung",
                      "magazin", "fitness", "fitx", "mcfit", "gym", "sky ", "wow"),
 }
-KIND_ORDER = ("loan", "insurance", "housing", "utility", "subscription")
+KIND_ORDER = ("savings", "loan", "insurance", "housing", "utility", "subscription")
 
 
 def normalize_key(name: str) -> str:
@@ -55,10 +56,17 @@ def normalize_key(name: str) -> str:
     return " ".join(re.sub(r"[^a-zäöüß&. ]+", " ", text).split())[:200]
 
 
+def _has(text: str, keyword: str) -> bool:
+    word = keyword.strip()
+    if len(word) <= 4:  # short keywords must be whole words ("etf" must not match "netflix")
+        return re.search(rf"(?<![a-zäöüß0-9]){re.escape(word)}(?![a-zäöüß0-9])", text) is not None
+    return word in text
+
+
 def classify(name: str, category: str | None) -> str:
-    text = f"{name} {category or ''}".casefold() + " "
+    text = f"{name} {category or ''}".casefold()
     for kind in KIND_ORDER:
-        if any(word in text for word in KEYWORDS[kind]):
+        if any(_has(text, word) for word in KEYWORDS[kind]):
             return kind
     return "other"
 
@@ -119,3 +127,28 @@ def decide(body: DecisionBody, db: Session = Depends(get_db), user=Depends(curre
         existing.kind = body.kind
     db.commit()
     return {"key": body.key, "decision": existing.decision, "name": existing.name, "kind": existing.kind}
+
+
+TRUE_FLAGS = {"ja", "yes", "true", "1", "j", "y"}
+FALSE_FLAGS = {"nein", "no", "false", "0", "n"}
+
+
+def contract_reference(tx) -> str | None:
+    """The source's own contract id (for example Finanzguru's 'Analyse-Vertrags-ID'), if the booking has one."""
+    for column, value in (tx.source.get("columns") or {}).items():
+        folded = str(column).casefold().replace(" ", "")
+        if ("vertrags-id" in folded or "vertragsid" in folded or "contractid" in folded) and str(value or "").strip():
+            return str(value).strip()
+    return None
+
+
+def group_key(tx) -> tuple[bool, str]:
+    """(declared_by_source, key). A yes/no contract flag is only a marker; the contract id identifies the contract."""
+    name = (tx.contract_name or "").strip()
+    folded = name.casefold()
+    if folded in TRUE_FLAGS:
+        reference = contract_reference(tx)
+        return True, f"id:{reference}" if reference else f"m:{normalize_key(tx.merchant)}"
+    if not name or folded in FALSE_FLAGS:
+        return False, f"m:{normalize_key(tx.merchant)}"
+    return True, f"n:{name}"

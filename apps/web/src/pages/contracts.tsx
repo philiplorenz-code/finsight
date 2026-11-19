@@ -15,9 +15,9 @@ type Totals = Record<string, { monthly: string; yearly: string; by_kind: Record<
 type Candidate = { key: string; name: string; kind: string; currency: string; annual_cost: string; period: string; price_increase: boolean }
 type Payload = { items: RawRow[]; dismissed?: RawRow[]; totals?: Totals; cancellation_candidates?: Candidate[]; warnings?: string[] }
 
-const KINDS = ['insurance', 'housing', 'loan', 'subscription', 'utility', 'other'] as const
-const KIND_DE: Record<string, string> = { insurance: 'Versicherung', housing: 'Wohnen', loan: 'Kredit / Rate', subscription: 'Abo', utility: 'Nebenkosten / Telefon', other: 'Sonstiges' }
-const KIND_EN: Record<string, string> = { insurance: 'Insurance', housing: 'Housing', loan: 'Loan', subscription: 'Subscription', utility: 'Utilities', other: 'Other' }
+const KINDS = ['insurance', 'housing', 'loan', 'subscription', 'utility', 'savings', 'other'] as const
+const KIND_DE: Record<string, string> = { insurance: 'Versicherung', housing: 'Wohnen', loan: 'Kredit / Rate', subscription: 'Abo', utility: 'Nebenkosten / Telefon', savings: 'Sparen / Anlage', other: 'Sonstiges' }
+const KIND_EN: Record<string, string> = { insurance: 'Insurance', housing: 'Housing', loan: 'Loan', subscription: 'Subscription', utility: 'Utilities', savings: 'Savings plan', other: 'Other' }
 const PERIOD_DE: Record<string, string> = { monthly: 'monatlich', quarterly: 'vierteljährlich', half_yearly: 'halbjährlich', yearly: 'jährlich', unknown: '—' }
 const PERIOD_EN: Record<string, string> = { monthly: 'monthly', quarterly: 'quarterly', half_yearly: 'half-yearly', yearly: 'yearly', unknown: '—' }
 
