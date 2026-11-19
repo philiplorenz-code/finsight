@@ -12,6 +12,7 @@ from .db import get_db
 from .routes import router as finance_router
 from .income import router as income_router
 from .transfers import router as transfers_router
+from .business import router as business_router
 from .networth import router as networth_router
 from .wishlist import router as wishlist_router
 from .limits import RequestSizeLimit
@@ -37,6 +38,7 @@ app.include_router(finance_router, prefix="/api", dependencies=[Depends(require_
 app.include_router(wishlist_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(income_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(transfers_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(business_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(networth_router, prefix="/api", dependencies=[Depends(require_csrf)])
 
 # OAuth routes have absolute root discovery and /api/mcp paths. Their module

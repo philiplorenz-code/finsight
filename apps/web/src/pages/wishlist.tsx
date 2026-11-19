@@ -17,7 +17,7 @@ type Assessment = {
 }
 type WishItem = { id: string; name: string; price: string; currency: string; priority: number; due_date?: string | null; follow_up_monthly_cost: string; note: string; status: string; assessment: Assessment | null }
 type Wishlist = {
-  baseline: { currency: string; months_used: number; data_through?: string | null; monthly_income: string; income_sources: Record<string, { monthly_average: string; monthly_lower_quartile: string; months_with_income: number; share: string }>; unassigned_income: { merchant: string; total: string }[]; monthly_consumption: string; monthly_tax: string; expected_surplus: string; conservative_surplus: string; cash_on_hand: string; reserve: string; usable_cash: string; confidence: string; assumptions: string[]; warnings: string[] }
+  baseline: { business?: Record<'income_monthly' | 'income_weak_quarter' | 'expenses_monthly' | 'profit_monthly' | 'tax_reserve_suggestion' | 'tax_reserve_rate', string>; currency: string; months_used: number; data_through?: string | null; monthly_income: string; income_sources: Record<string, { monthly_average: string; monthly_lower_quartile: string; months_with_income: number; share: string }>; unassigned_income: { merchant: string; total: string }[]; monthly_consumption: string; monthly_tax: string; expected_surplus: string; conservative_surplus: string; cash_on_hand: string; reserve: string; usable_cash: string; confidence: string; assumptions: string[]; warnings: string[] }
   prefs: { self_names: string[]; reserve_months: number; monthly_tax_reserve: string }
   wishes: WishItem[]; disclaimer: string
 }
@@ -32,6 +32,8 @@ const DE_MESSAGES: Record<string, string> = {
   'Running costs of this and earlier wishes would consume the whole expected surplus': 'Die Folgekosten dieses und früherer Wünsche würden den gesamten erwarteten Überschuss aufbrauchen.',
   'Surplus = income - consumption - tax, excluding transfers, savings and your own transfers': 'Überschuss = Einnahmen − Konsum − Steuer, ohne Umbuchungen, Sparen und eigene Überweisungen.',
   'Conservative = lower quartile of monthly surplus; expected = 12-month average': 'Konservativ = unteres Quartil des Monatsüberschusses; erwartet = 12-Monats-Durchschnitt.',
+  'Conservative = lower quartile of monthly surplus, and business income at its weak-quarter value; expected = 12-month average': 'Konservativ = unteres Quartil des Monatsüberschusses und Gewerbe-Einnahmen im schwachen Viertel; erwartet = 12-Monats-Durchschnitt.',
+  'Business expenses (your rules) are reported apart from private consumption but still reduce the surplus': 'Gewerbe-Ausgaben (deine Regeln) werden getrennt vom privaten Verbrauch ausgewiesen, mindern aber weiterhin den Überschuss.',
   'Cash on hand uses observed balances, which are not a complete net worth': 'Das vorhandene Geld basiert auf beobachteten Kontoständen und ist kein vollständiges Vermögen.',
 }
 const DE_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
@@ -54,6 +56,7 @@ export default function WishlistPage() {
   const [create, setCreate] = useState(false)
   const [prefs, setPrefs] = useState(false)
   const [rules, setRules] = useState(false)
+  const [bizRules, setBizRules] = useState(false)
   const refresh = () => client.invalidateQueries({ queryKey: ['wishlist'] })
   const update = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => send(`/wishes/${id}`, { status }, 'PATCH'), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (id: string) => send(`/wishes/${id}`, undefined, 'DELETE'), onSuccess: refresh })
@@ -62,7 +65,7 @@ export default function WishlistPage() {
   const open = data?.wishes.filter(w => w.status === 'open') ?? []
   const closed = data?.wishes.filter(w => w.status !== 'open') ?? []
   return <>
-    <PageHeader title={t('wishlist')} description={t('wishlistIntro')} action={<><Button variant="outline" onClick={() => setRules(true)}>{t('incomeRules')}</Button><Button variant="outline" onClick={() => setPrefs(true)}><Settings2 size={17} />{t('wishPrefs')}</Button><Button onClick={() => setCreate(true)}><Plus size={17} />{t('wishAdd')}</Button></>} />
+    <PageHeader title={t('wishlist')} description={t('wishlistIntro')} action={<><Button variant="outline" onClick={() => setRules(true)}>{t('incomeRules')}</Button><Button variant="outline" onClick={() => setBizRules(true)}>{language === 'de' ? 'Gewerbe-Ausgaben' : 'Business expenses'}</Button><Button variant="outline" onClick={() => setPrefs(true)}><Settings2 size={17} />{t('wishPrefs')}</Button><Button onClick={() => setCreate(true)}><Plus size={17} />{t('wishAdd')}</Button></>} />
     <Notice>{data?.disclaimer ?? t('wishDisclaimer')}</Notice>
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>
       {data && <>
@@ -81,6 +84,7 @@ export default function WishlistPage() {
         <Panel title={t('incomeSources')}>
           <div className="stat-grid">{(['employment', 'business', 'other'] as const).map(k => { const s = data.baseline.income_sources?.[k]; return s && <div className="detail-stat" key={k}><span>{t(`src_${k}` as never)} · {Math.round(Number(s.share) * 100)} %</span><Money value={s.monthly_average} currency={data.baseline.currency} /><span className="muted">{t('srcWorst')}: <Money value={s.monthly_lower_quartile} currency={data.baseline.currency} /> · {t('srcMonths')}: {s.months_with_income}/{data.baseline.months_used}</span></div> })}</div>
         </Panel>
+        {data.baseline.business && <BusinessPanel business={data.baseline.business} prefs={data.prefs} currency={data.baseline.currency} de={language === 'de'} onDone={refresh} />}
         {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
         {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}
         <div className="buckets-grid">{open.map(w => <Panel key={w.id} className="bucket-card">
@@ -112,6 +116,7 @@ export default function WishlistPage() {
     </QueryState>
     {create && <WishCreate onClose={() => setCreate(false)} onDone={refresh} />}
     {rules && data && <IncomeRules unassigned={data.baseline.unassigned_income ?? []} onClose={() => setRules(false)} onDone={refresh} />}
+    {bizRules && <BusinessRules onClose={() => setBizRules(false)} onDone={refresh} />}
     {prefs && data && <Prefs current={data.prefs} onClose={() => setPrefs(false)} onDone={refresh} />}
   </>
 }
@@ -216,4 +221,59 @@ function PlanChart({ baseline, wishes }: { baseline: Wishlist['baseline']; wishe
       </LineChart>
     </ResponsiveContainer></div>
   </Panel>
+}
+
+
+function BusinessPanel({ business, prefs, currency, de, onDone }: { business: NonNullable<Wishlist['baseline']['business']>; prefs: Wishlist['prefs']; currency: string; de: boolean; onDone: () => void }) {
+  const apply = useMutation({
+    mutationFn: () => send('/wishlist/prefs', { self_names: prefs.self_names, reserve_months: prefs.reserve_months, monthly_tax_reserve: Number(business.tax_reserve_suggestion).toFixed(2) }, 'PUT'),
+    onSuccess: onDone,
+  })
+  if (Number(business.income_monthly) === 0 && Number(business.expenses_monthly) === 0) return null
+  const same = Math.abs(Number(prefs.monthly_tax_reserve) - Number(business.tax_reserve_suggestion)) < 0.01
+  return <Panel title={de ? 'Gewerbe' : 'Business'} description={de ? 'Einnahmen und Ausgaben aus deinen Gewerbe-Regeln. Der vorsichtige Wert nutzt das schwache Viertel der Gewerbe-Einnahmen.' : 'Income and expenses from your business rules; the cautious value uses the weak quarter of business income.'}>
+    <div className="stat-grid">
+      <div className="detail-stat"><span>{de ? 'Einnahmen Ø / Monat' : 'Income avg / month'}</span><Money value={business.income_monthly} currency={currency} /></div>
+      <div className="detail-stat"><span>{de ? 'Schwaches Viertel' : 'Weak quarter'}</span><Money value={business.income_weak_quarter} currency={currency} /></div>
+      <div className="detail-stat"><span>{de ? 'Ausgaben Ø / Monat' : 'Expenses avg / month'}</span><Money value={business.expenses_monthly} currency={currency} /></div>
+      <div className="detail-stat"><span>{de ? 'Gewinn Ø / Monat' : 'Profit avg / month'}</span><Money value={business.profit_monthly} currency={currency} /></div>
+    </div>
+    <p className="muted">{de
+      ? `Steuerrücklage-Vorschlag: ${Math.round(Number(business.tax_reserve_rate) * 100)} % vom Gewinn = `
+      : `Tax reserve suggestion: ${Math.round(Number(business.tax_reserve_rate) * 100)} % of profit = `}<Money value={business.tax_reserve_suggestion} currency={currency} />{de ? ' pro Monat. Grobe Planungsgröße, keine Steuerberatung; wird nur übernommen, wenn du es bestätigst.' : ' per month. A rough planning figure, not tax advice; applied only when you confirm.'}</p>
+    {Number(business.tax_reserve_suggestion) > 0 && !same && <Button variant="outline" busy={apply.isPending} onClick={() => apply.mutate()}>{de ? 'Als Steuerrücklage übernehmen' : 'Use as tax reserve'}</Button>}
+    <Feedback error={apply.error} />
+  </Panel>
+}
+
+type BizRule = { id: string; name: string; pattern: string; match_field: string; category: string | null; account_id: string | null; position: number }
+function BusinessRules({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const { t, language } = useLocale()
+  const de = language === 'de'
+  const client = useQueryClient()
+  const rulesQuery = useQuery({ queryKey: ['business-rules'], queryFn: () => api<BizRule[]>('/business-rules') })
+  const accounts = useQuery({ queryKey: ['accounts-light'], queryFn: () => api<{ id: string; name: string }[]>('/accounts') })
+  const empty = { name: '', pattern: '', match_field: 'any', category: '', account_id: '' }
+  const [form, setForm] = useState(empty)
+  const done = () => { client.invalidateQueries({ queryKey: ['business-rules'] }); onDone() }
+  const add = useMutation({
+    mutationFn: () => send('/business-rules', { name: form.name, pattern: form.pattern, match_field: form.match_field, category: form.category || null, account_id: form.account_id || null, position: rulesQuery.data?.length ?? 0 }),
+    onSuccess: () => { setForm(empty); done() },
+  })
+  const remove = useMutation({ mutationFn: (id: string) => send(`/business-rules/${id}`, undefined, 'DELETE'), onSuccess: done })
+  return <Dialog title={de ? 'Gewerbe-Ausgaben' : 'Business expenses'} onClose={onClose}>
+    <p className="muted">{de ? 'Ausgaben, die zu einer Regel passen, zählen als Gewerbe und nicht mehr zum privaten Verbrauch. Der Gesamtüberschuss bleibt gleich. Alle gesetzten Bedingungen müssen zutreffen.' : 'Spending matching a rule counts as business, not private consumption. The total surplus is unchanged. All set conditions must match.'}</p>
+    {rulesQuery.data?.length ? <ul>{rulesQuery.data.map(r => <li key={r.id}>{r.name}{r.pattern && <> · „{r.pattern}“</>}{r.category && <> · {de ? 'Kategorie' : 'Category'}: {r.category}</>} <Button variant="ghost" aria-label={`${t('delete')}: ${r.name}`} onClick={() => remove.mutate(r.id)}><Trash2 size={15} /></Button></li>)}</ul> : <p className="muted">{t('ruleNone')}</p>}
+    <form className="form-stack" onSubmit={e => { e.preventDefault(); add.mutate() }}>
+      <Field label={t('ruleName')}><input required maxLength={200} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
+      <div className="form-grid">
+        <Field label={t('ruleField')}><select value={form.match_field} onChange={e => setForm({ ...form, match_field: e.target.value })}>{[['any', 'ruleAny'], ['merchant', 'ruleMerchant'], ['description', 'ruleDescription']].map(([v, k]) => <option key={v} value={v}>{t(k as never)}</option>)}</select></Field>
+        <Field label={t('rulePattern')} hint={t('rulePatternHint')}><input maxLength={200} value={form.pattern} onChange={e => setForm({ ...form, pattern: e.target.value })} /></Field>
+        <Field label={de ? 'Kategorie (genau)' : 'Category (exact)'}><input maxLength={300} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /></Field>
+        <Field label={t('ruleAccount')}><select value={form.account_id} onChange={e => setForm({ ...form, account_id: e.target.value })}><option value="">{t('ruleAnyAccount')}</option>{accounts.data?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+      </div>
+      <Feedback error={add.error} />
+      <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={add.isPending}>{t('ruleAdd')}</Button></div>
+    </form>
+  </Dialog>
 }

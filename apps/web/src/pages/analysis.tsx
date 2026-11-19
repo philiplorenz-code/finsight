@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
 import { Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Series = {
-  months: string[]; income: Record<string, string[]>; expenses: string[]; tax: string[]; surplus: string[]
+  months: string[]; income: Record<string, string[]>; expenses: string[]; business_expenses?: string[]; tax: string[]; surplus: string[]
   categories: Record<string, string[]>; other_categories: string[]; top_merchants: { merchant: string; total: string }[]
 }
 type SavingsCat = { category: string; average: string; recent: string; prior: string; delta: string; share: string; fixed: boolean; months_with_spend: number }
@@ -44,7 +44,7 @@ export default function AnalysisPage() {
     const rows = months.map((month, i) => {
       running += surplus[i]
       return {
-        month, income: income[i], expenses: expenses[i], tax: tax[i], surplus: surplus[i], cumulative: running,
+        month, income: income[i], expenses: expenses[i], bizIncome: Number(s.income.business?.[i] ?? 0), bizExpenses: Number(s.business_expenses?.[i] ?? 0), bizProfit: Number(s.income.business?.[i] ?? 0) - Number(s.business_expenses?.[i] ?? 0), tax: tax[i], surplus: surplus[i], cumulative: running,
         rate: income[i] > 0 ? Math.round((surplus[i] / income[i]) * 1000) / 10 : 0,
         ...Object.fromEntries(Object.entries(s.income).map(([k, v]) => [`src_${k}`, Number(v[i])])),
         ...Object.fromEntries(Object.entries(s.categories).map(([k, v]) => [`cat_${k}`, Number(v[i])])),
@@ -70,6 +70,13 @@ export default function AnalysisPage() {
             {Object.keys(SOURCE_COLORS).map(k => <Bar key={k} isAnimationActive={false} stackId="inc" name={srcName(k)} dataKey={`src_${k}`} fill={SOURCE_COLORS[k]} />)}
           </BarChart></ChartBox>
         </Panel>
+        {view.rows.some(r => r.bizExpenses > 0 || r.bizIncome > 0) && <Panel title={language === 'de' ? 'Gewerbe: Einnahmen, Ausgaben und Gewinn' : 'Business: income, expenses and profit'}>
+          <ChartBox label="business"><ComposedChart data={view.rows} {...common}>{grid}{xAxis}{yAxis}{tip}{legend}
+            <Bar isAnimationActive={false} name={t('src_business')} dataKey="src_business" fill="#d5aa64" />
+            <Bar isAnimationActive={false} name={language === 'de' ? 'Gewerbe-Ausgaben' : 'Business expenses'} dataKey="bizExpenses" fill="#b5654f" />
+            <Line isAnimationActive={false} type="monotone" name={language === 'de' ? 'Gewinn' : 'Profit'} dataKey="bizProfit" stroke="#287a68" strokeWidth={2.5} dot={false} />
+          </ComposedChart></ChartBox>
+        </Panel>}
         <Panel title={t('chIncomeVsOut')}>
           <ChartBox label={t('chIncomeVsOut')}><LineChart data={view.rows} {...common}>{grid}{xAxis}{yAxis}{tip}{legend}
             <Line isAnimationActive={false} type="monotone" name={t('income')} dataKey="income" stroke="#287a68" strokeWidth={2.5} dot={false} />

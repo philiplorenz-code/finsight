@@ -270,3 +270,36 @@ def test_savings_rent_with_gap_and_spike_is_fixed_not_a_trend():
     row = out["categories"][0]
     assert row["fixed"] and row["delta"] == 0
     assert out["potential_monthly"] == 0 and out["fixed_monthly"] > 0
+
+
+def test_business_rules_split_expenses_and_make_conservative_cautious(owner, db):
+    extra = [booking("biz-in", "3000", day="2026-02-10", **{"Empfänger": "Kunde GmbH"}),
+             booking("biz-in2", "3000", day="2026-05-10", **{"Empfänger": "Kunde GmbH"}),
+             booking("biz-out", "-400", day="2026-02-12", **{"Empfänger": "Hosting AG", "Kategorie": "Arbeit"}),
+             booking("biz-out2", "-100", day="2026-03-12", **{"Empfänger": "Kleinkram", "Kategorie": "Arbeit"})]
+    workbook(owner, extra)
+    assert owner.post("/api/income-rules", json={"name": "K", "source": "business", "pattern": "kunde"}).status_code == 201
+    before = baseline(db, user_id(db), today=date(2026, 7, 5))
+    assert owner.post("/api/business-rules", json={"name": "x"}).status_code == 422, "needs a condition"
+    assert owner.post("/api/business-rules", json={"name": "x", "pattern": "a", "account_id": "nope"}).status_code == 422
+    r = owner.post("/api/business-rules", json={"name": "Hosting", "pattern": "hosting", "match_field": "merchant"})
+    assert r.status_code == 201
+    assert owner.post("/api/business-rules", json={"name": "Arbeit", "category": "arbeit", "position": 1}).status_code == 201
+    after = baseline(db, user_id(db), today=date(2026, 7, 5))
+    assert after["expected_surplus"] == before["expected_surplus"], "rules only split, totals unchanged"
+    assert after["monthly_consumption"] == D(2000), "business spending left private consumption"
+    assert after["business"]["expenses_monthly"] == D(500) / 6
+    assert after["business"]["income_monthly"] == D(6000) / 6
+    assert after["business"]["profit_monthly"] == D(5500) / 6
+    assert after["business"]["tax_reserve_suggestion"] == D(5500) / 6 * D("0.30")
+    assert after["conservative_surplus"] < before["conservative_surplus"] or after["conservative_surplus"] <= after["expected_surplus"]
+    series = owner.get("/api/analytics").json()["series"]
+    assert [D(x) for x in series["business_expenses"]] == [0, 400, 100, 0, 0, 0]
+    assert "Arbeit" not in series["categories"]
+    rid = r.json()["id"]
+    assert owner.patch(f"/api/business-rules/{rid}", json={"pattern": ""}).status_code == 422, "no condition left"
+    assert owner.patch(f"/api/business-rules/{rid}", json={"category": "Arbeit"}).json()["category"] == "Arbeit"
+    assert owner.patch(f"/api/business-rules/{rid}", json={"name": None}).status_code == 422
+    assert len(owner.get("/api/business-rules").json()) == 2
+    assert owner.delete(f"/api/business-rules/{rid}").status_code == 200
+    assert owner.delete(f"/api/business-rules/{rid}").status_code == 404

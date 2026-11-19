@@ -217,3 +217,17 @@ class Holding(Base):
     note: Mapped[str] = mapped_column(Text, default="")
     valued_on: Mapped[date] = mapped_column(Date, default=date.today)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class BusinessRule(Base):
+    """Marks matching spending as business expense so it is reported apart from private consumption."""
+    __tablename__ = "business_rules"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    pattern: Mapped[str] = mapped_column(String(200), default="")
+    match_field: Mapped[str] = mapped_column(String(20), default="any")
+    category: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
