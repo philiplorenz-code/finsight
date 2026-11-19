@@ -37,6 +37,7 @@ const DE_MESSAGES: Record<string, string> = {
   'Cash on hand uses observed balances, which are not a complete net worth': 'Das vorhandene Geld basiert auf beobachteten Kontoständen und ist kein vollständiges Vermögen.',
 }
 const DE_PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^Data gaps in the analysis window for (\d+) account\(s\); see the imports page$/, m => `Datenlücken im Analysezeitraum bei ${m[1]} Konto/Konten – Details unter „Importe“.`],
   [/^Only (\d+) complete month\(s\) of data are available$/, m => `Nur ${m[1]} vollständige(r) Monat(e) an Daten verfügbar.`],
   [/^Wish is in (\w+); assessment covers (\w+) only$/, m => `Der Wunsch ist in ${m[1]}; die Einschätzung deckt nur ${m[2]} ab.`],
 ]

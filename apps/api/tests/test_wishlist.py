@@ -319,3 +319,42 @@ def test_full_snapshot_confirms_balance_freshness(owner, db):
     db.expire_all()
     assert db.query(Account).one().confirmed_through is not None
     assert owner.get("/api/net-worth").json()["stale_balances"] == 0, "the account is in the latest full import"
+
+
+def test_data_gaps_report_empty_low_and_ended_accounts(owner, db):
+    from collections import Counter
+    from app.quality import assess_account
+    counts = Counter({m: 6 for m in range(24300, 24312)})   # 12 regular months
+    del counts[24305]                                       # empty month
+    counts[24307] = 1                                       # far below typical
+    res = assess_account(counts, 24313)
+    assert res["empty"] == [24305] and res["low"] == [24307]
+    assert res["ended_early_months"] == 2, "last booking 2 complete months before the data ends"
+    assert assess_account(Counter({24300: 5, 24301: 5}), 24313) is None, "rarely used accounts are not assessed"
+    assert assess_account(Counter({m: 6 for m in range(24300, 24312)}), 24312)["ended_early_months"] == 0, "1 month is not a gap"
+
+    # via the API: monthly bookings Jan-Aug, none in March, then the data ends in November on another account
+    rows = []
+    for month in (1, 2, 4, 5, 6, 7, 8):
+        rows += [booking(f"m{month}-{i}", "-5", day=f"2026-{month:02d}-{10 + i}") for i in range(4)]
+    rows += [booking("a", "5", day="2026-01-02"), booking("b", "5", day="2026-02-02")]
+    assert upload(owner, rows).status_code == 200
+    other = {"Konto-ID": "second", "Konto": "Second"}
+    assert upload(owner, [booking(f"s{m}", "-1", day=f"2026-{m:02d}-15", **other) for m in range(1, 11)]
+                  + [booking("end", "-1", day="2026-11-30", **other)]).status_code == 200
+    for account in owner.get("/api/accounts").json():
+        assert owner.patch(f"/api/accounts/{account['id']}", json={"ownership": "owned"}).status_code == 200
+    report = owner.get("/api/data-quality").json()
+    names = {a["name"]: a for a in report["accounts"]}
+    assert "Synthetic checking" in names and "Second" not in names
+    first = names["Synthetic checking"]
+    assert first["empty_months"] == ["2026-03"] and first["ended_early_months"] == 3
+    assert report["affected_accounts"] == 1 and report["last_complete_month"] == "2026-11"
+    assert all("amount" not in str(a).lower() for a in report["accounts"]), "months and names only"
+
+
+def test_sporadic_accounts_are_not_reported_as_gaps():
+    from collections import Counter
+    from app.quality import assess_account
+    sporadic = Counter({m: 5 for m in (24300, 24302, 24305, 24309, 24311, 24313, 24315)})
+    assert assess_account(sporadic, 24316) is None
