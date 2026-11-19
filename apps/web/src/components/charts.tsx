@@ -36,6 +36,6 @@ export function SpendingChart({ categories, currency }: { categories?: Overview[
         <Tooltip formatter={v => formatMoney(String(v), currency, language)} contentStyle={{ background: 'var(--panel)', borderRadius: 12 }} />
       </PieChart></ResponsiveContainer> : <div className="chart-empty">{t('noChart')}</div>}
     </div>
-    <ul className="category-list">{categories?.map((c, i) => <li key={c.name}><span><i aria-hidden="true" style={{ background: colors[i % colors.length] }} />{c.name}</span><Money value={c.amount} currency={currency} /></li>)}</ul>
+    <div className="category-scroll" role="region" aria-label={language === 'de' ? 'Ausgabenkategorien' : 'Spending categories'} tabIndex={0}><ul className="category-list">{categories?.map((c, i) => <li key={c.name}><span><i aria-hidden="true" style={{ background: colors[i % colors.length] }} />{c.name}</span><Money value={c.amount} currency={currency} /></li>)}</ul></div>
   </Panel>
 }
