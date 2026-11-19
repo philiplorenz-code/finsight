@@ -23,6 +23,7 @@ from .finance import ZERO, balance_is_stale, contracts, eligible, latest_balance
 from .income import SOURCES, load_rules, match_rule, shifts_to_next_month, source_stats
 from .business import TAX_RESERVE_RATE, is_business_expense, load_business_rules
 from .locking import lock_owner
+from .quality import data_gaps
 from .savings import savings_insights
 from .models import Account, Allocation, Transaction, Wish, WishlistPrefs
 
@@ -203,7 +204,11 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         Allocation.account_id.in_([a.id for a in accounts]))) ), ZERO) if accounts else ZERO
     reserve = consumption * prefs["reserve_months"]
     usable = max(ZERO, cash - allocated - reserve)
-    confident = count >= MIN_MONTHS_FOR_MEDIUM_CONFIDENCE and observed and not any("stale" in w for w in warnings)
+    gaps = data_gaps(db, user_id, today)
+    if gaps["window_gap_accounts"]:
+        warnings.append(f"Data gaps in the analysis window for {gaps['window_gap_accounts']} account(s); see the imports page")
+    confident = (count >= MIN_MONTHS_FOR_MEDIUM_CONFIDENCE and observed and not any("stale" in w for w in warnings)
+                 and not gaps["window_gap_accounts"])
     return {"currency": currency, "months_used": count, "data_through": data_through,
             "series": series, "savings": savings, "business": business, "income_sources": sources, "unassigned_income": top_unassigned,
             "monthly_income": monthly_income, "monthly_consumption": consumption, "monthly_tax": tax_monthly,

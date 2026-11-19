@@ -89,3 +89,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 ## Balance freshness
 
 - `POST /api/imports` accepts `full_snapshot=true`. Accounts contained in a full snapshot get `confirmed_through` (the import date); their latest balance is treated as current up to that date for stale-balance checks (overview, wishlist, net worth, MCP). Non-full imports confirm nothing; accounts missing from the latest full import stay stale.
+
+## Data quality
+
+- `GET /api/data-quality`: for regularly used owned spending accounts (`checking|cash|credit`, bookings in at least 6 months, not inactive or excluded) lists `empty_months`, `low_months` (below 25 % of the account's typical monthly booking count) and `ended_early_months` (complete months after the last booking, reported from 2). Only account names and months are returned, never amounts. `in_window` marks gaps in the last 12 complete months; `window_gap_accounts` of those lowers the wishlist confidence and adds a warning to the baseline.

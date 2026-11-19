@@ -39,10 +39,32 @@ export default function ImportsPage() {
         <Notice>{t('importWarning')}</Notice>
       </div>}
     </Panel>
+    <DataQuality />
     <Panel title={t('history')} description={t('reconciliation')}>
       <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!items(query.data).length}>
         <DataTable headers={[t('name'), t('date'), t('status'), t('rows'), t('reconciliation')]}>{items(query.data).map(i => <tr key={i.id}><td><div className="file-name"><FileSpreadsheet size={18} />{i.filename || i.id}</div></td><td className="nowrap muted">{formatDate(i.created_at, language)}</td><td><Badge tone={['failed', 'error'].includes(i.status) ? 'warning' : ''}>{i.status}</Badge></td><td>{i.row_count ?? '—'}</td><td className="small muted">{language === 'de' ? 'Neu / Geändert / Unverändert' : 'New / Updated / Unchanged'}: {i.summary?.inserted ?? i.imported ?? '—'} / {i.summary?.updated ?? i.updated ?? '—'} / {i.summary?.unchanged ?? i.unchanged ?? '—'}{['failed', 'error'].includes(i.status) && <p>{language === 'de' ? 'Bitte Datei erneut auswählen und importieren.' : 'Please select the file again to retry the import.'}</p>}</td></tr>)}</DataTable>
       </QueryState>
     </Panel>
   </>
+}
+
+
+type Gaps = { accounts: { id: string; name: string; first_month: string; last_month: string; empty_months: string[]; low_months: string[]; ended_early_months: number; in_window: boolean }[]; affected_accounts: number; window_gap_accounts: number; last_complete_month?: string; window_start_month?: string }
+function DataQuality() {
+  const { language } = useLocale()
+  const de = language === 'de'
+  const query = useQuery({ queryKey: ['data-quality'], queryFn: () => api<Gaps>('/data-quality') })
+  const data = query.data
+  if (!data) return null
+  if (!data.accounts.length) return <Panel title={de ? 'Datenqualität' : 'Data quality'}><p className="muted">{de ? 'Keine Lücken in den Buchungen deiner Konten gefunden.' : 'No gaps found in your accounts\' bookings.'}</p></Panel>
+  return <Panel title={de ? 'Datenqualität' : 'Data quality'} description={de
+    ? `Monate ohne oder mit auffallend wenigen Buchungen und Konten, die früher enden als die übrigen Daten. Das verfälscht Durchschnitte und senkt die Sicherheit der Wunsch-Bewertung. Hervorgehoben: Lücken in den letzten 12 Monaten (ab ${data.window_start_month}). Ein frischer Export oder „inaktiv“ beim Konto löst das.`
+    : `Months without or with unusually few bookings, and accounts that end earlier than the rest. Highlighted: gaps within the last 12 months (from ${data.window_start_month}).`}>
+    <ul className="gap-list">{data.accounts.map(a => <li key={a.id} className={a.in_window ? 'gap-in-window' : 'muted'}>
+      <strong>{a.name}</strong> <Badge tone={a.in_window ? 'warning' : ''}>{a.first_month} – {a.last_month}</Badge>
+      {a.empty_months.length > 0 && <div>{de ? 'Keine Buchungen in:' : 'No bookings in:'} {a.empty_months.join(', ')}</div>}
+      {a.low_months.length > 0 && <div>{de ? 'Auffallend wenige Buchungen in:' : 'Unusually few bookings in:'} {a.low_months.join(', ')}</div>}
+      {a.ended_early_months > 0 && <div>{de ? `Letzte Buchung ${a.ended_early_months} Monate vor dem Ende der übrigen Daten (${data.last_complete_month}).` : `Last booking ${a.ended_early_months} months before the other data ends (${data.last_complete_month}).`}</div>}
+    </li>)}</ul>
+  </Panel>
 }
