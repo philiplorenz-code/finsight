@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from .auth import current_user
 from .db import get_db
 from .finance import ZERO, eligible, latest_balance, local_today, serialize
-from .income import SOURCES, classify, load_rules, source_stats
+from .income import SOURCES, load_rules, match_rule, shifts_to_next_month, source_stats
 from .locking import lock_owner
 from .models import Account, Allocation, Transaction, Wish, WishlistPrefs
 
@@ -101,6 +101,9 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         window = set(months)
         for tx in rows:
             key = month_start(tx.booking_date)
+            rule = match_rule(tx, rules) if tx.amount >= 0 else None
+            if shifts_to_next_month(tx, rule):
+                key = add_months(key, 1)
             if key not in window or not eligible(tx):
                 continue
             if tx.merchant.strip().casefold() in self_names:
@@ -113,7 +116,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 continue
             if tx.amount >= 0:
                 income[key] += tx.amount
-                source = classify(tx, rules)
+                source = rule.source if rule else "other"
                 income_by_source[source][key] += tx.amount
                 if source == "other":
                     unassigned[(tx.merchant or "").strip() or "?"] += tx.amount
