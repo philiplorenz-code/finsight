@@ -3,7 +3,7 @@
 Revision ID: 0009_confirmed_through
 Revises: 0008_business_rules
 """
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 revision = "0009_confirmed_through"
@@ -14,6 +14,8 @@ depends_on = None
 
 def upgrade():
     op.add_column("accounts", sa.Column("confirmed_through", sa.Date(), nullable=True))
+    if context.is_offline_mode():
+        return  # data backfill needs a live connection
     # Backfill from the latest explicit full-snapshot import: accounts with a balance row from it were present.
     bind = op.get_bind()
     imports = bind.execute(sa.text("SELECT id, summary, created_at FROM imports WHERE status = 'completed' ORDER BY created_at DESC")).fetchall()
