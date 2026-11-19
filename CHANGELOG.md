@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Wishlist saving-plan chart: expected and conservative cash path over 24 months against the cumulative price of open wishes.
+
 - Analysis page with seven charts: income by source, income vs outgoings, monthly surplus, surplus rate, cumulative surplus, spending by category and largest payees.
 
 - Wishlist: baseline warnings, assumptions and confidence are shown in German in the German UI.
