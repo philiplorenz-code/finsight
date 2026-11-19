@@ -71,7 +71,7 @@ def eligible(tx):
 
 
 def annual(amount, period):
-    return amount * {"monthly": Decimal(12), "quarterly": Decimal(4), "yearly": Decimal(1), "once": ZERO}[period]
+    return amount * {"monthly": Decimal(12), "quarterly": Decimal(4), "half_yearly": Decimal(2), "yearly": Decimal(1), "once": ZERO}[period]
 
 
 def funding_eligible(account):
@@ -232,39 +232,83 @@ def overview(db, user_id, start=None, end=None):
             "trends": [trends[k] for k in sorted(trends)], "warnings": sorted(warnings), "start": start, "end": end})
 
 
+DECLARED_PERIODS = {"monatlich": ("monthly", 30), "monthly": ("monthly", 30), "1": ("monthly", 30),
+                    "vierteljährlich": ("quarterly", 91), "vierteljaehrlich": ("quarterly", 91),
+                    "quartalsweise": ("quarterly", 91), "quarterly": ("quarterly", 91), "3": ("quarterly", 91),
+                    "halbjährlich": ("half_yearly", 182), "halbjaehrlich": ("half_yearly", 182),
+                    "half_yearly": ("half_yearly", 182), "6": ("half_yearly", 182),
+                    "jährlich": ("yearly", 365), "jaehrlich": ("yearly", 365), "yearly": ("yearly", 365), "12": ("yearly", 365)}
+
+
 def contracts(db, user_id):
+    from collections import Counter
+    from .recurring import classify, group_key, infer_period, load_decisions, normalize_key, status_of
+    today = local_today(db, user_id)
     txs = list(db.scalars(select(Transaction).where(Transaction.user_id == user_id,
-               Transaction.booking_date <= local_today(db, user_id), Transaction.amount < 0).order_by(Transaction.booking_date)))
+               Transaction.booking_date <= today, Transaction.amount < 0).order_by(Transaction.booking_date)))
+    decisions = load_decisions(db, user_id)
     groups = defaultdict(list)
     for tx in txs:
         if eligible(tx):
-            groups[(tx.contract_name or tx.merchant, tx.currency, bool(tx.contract_name))].append(tx)
+            declared, key = group_key(tx)
+            groups[(declared, key, tx.currency)].append(tx)
     items = []
-    for (name, currency, source), rows in groups.items():
-        if not name or (not source and len(rows) < 3):
+    for (source, gkey, currency), rows in groups.items():
+        last = rows[-1]
+        if gkey.startswith("n:"):
+            name = gkey[2:].strip()  # the export names the contract itself
+        else:
+            names = Counter((r.merchant or "").strip() for r in rows if (r.merchant or "").strip())
+            name = names.most_common(1)[0][0] if names else ""
+        if not name:
             continue
-        gaps = [(b.booking_date - a.booking_date).days for a, b in zip(rows, rows[1:])]
-        median_gap = sorted(gaps)[len(gaps) // 2] if gaps else None
-        period = None
-        days = None
+        period, days = None, None
         if source:
-            declared = str(rows[-1].source.get("contract_period") or "").strip().casefold()
-            declared_periods = {"monatlich": ("monthly", 30), "monthly": ("monthly", 30), "1": ("monthly", 30),
-                                "vierteljährlich": ("quarterly", 91), "vierteljaehrlich": ("quarterly", 91),
-                                "quartalsweise": ("quarterly", 91), "quarterly": ("quarterly", 91), "3": ("quarterly", 91),
-                                "jährlich": ("yearly", 365), "jaehrlich": ("yearly", 365), "yearly": ("yearly", 365), "12": ("yearly", 365)}
-            period, days = declared_periods.get(declared, (None, None))
-        for candidate, low, high, typical in [("monthly", 25, 35, 30), ("quarterly", 80, 100, 91), ("yearly", 350, 380, 365)]:
-            if period is None and median_gap is not None and low <= median_gap <= high and all(low <= gap <= high for gap in gaps):
-                period, days = candidate, typical
+            declared = str(last.source.get("contract_period") or "").strip().casefold()
+            period, days = DECLARED_PERIODS.get(declared, (None, None))
+            if period is None:
+                inferred = infer_period([r.booking_date for r in rows], [-r.amount for r in rows])
+                period, days = inferred if inferred else (None, None)
+        else:
+            if gkey in {"m:", ""}:
+                continue
+            inferred = infer_period([r.booking_date for r in rows], [-r.amount for r in rows])
+            if not inferred:
+                continue
+            period, days = inferred
         if not source and not period:
             continue
-        last = rows[-1]
+        key = normalize_key(name) or gkey
+        decision = decisions.get(key)
         cost = annual(-last.amount, period) if period else None
-        items.append({"name": name, "currency": currency, "source": "export" if source else "inferred",
-                      "confidence": "high" if source else "medium", "period": period or "unknown",
+        kind = (decision.kind if decision and decision.kind else None) or classify(name, last.category_override or last.category)
+        items.append({"key": key, "name": (decision.name if decision and decision.name else name), "currency": currency,
+                      "source": "export" if source else "inferred", "confidence": "high" if source else "medium",
+                      "period": period or "unknown", "kind": kind,
+                      "status": status_of(last.booking_date, days, today) if days else "active",
+                      "decision": decision.decision if decision else None,
                       "annual_cost": cost, "monthly_cost": cost / 12 if cost else None,
                       "next_charge": last.booking_date + timedelta(days=days) if days else None,
+                      "last_charge": last.booking_date, "charges": len(rows),
                       "price_change": (-last.amount) - (-rows[-2].amount) if len(rows) > 1 else None,
                       "evidence": [row.id for row in rows]})
-    return serialize({"items": items, "warnings": ["Inferred recurrence and next dates are estimates, not contractual commitments"]})
+    visible = [i for i in items if i["decision"] != "dismissed"]
+    dismissed = [i for i in items if i["decision"] == "dismissed"]
+    active = [i for i in visible if i["status"] == "active" and i["monthly_cost"] and i["kind"] != "savings"]  # savings plans are not costs
+    totals = {}
+    for item in active:
+        t = totals.setdefault(item["currency"], {"monthly": ZERO, "yearly": ZERO, "by_kind": {}})
+        t["monthly"] += item["monthly_cost"]
+        t["yearly"] += item["annual_cost"]
+        k = t["by_kind"].setdefault(item["kind"], {"monthly": ZERO, "yearly": ZERO, "count": 0})
+        k["monthly"] += item["monthly_cost"]
+        k["yearly"] += item["annual_cost"]
+        k["count"] += 1
+    # Where renegotiating or cancelling is realistic: insurances, subscriptions and uncategorised costs, biggest first.
+    candidates = sorted((i for i in active if i["kind"] in {"insurance", "subscription", "other"}),
+                        key=lambda i: -i["annual_cost"])[:10]
+    return serialize({"items": visible, "dismissed": dismissed, "totals": totals,
+                      "cancellation_candidates": [{"key": i["key"], "name": i["name"], "kind": i["kind"], "currency": i["currency"],
+                                                   "annual_cost": i["annual_cost"], "period": i["period"],
+                                                   "price_increase": bool(i["price_change"] and i["price_change"] > 0)} for i in candidates],
+                      "warnings": ["Inferred recurrence and next dates are estimates, not contractual commitments"]})

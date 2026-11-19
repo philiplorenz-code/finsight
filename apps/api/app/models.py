@@ -233,3 +233,16 @@ class BusinessRule(Base):
     account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ContractDecision(Base):
+    """User decision about a detected recurring contract, stored by normalized payee key (survives re-imports)."""
+    __tablename__ = "contract_decisions"
+    __table_args__ = (UniqueConstraint("user_id", "key"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    key: Mapped[str] = mapped_column(String(300))
+    decision: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

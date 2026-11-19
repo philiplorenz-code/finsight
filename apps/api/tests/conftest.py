@@ -1,4 +1,7 @@
 import io
+import re
+import zipfile
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,8 +28,19 @@ def xlsx(rows, headers=None):
             sheet.append([row.get(h) for h in (headers or HEADERS)])
         else:
             sheet.append(row)
+    book.properties.created = book.properties.modified = datetime(2026, 1, 1)
+    raw = io.BytesIO()
+    book.save(raw)
+    # Zip entries carry the wall-clock time; pin it so identical rows always give identical bytes (and hash).
     stream = io.BytesIO()
-    book.save(stream)
+    with zipfile.ZipFile(raw) as source, zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as target:
+        for info in source.infolist():
+            clone = zipfile.ZipInfo(info.filename, date_time=(2026, 1, 1, 0, 0, 0))
+            clone.compress_type = zipfile.ZIP_DEFLATED
+            content = source.read(info.filename)
+            if info.filename == "docProps/core.xml":  # openpyxl stamps the save time into the properties
+                content = re.sub(rb"(<dcterms:(?:created|modified)[^>]*>)[^<]*", rb"\g<1>2026-01-01T00:00:00Z", content)
+            target.writestr(clone, content)
     return stream.getvalue()
 
 

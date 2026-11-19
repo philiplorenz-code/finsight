@@ -62,7 +62,7 @@ def savings_insights(months: list, by_category: dict, recurring: dict | None = N
     variable_by_month = [sum((v[i] for c, v in series.items() if c not in fixed), ZERO) for i in range(n)]
     growing = [r for r in rows if r["delta"] > 0 and r["months_with_spend"] >= MIN_SPEND_MONTHS_FOR_POTENTIAL and not r["fixed"]]
     potential = sum((r["delta"] for r in growing), ZERO)
-    items = (recurring or {}).get("items", [])
+    items = [i for i in (recurring or {}).get("items", []) if i.get("status", "active") == "active" and i.get("kind") != "savings"]
     recurring_monthly = sum((Decimal(str(i["monthly_cost"])) for i in items if i.get("monthly_cost")), ZERO)
     return {
         "enough_data": enough,
