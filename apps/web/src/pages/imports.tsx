@@ -16,7 +16,7 @@ export default function ImportsPage() {
   const input = useRef<HTMLInputElement>(null)
   const query = useQuery({ queryKey: ['imports'], queryFn: async () => items(await api<Import[] | { items: Import[] }>('/imports')).map(i => ({ ...i, imported: i.summary?.added ?? i.imported, updated: i.summary?.changed ?? i.updated, unchanged: i.summary?.unchanged ?? i.unchanged })), refetchInterval: q => items(q.state.data).some(i => ['queued', 'processing', 'pending', 'running'].includes(i.status)) ? 2500 : false })
   const preview = useMutation({ mutationFn: async () => { const body = new FormData(); body.append('file', file!); return api<Preview>('/imports/preview', { method: 'POST', body }) } })
-  const upload = useMutation({ mutationFn: async () => { const body = new FormData(); body.append('file', file!); body.append('full_snapshot', String(full)); return api('/imports', { method: 'POST', body }) }, onSuccess: () => { setFile(null); preview.reset(); if (input.current) input.current.value = ''; client.invalidateQueries({ queryKey: ['imports'] }); client.invalidateQueries({ queryKey: ['overview'] }); client.invalidateQueries({ queryKey: ['accounts'] }); client.invalidateQueries({ queryKey: ['transactions'] }) } })
+  const upload = useMutation({ mutationFn: async () => { const body = new FormData(); body.append('file', file!); body.append('full_snapshot', String(full)); body.append('background', 'true'); return api('/imports', { method: 'POST', body }) }, onSuccess: () => { setFile(null); preview.reset(); if (input.current) input.current.value = ''; client.invalidateQueries({ queryKey: ['imports'] }); client.invalidateQueries({ queryKey: ['overview'] }); client.invalidateQueries({ queryKey: ['accounts'] }); client.invalidateQueries({ queryKey: ['transactions'] }) } })
   const choose = (chosen?: File) => { if (!chosen || preview.isPending || upload.isPending) return; setFileError(!chosen.name.toLowerCase().endsWith('.xlsx') || chosen.size > 25 * 1024 * 1024 || chosen.size === 0); setFile(chosen.name.toLowerCase().endsWith('.xlsx') && chosen.size <= 25 * 1024 * 1024 && chosen.size > 0 ? chosen : null); preview.reset(); upload.reset(); if (input.current) input.current.value = '' }
   const previewRows = preview.data?.preview || preview.data?.rows || []
   const columns = preview.data?.columns || Object.keys(previewRows[0] || {})
@@ -39,6 +39,7 @@ export default function ImportsPage() {
         <Notice>{t('importWarning')}</Notice>
       </div>}
     </Panel>
+    {items(query.data).some(i => i.status === 'processing') && <Notice>{language === 'de' ? 'Ein Import läuft im Hintergrund. Du kannst die Seite verlassen; der Status aktualisiert sich automatisch.' : 'An import is running in the background. You can leave this page; the status updates automatically.'}</Notice>}
     <DataQuality />
     <Panel title={t('history')} description={t('reconciliation')}>
       <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!items(query.data).length}>

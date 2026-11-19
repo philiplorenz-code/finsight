@@ -105,3 +105,8 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - `GET /api/ai/context?include_names=false&currency=EUR` returns `context` (the exact JSON that is sent to the model, without the question) and the `system_prompt`. Nothing leaves the server on this call.
 - `POST /api/ai/ask` `{question (3-500 chars), include_names?, currency?}` answers a free-form question from that context. The model never receives bookings: only whole-euro aggregates (monthly averages, the last 12 months, top categories with fixed/variable and trend, contract classes, liquidity, net worth totals, open wishes with verdicts, data-quality counts). Payee, contract and wish names are included only with `include_names=true`. The response carries `answer`, `sent` (the context actually used), token counts and `run_id`.
 - It reuses the existing consent, budget reservation, concurrency and settlement rules of `/ai/chat` (channel `chat`); without operator opt-in and owner consent it returns 409 and sends nothing. Answers are stored as findings.
+
+## Background imports
+
+- `POST /api/imports` with form field `background=true` creates the import record (`status: processing`) and returns `202` at once; the import runs after the response in its own session. Poll `GET /api/imports` (or `/imports/{id}`) until `status` is `completed` or `failed`. An identical completed file still answers `200` with `duplicate: true`; an identical file that is already running is reported (`202`) and not started twice. Without `background` the import stays synchronous.
+- A `processing` import older than 30 minutes (for example after a restart) is shown as `failed` with `error: "Import interrupted"`; upload the file again.
