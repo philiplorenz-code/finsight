@@ -179,3 +179,17 @@ def test_income_rules_split_sources_and_validate(owner, db):
     assert len(owner.get("/api/income-rules").json()) == 2
     assert owner.delete(f"/api/income-rules/{rid}").status_code == 200
     assert owner.delete(f"/api/income-rules/{rid}").status_code == 404
+
+
+def test_analytics_series_align_with_baseline(owner, db):
+    workbook(owner, [booking("shop", "-100", day="2026-03-10", **{"Kategorie": "Einkaufen", "Empfänger": "Laden"})])
+    data = owner.get("/api/analytics").json()
+    s = data["series"]
+    n = data["months_used"]
+    assert n == 6 and len(s["months"]) == n and len(s["expenses"]) == n and len(s["surplus"]) == n
+    assert all(len(v) == n for v in s["income"].values()) and all(len(v) == n for v in s["categories"].values())
+    assert D(s["expenses"][2]) == D(2100)
+    assert D(s["categories"]["Einkaufen"][2]) == D(100)
+    assert s["top_merchants"] and D(s["top_merchants"][0]["total"]) > 0
+    assert "series" not in owner.get("/api/wishlist").json()["baseline"]
+    assert owner.get("/api/analytics?currency=eur").status_code == 422

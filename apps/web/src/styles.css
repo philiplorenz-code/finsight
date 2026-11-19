@@ -301,3 +301,5 @@
 .dark .badge.success { background: #1f3326; color: #9fd3ac; }
 .badge.danger { background: #f6e1de; color: #8a3a31; }
 .dark .badge.danger { background: #3d2623; color: #e6a79f; }
+.charts-stack { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.chart-container.tall { height: 360px; }

@@ -64,3 +64,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 
 - `GET /api/income-rules`, `POST /api/income-rules`, `PATCH /api/income-rules/{id}`, `DELETE /api/income-rules/{id}`: `name`, `source` (`employment|business|other`), `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), optional `account_id`, `position`. A rule needs a pattern or an account. Rules apply in `position` order, the first match wins, and unmatched income is `other`.
 - `GET /api/wishlist` adds `baseline.income_sources` (per source: `monthly_average`, `monthly_lower_quartile`, `months_with_income`, `share`) and `baseline.unassigned_income` (largest unassigned payers). The total surplus is unchanged; the split is informational.
+
+## Analytics
+
+- `GET /api/analytics?currency=EUR` returns `series` with aligned monthly arrays (`months`, `income` per source, `expenses`, `tax`, `surplus`, `categories` for the top 8 spending categories, `other_categories`) plus `top_merchants`, using the same filters as the wishlist baseline (own accounts, no transfers, no savings). Decimal values are strings.

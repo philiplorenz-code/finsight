@@ -89,6 +89,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     income: dict[date, Decimal] = defaultdict(lambda: ZERO)
     income_by_source: dict[str, dict[date, Decimal]] = {s: defaultdict(lambda: ZERO) for s in SOURCES}
     unassigned: dict[str, Decimal] = defaultdict(lambda: ZERO)
+    expense_by_category: dict[date, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
+    expense_by_merchant: dict[str, Decimal] = defaultdict(lambda: ZERO)
     rules = load_rules(db, user_id)
     expenses: dict[date, Decimal] = defaultdict(lambda: ZERO)
     tax_paid = ZERO
@@ -117,6 +119,9 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                     unassigned[(tx.merchant or "").strip() or "?"] += tx.amount
             else:
                 expenses[key] += -tx.amount
+                label = (tx.category_override or tx.category or "").strip() or "Uncategorized"
+                expense_by_category[key][label] += -tx.amount
+                expense_by_merchant[(tx.merchant or "").strip() or "?"] += -tx.amount
         if any(tx.transfer_uncertain for tx in in_cashflow if month_start(tx.booking_date) in window):
             warnings.append("Some transfers are uncertain; the consumption figure may be slightly off")
     count = len(months)
@@ -139,6 +144,24 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     sources = source_stats({s: [income_by_source[s][m] for m in months] for s in SOURCES})
     top_unassigned = [{"merchant": m, "total": v} for m, v in sorted(unassigned.items(), key=lambda kv: -kv[1])[:10]]
 
+    category_totals: dict[str, Decimal] = defaultdict(lambda: ZERO)
+    for per_month in expense_by_category.values():
+        for label, value in per_month.items():
+            category_totals[label] += value
+    top_categories = [c for c, _ in sorted(category_totals.items(), key=lambda kv: -kv[1])[:8]]
+    series = {
+        "months": [m.isoformat() for m in months],
+        "income": {s: [income_by_source[s][m] for m in months] for s in SOURCES},
+        "expenses": [expenses[m] for m in months],
+        "tax": [tax_monthly for _ in months],
+        "surplus": surplus_series,
+        "categories": {c: [expense_by_category[m].get(c, ZERO) for m in months] for c in top_categories},
+        "other_categories": [sum((v for label, v in expense_by_category[m].items() if label not in top_categories), ZERO)
+                             for m in months],
+        "top_merchants": [{"merchant": m, "total": v}
+                          for m, v in sorted(expense_by_merchant.items(), key=lambda kv: -kv[1])[:10]],
+    }
+
     cash = ZERO
     observed = 0
     for account in accounts:
@@ -158,7 +181,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     usable = max(ZERO, cash - allocated - reserve)
     confident = count >= MIN_MONTHS_FOR_MEDIUM_CONFIDENCE and observed and not any("stale" in w for w in warnings)
     return {"currency": currency, "months_used": count, "data_through": data_through,
-            "income_sources": sources, "unassigned_income": top_unassigned,
+            "series": series, "income_sources": sources, "unassigned_income": top_unassigned,
             "monthly_income": monthly_income, "monthly_consumption": consumption, "monthly_tax": tax_monthly,
             "expected_surplus": expected, "conservative_surplus": conservative,
             "cash_on_hand": cash, "allocated": allocated, "reserve_months": prefs["reserve_months"],
@@ -266,7 +289,7 @@ def overview_payload(db, user, currency="EUR"):
     wishes = list(db.scalars(select(Wish).where(Wish.user_id == user.id).order_by(Wish.created_at)))
     assessments = {a["id"]: a for a in assess(base, wishes, today)}
     prefs = get_prefs(db, user.id)
-    return serialize({"baseline": base, "prefs": prefs,
+    return serialize({"baseline": {k: v for k, v in base.items() if k != "series"}, "prefs": prefs,
                       "wishes": [{**wish_json(w), "assessment": assessments.get(w.id)} for w in wishes],
                       "disclaimer": "Planning aid based on your own data; not financial, tax or investment advice."})
 
@@ -276,6 +299,16 @@ def get_wishlist(currency: str = "EUR", db: Session = Depends(get_db), user=Depe
     if len(currency) != 3 or not currency.isupper():
         raise HTTPException(422, "Invalid currency")
     return overview_payload(db, user, currency)
+
+
+@router.get("/analytics")
+def get_analytics(currency: str = "EUR", db: Session = Depends(get_db), user=Depends(current_user)):
+    if len(currency) != 3 or not currency.isupper():
+        raise HTTPException(422, "Invalid currency")
+    base = baseline(db, user.id, currency)
+    return serialize({"currency": currency, "months_used": base["months_used"], "data_through": base["data_through"],
+                      "monthly_tax": base["monthly_tax"], "series": base["series"],
+                      "income_sources": base["income_sources"]})
 
 
 @router.post("/wishes", status_code=201)
