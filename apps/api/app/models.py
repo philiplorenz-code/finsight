@@ -183,3 +183,16 @@ class WishlistPrefs(Base):
     self_names: Mapped[list] = mapped_column(JSON, default=list)
     reserve_months: Mapped[int] = mapped_column(Integer, default=3)
     monthly_tax_reserve: Mapped[Decimal] = mapped_column(Numeric(24, 8), default=Decimal("0"))
+
+
+class IncomeRule(Base):
+    __tablename__ = "income_rules"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(20))
+    pattern: Mapped[str] = mapped_column(String(200), default="")
+    match_field: Mapped[str] = mapped_column(String(20), default="any")
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
