@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Check, EyeOff, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Check, EyeOff, MessageCircleQuestion, Sparkles } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import { periodDates } from '../lib/adapters'
 import type { Finding } from '../lib/types'
@@ -24,6 +24,7 @@ export default function InsightsPage() {
   const enabled = !!(settings.data?.ai?.enabled ?? settings.data?.ai_enabled) && !!(settings.data?.ai?.external_consent ?? settings.data?.external_ai_consent) && (!settings.data?.ai || settings.data.ai.budget_currency === 'EUR')
   return <>
     <PageHeader title={t('insights')} description={t('insightsIntro')} /><Notice>{t('aiNote')}</Notice>
+    <Analyst enabled={enabled} />
     <div className="insights-grid">
       <Panel title={t('assistant')} action={<Sparkles size={20} />}>
         <p className="muted">{language === 'de' ? 'Wähle eine datensparsame Frage. Freie Texteingaben sind in dieser Version bewusst deaktiviert.' : 'Choose a privacy-preserving question. Free-form prompts are intentionally disabled in this release.'}</p>
@@ -82,4 +83,44 @@ function EvidenceLinks({ evidence }: { evidence?: Evidence[] }) {
     if (e.transaction_id) params.set('detail', e.transaction_id)
     return <li key={i}><Link to={`/transactions?${params}`}>{e.description || e.query?.metric || t('transactions')} →</Link>{e.as_of && <small>{formatDate(e.as_of, language)}</small>}</li>
   })}</ul></details>
+}
+
+
+type AskResult = { run_id: string; answer: string; sent: Record<string, unknown>; input_tokens?: number | null; output_tokens?: number | null }
+type Preview = { context: Record<string, unknown>; system_prompt: string }
+const QUESTIONS_DE = ['Wo kann ich am meisten sparen?', 'Wie belastbar ist mein Überschuss, besonders mit dem Gewerbe?', 'Welche Versicherungen und Verträge sollte ich prüfen?', 'Kann ich mir meine Wünsche leisten, und in welcher Reihenfolge?', 'Was fällt dir an meinen Einnahmen und Ausgaben der letzten Monate auf?']
+const QUESTIONS_EN = ['Where can I save the most?', 'How reliable is my surplus, especially with the business?', 'Which insurances and contracts should I review?', 'Can I afford my wishes, and in which order?', 'What stands out in my income and spending lately?']
+
+function Analyst({ enabled }: { enabled: boolean }) {
+  const { language } = useLocale()
+  const de = language === 'de'
+  const client = useQueryClient()
+  const [question, setQuestion] = useState('')
+  const [names, setNames] = useState(false)
+  const preview = useMutation({ mutationFn: () => api<Preview>(`/ai/context?include_names=${names}`) })
+  const ask = useMutation({
+    mutationFn: () => send<AskResult>('/ai/ask', { question, include_names: names }),
+    onSettled: () => { client.invalidateQueries({ queryKey: ['ai-usage'] }); client.invalidateQueries({ queryKey: ['findings'] }) },
+  })
+  return <Panel title={de ? 'KI-Analyst' : 'AI analyst'} action={<MessageCircleQuestion size={20} />} description={de
+    ? 'Stell eine beliebige Frage zu deinen Finanzen. Die KI sieht nie einzelne Buchungen, nur gerundete Kennzahlen aus deinen Auswertungen (Durchschnitte, Kategorien, Vertragsklassen, Vermögen, Wunsch-Bewertung).'
+    : 'Ask anything about your finances. The AI never sees single bookings, only rounded figures from your analysis.'}>
+    <div className="chip-row">{(de ? QUESTIONS_DE : QUESTIONS_EN).map(q => <Button key={q} variant="outline" type="button" onClick={() => setQuestion(q)}>{q}</Button>)}</div>
+    <form className="form-stack" onSubmit={e => { e.preventDefault(); ask.mutate() }}>
+      <Field label={de ? 'Deine Frage' : 'Your question'} hint={de ? 'Bitte keine Namen, Kontonummern oder Adressen eintippen: Der Text geht an den KI-Anbieter.' : 'Please do not type names, account numbers or addresses: the text goes to the AI provider.'}>
+        <textarea rows={3} required minLength={3} maxLength={500} value={question} onChange={e => setQuestion(e.target.value)} />
+      </Field>
+      <label className="check-row"><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} /> <span>{de ? 'Anbieter- und Wunschnamen mitsenden (aus, wenn du es nicht brauchst)' : 'Include payee and wish names (off unless needed)'}</span></label>
+      <div className="form-actions">
+        <Button variant="outline" type="button" busy={preview.isPending} onClick={() => preview.mutate()}>{de ? 'Was wird gesendet?' : 'What is sent?'}</Button>
+        <Button busy={ask.isPending} disabled={!enabled || question.trim().length < 3}><Sparkles size={16} />{de ? 'Fragen' : 'Ask'}</Button>
+      </div>
+      {!enabled && <Notice warning>{de ? 'KI ist noch nicht freigegeben. ' : 'AI is not enabled yet. '}<Link className="text-link" to="/settings">{de ? 'Einstellungen' : 'Settings'}<ArrowUpRight size={15} /></Link></Notice>}
+      <Feedback error={ask.error || preview.error} />
+    </form>
+    {preview.data && <details open><summary>{de ? 'Genau diese Daten gehen an die KI (ohne deine Frage)' : 'Exactly this data goes to the AI (without your question)'}</summary><pre className="json-preview">{JSON.stringify(preview.data.context, null, 1)}</pre></details>}
+    {ask.data && <div className="ai-answer" role="status"><h3>{de ? 'Antwort' : 'Answer'}</h3><p style={{ whiteSpace: 'pre-wrap' }}>{ask.data.answer}</p>
+      <p className="muted small">{ask.data.input_tokens ?? '—'} / {ask.data.output_tokens ?? '—'} tokens · {de ? 'Planungshilfe, keine Anlage-, Steuer- oder Rechtsberatung.' : 'Planning aid, not investment, tax or legal advice.'}</p>
+      <details><summary>{de ? 'Gesendete Daten dieser Antwort' : 'Data sent for this answer'}</summary><pre className="json-preview">{JSON.stringify(ask.data.sent, null, 1)}</pre></details></div>}
+  </Panel>
 }
