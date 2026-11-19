@@ -176,15 +176,16 @@ function PlanChart({ baseline, wishes }: { baseline: Wishlist['baseline']; wishe
   const rows = Array.from({ length: 25 }, (_, m) => ({ month: m, expected: usable + expected * m, conservative: usable + conservative * m }))
   const targets = wishes.filter(w => w.assessment?.cumulative_price).map(w => ({ id: w.id, name: w.name, price: Number(w.assessment!.cumulative_price) }))
   const money = (v: unknown) => formatMoney(String(v), baseline.currency, language)
+  const top = Math.max(1, ...targets.map(w => w.price), usable) * 1.3
   return <Panel title={t('planChart')} description={t('planChartText')}>
     <div className="chart-container" role="img" aria-label={t('planChart')}><ResponsiveContainer width="100%" height="100%">
       <LineChart data={rows} margin={{ left: -10, right: 12, top: 16, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 5" vertical={false} stroke="var(--border)" />
         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} label={{ value: t('planAfter'), position: 'insideBottom', offset: -2, fill: 'var(--muted)', fontSize: 11 }} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} domain={[0, top]} allowDataOverflow />
         <Tooltip formatter={money} labelFormatter={m => `${t('planAfter')}: ${m}`} contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12 }} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        {targets.map(w => <ReferenceLine key={w.id} y={w.price} stroke="#b5654f" strokeDasharray="4 4" label={{ value: w.name, fill: 'var(--muted)', fontSize: 11, position: 'insideTopLeft' }} />)}
+        {targets.map(w => <ReferenceLine key={w.id} y={w.price} stroke="#b5654f" strokeDasharray="4 4" label={{ value: w.name, fill: 'var(--muted)', fontSize: 11, position: 'insideTopLeft', dy: -14 }} />)}
         <Line isAnimationActive={false} type="monotone" name={t('wishExpected')} dataKey="expected" stroke="#287a68" strokeWidth={2.5} dot={false} />
         <Line isAnimationActive={false} type="monotone" name={t('wishConservative')} dataKey="conservative" stroke="#d5aa64" strokeWidth={2.5} dot={false} />
       </LineChart>
