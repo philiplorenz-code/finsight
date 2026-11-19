@@ -113,7 +113,7 @@ function Analyst({ enabled }: { enabled: boolean }) {
       <label className="check-row"><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} /> <span>{de ? 'Anbieter- und Wunschnamen mitsenden (aus, wenn du es nicht brauchst)' : 'Include payee and wish names (off unless needed)'}</span></label>
       <div className="form-actions">
         <Button variant="outline" type="button" busy={preview.isPending} onClick={() => preview.mutate()}>{de ? 'Was wird gesendet?' : 'What is sent?'}</Button>
-        <Button busy={ask.isPending} disabled={!enabled || question.trim().length < 3}><Sparkles size={16} />{de ? 'Fragen' : 'Ask'}</Button>
+        <Button busy={ask.isPending} disabled={!enabled || question.trim().length < 3}><Sparkles size={16} />{de ? 'Analyst fragen' : 'Ask analyst'}</Button>
       </div>
       {!enabled && <Notice warning>{de ? 'KI ist noch nicht freigegeben. ' : 'AI is not enabled yet. '}<Link className="text-link" to="/settings">{de ? 'Einstellungen' : 'Settings'}<ArrowUpRight size={15} /></Link></Notice>}
       <Feedback error={ask.error || preview.error} />
