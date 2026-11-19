@@ -51,8 +51,7 @@ export default function OverviewPage() {
         <div className="stat-top"><span>{t(label)}</span><span className={`stat-icon ${color}`}><Icon size={18} /></span></div>
         <Money value={value} currency={currency} /><p><span className={`tiny-dot ${color}`} />{note}</p>
       </article>)}</div>
-      {data?.incomplete && <Notice warning>{t('incomplete')}</Notice>}
-      {data?.warnings?.map((w, i) => <Notice warning key={i}>{w}</Notice>)}
+      <DataHints warnings={data?.warnings} language={language} />
       <div className="charts-grid"><CashflowChart trends={data?.trends} currency={currency} /><SpendingChart categories={data?.categories} currency={currency} /></div>
       <div className="bottom-grid">
         <Panel title={t('liquidity')}><Money value={data?.available_liquidity} currency={currency} /><p className="muted small">{t('allocationNote')}</p></Panel>
@@ -66,5 +65,30 @@ export default function OverviewPage() {
       <Link to="/insights" className="text-link">{t('insights')}<ArrowUpRight size={17} /></Link>
     </div>
     <div className="data-footnote"><ShieldCheck size={14} />{t('balanceWarning')}</div>
+  </>
+}
+
+
+// Known notices are explained in German; the permanent "coverage" ones are folded away because the
+// Vermögen page and the automatic transfer detection cover them.
+const HINTS: Record<string, { de: string; quiet?: boolean }> = {
+  'Observed balances may have incomplete coverage; not a complete net worth': { de: 'Kontostände stammen nur aus deinen Importen – Sachwerte und Kredite stehen auf der Seite „Vermögen“.', quiet: true },
+  'Debt-service and full asset coverage unavailable': { de: 'Schuldendienst und Sachwerte sind hier nicht enthalten (siehe „Vermögen“).', quiet: true },
+  'One-sided transfers excluded; ownership uncertain': { de: 'Einseitige Umbuchungen (Gegenkonto nicht importiert) werden nicht mitgezählt. „Umbuchungen prüfen“ bei den Buchungen paart eigene Konten.', quiet: true },
+  'Period contains incomplete months': { de: 'Der Zeitraum enthält angebrochene Monate; deren Summen sind noch nicht vollständig.', quiet: true },
+  'Some observed balances are stale': { de: 'Einige Kontostände sind älter als 7 Tage – ein frischer Export aktualisiert sie.' },
+  'Some accounts have no observed balance': { de: 'Zu manchen Konten gibt es keinen Kontostand.' },
+  'Some account ownership remains unverified': { de: 'Bei manchen Konten ist nicht festgelegt, ob sie dir gehören (Konten → Eigentum).' },
+  'Unverified account balances are excluded from available liquidity': { de: 'Konten ohne Eigentumszuordnung zählen nicht zur verfügbaren Liquidität.' },
+}
+function DataHints({ warnings, language }: { warnings?: string[]; language: string }) {
+  if (!warnings?.length) return null
+  const de = language === 'de'
+  const text = (w: string) => (de && HINTS[w]?.de) || w
+  const loud = warnings.filter(w => !HINTS[w]?.quiet)
+  const quiet = warnings.filter(w => HINTS[w]?.quiet)
+  return <>
+    {loud.map(w => <Notice warning key={w}>{text(w)}</Notice>)}
+    {quiet.length > 0 && <details className="muted small"><summary>{de ? `Hinweise zur Datengrundlage (${quiet.length})` : `Data notes (${quiet.length})`}</summary><ul>{quiet.map(w => <li key={w}>{text(w)}</li>)}</ul></details>}
   </>
 }

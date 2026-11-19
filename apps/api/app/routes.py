@@ -91,6 +91,7 @@ class AccountPatch(StrictBody):
     ownership: Literal["owned", "external", "unknown"] | None = None
     purpose: Literal["checking", "savings", "investment", "credit", "cash", "other"] | None = None
     inactive: bool | None = None
+    owner_share: Decimal | None = Field(default=None, ge=0, le=100)
 
 
 @router.patch("/accounts/{ident}")

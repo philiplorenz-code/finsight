@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Net worth page: accounts plus manually tracked assets and debts (car, loan, property, depot), each split into your share and the part that belongs to others, monthly debt service, payoff date and a balance history (migration 0007). Overview data notes are in German and the permanent coverage notes are folded away.
 - Transfers: money moved between your own accounts is detected by amount/date matching (also after each import) so it no longer counts as income or spending; "Umbuchungen prüfen" on the transactions page previews and applies it (migration 0006).
 - Income rules: optional "from day X count in the next month" so month-end salary is attributed to the month it pays for (migration 0005).
 - Web: upgrade vite 6 → 8 together with @vitejs/plugin-react 4 → 6 (plugin-react 4 does not support vite 8); build, typecheck and unit tests pass.
