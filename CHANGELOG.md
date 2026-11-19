@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- New accounts after an import: a reminder on the overview, accounts and imports pages and a one-step dialog to classify them (ownership, purpose, include) with suggestions from name, balance and usage; import summaries report `new_accounts`. Closes #49.
 - Category rules (pattern, income/expense, account) assign categories to bookings without touching imported data; manual corrections win. Review list for automatically detected transfers where a pair can be rejected for good (migration 0011). Closes #43.
 - Settings: change password and e-mail (current password required, minimum 12 characters, rate limited, other devices are signed out after a password change). Closes #44.
 - Imports: the upload form imports in the background (immediate response, status updates automatically, interrupted runs are marked failed after 30 minutes) so a large export no longer blocks the web process; header normalisation is cached (about 1.2 million calls per 13k-row export); `scripts/bench-import.py` profiles the importer. A 13k-row re-import of a real export measured about 7 s on PostgreSQL. Closes #47.

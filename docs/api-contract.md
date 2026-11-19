@@ -126,3 +126,9 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 
 - `GET /api/transfers/review` lists the pairs this app marked as transfers itself (not the export's own flags), newest first (`pairs`, `total`, `limit`) plus the user's `rejections`.
 - `POST /api/transfers/reject` `{key}` rejects a pair: both bookings count as income/spending again and the pair is never paired again, also after re-imports; `DELETE /api/transfers/rejections/{id}` restores it. Both re-run the detection.
+
+## Classifying new accounts
+
+- Import summaries carry `new_accounts` (accounts created by that import).
+- `GET /api/accounts/unclassified` lists accounts with unknown ownership: `name`, `balance`, `bookings`, `last_booking` and a `suggestion` (`ownership`, `purpose`, `reason`: keywords in the name, a negative balance, or mostly-transfer usage). Suggestions are hints only.
+- `POST /api/accounts/classify` `{items: [{id, ownership: owned|external, purpose, included}]}` classifies up to 200 accounts at once. Until decided, an unclassified account counts nowhere; the overview, accounts and imports pages show a reminder.
