@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Contracts: recurring payments (monthly to yearly, tolerating a missing booking) are detected and classified as insurance, housing, loan, subscription, utility or other; totals per class, cancellation/renegotiation checklist with price increases, stopped contracts, and confirm / dismiss / rename / reclassify decisions that survive re-imports (migration 0010). Closes #37.
 - Data quality: per-account report of empty months, unusually quiet months and accounts that end earlier than the rest (imports page); gaps in the analysis window lower the wishlist confidence and add a hint. Closes #42.
 - Balances: an account that appears in a full-snapshot import counts as current as of that import, so a fresh export no longer leaves most accounts "stale"; the upload form has a "full export" option (on by default; migration 0009). Closes #46.
 - Business: spending rules (merchant, category, account) separate business expenses from private consumption; the conservative scenario assumes business income at its weak-quarter value; tax reserve suggestion from business profit (confirmed by you, never applied silently); business chart on the analysis page (migration 0008). Closes #41.
