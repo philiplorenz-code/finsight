@@ -68,7 +68,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 ## Analytics
 
 - `GET /api/analytics?currency=EUR` returns `series` with aligned monthly arrays (`months`, `income` per source, `expenses`, `tax`, `surplus`, `categories` for the top 8 spending categories, `other_categories`) plus `top_merchants`, using the same filters as the wishlist baseline (own accounts, no transfers, no savings). Decimal values are strings.
-- The same response carries `savings`: per-category `average`, `recent` (last 3 complete months), `prior` and `delta`; `fixed` categories (spent in ≥90% of months with ≤25% variation); `fixed_monthly`/`variable_monthly` and per-month series; `potential_monthly` (sum of positive deltas of non-fixed categories with spend in ≥4 months, i.e. what returns if they fall back to their earlier average); and `recurring` contracts with `recurring_monthly`. Trends need at least 6 complete months (`enough_data`).
+- The same response carries `savings`: per-category `average`, `recent` (median of the last 3 complete months), `prior` (median of the earlier months) and `delta`; `fixed` categories (≥75% of months within 25% of the median); `fixed_monthly`/`variable_monthly` and per-month series; `potential_monthly` (sum of positive deltas of non-fixed categories with spend in ≥4 months, i.e. what returns if they fall back to their earlier average); and `recurring` contracts with `recurring_monthly`. Trends need at least 6 complete months (`enough_data`).
 
 ## Transfer detection
 

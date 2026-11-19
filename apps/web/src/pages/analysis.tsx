@@ -141,7 +141,7 @@ function SavingsSection({ savings, months, currency, de, grid, xAxis, yAxis, tip
         <Bar isAnimationActive={false} stackId="fv" name={de ? 'Variabel' : 'Variable'} dataKey="variable" fill="#d5aa64" />
       </BarChart></ChartBox>
     </Panel>
-    {savings.enough_data && trend.length > 0 && <Panel title={de ? 'Kategorien: letzte 3 Monate gegen früher' : 'Categories: last 3 months vs before'} description={de ? 'Durchschnitt pro Monat, nur variable Kategorien.' : 'Monthly average, variable categories only.'}>
+    {savings.enough_data && trend.length > 0 && <Panel title={de ? 'Kategorien: letzte 3 Monate gegen früher' : 'Categories: last 3 months vs before'} description={de ? 'Typischer Monat (Median), nur variable Kategorien; Lücken und einzelne Ausreißer verzerren das nicht.' : 'Typical month (median), variable categories only; gaps and single spikes do not distort it.'}>
       <div className="chart-container tall" role="img" aria-label="category trend"><ResponsiveContainer width="100%" height="100%">
         <BarChart data={trend} layout="vertical" margin={{ left: 20, right: 16, top: 8, bottom: 0 }}>{grid}
           <XAxis type="number" axisLine={false} tickLine={false} tick={axis} /><YAxis type="category" dataKey="name" width={120} axisLine={false} tickLine={false} tick={axis} />{tip}{legend}

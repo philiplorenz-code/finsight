@@ -260,3 +260,13 @@ def test_analytics_includes_savings_but_wishlist_does_not(owner):
     data = owner.get("/api/analytics").json()
     assert data["savings"]["enough_data"] is True and "categories" in data["savings"]
     assert "savings" not in owner.get("/api/wishlist").json()["baseline"]
+
+
+def test_savings_rent_with_gap_and_spike_is_fixed_not_a_trend():
+    from app.savings import savings_insights
+    rent = [950, 950, 950, 950, 950, 950, 950, 0, 0, 950, 950, 1260]
+    months = [date(2025 + (m > 11), (m % 12) + 1, 1) for m in range(12)]
+    out = savings_insights(months, {m: {"Miete": D(rent[i])} for i, m in enumerate(months)})
+    row = out["categories"][0]
+    assert row["fixed"] and row["delta"] == 0
+    assert out["potential_monthly"] == 0 and out["fixed_monthly"] > 0
