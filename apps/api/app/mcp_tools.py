@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import case, func, select
 
 from .db import SessionLocal
-from .finance import ZERO, decimal_string, funding_eligible, latest_balance, local_today
+from .finance import ZERO, decimal_string, funding_eligible, latest_balance, local_today, balance_is_stale
 from .models import Account, Allocation, Bucket, Import, Obligation, Transaction
 
 principal_context: ContextVar = ContextVar("mcp_principal", default=None)
@@ -271,7 +271,7 @@ def execute_tool(kind: str, query: Query) -> Result:
                                   ownership=account.ownership, included=account.included, eligible=funding_eligible(account)))
                 if observation is None:
                     missing.append("observed_balance:" + account.id)
-                elif (end - observation.observed_date).days > 7:
+                elif balance_is_stale(account, observation, end):
                     warnings.append("Some observed balances are stale (older than seven days).")
             warnings.append("Balance is latest observation on or before end; it is not reconstructed at end.")
         elif kind == "search_transactions":

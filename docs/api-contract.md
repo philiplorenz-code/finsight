@@ -85,3 +85,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - `GET/POST /api/business-rules`, `PATCH/DELETE /api/business-rules/{id}`: `name`, optional `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), optional exact `category` (effective category, case-insensitive), optional `account_id`, `position`. A rule needs at least one condition and matches an outflow when all set conditions hold.
 - Matching outflows count as business expenses: they leave private consumption, categories and top payees, and appear as `series.business_expenses`; the total surplus is unchanged.
 - Wishlist and analytics responses carry `business`: `income_monthly`, `income_weak_quarter`, `expenses_monthly`, `profit_monthly`, and `tax_reserve_suggestion` (30 % of positive profit, a rough planning figure that is never applied automatically). The conservative surplus additionally assumes business income at its weak-quarter value.
+
+## Balance freshness
+
+- `POST /api/imports` accepts `full_snapshot=true`. Accounts contained in a full snapshot get `confirmed_through` (the import date); their latest balance is treated as current up to that date for stale-balance checks (overview, wishlist, net worth, MCP). Non-full imports confirm nothing; accounts missing from the latest full import stay stale.

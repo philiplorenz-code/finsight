@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from .auth import current_user
 from .db import get_db
-from .finance import ZERO, contracts, eligible, latest_balance, local_today, serialize
+from .finance import ZERO, balance_is_stale, contracts, eligible, latest_balance, local_today, serialize
 from .income import SOURCES, load_rules, match_rule, shifts_to_next_month, source_stats
 from .business import TAX_RESERVE_RATE, is_business_expense, load_business_rules
 from .locking import lock_owner
@@ -195,7 +195,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         if observation:
             observed += 1
             cash += observation.amount
-            if (today - observation.observed_date).days > 7:
+            if balance_is_stale(account, observation, today):
                 warnings.append("Some observed balances are stale")
     if not observed:
         warnings.append("No observed balances; cash on hand is assumed to be zero")

@@ -44,6 +44,16 @@ def latest_balance(db, account_id, as_of=None):
     return db.scalar(query.join(Import, Import.id == Balance.import_id).order_by(Balance.observed_date.desc(), Import.created_at.desc(), Balance.id.desc()).limit(1))
 
 
+def effective_observed_date(account, observation):
+    """A balance is current as of the later of its booking date and the latest full import that contained the account."""
+    confirmed = getattr(account, "confirmed_through", None)
+    return max(observation.observed_date, confirmed) if confirmed else observation.observed_date
+
+
+def balance_is_stale(account, observation, as_of, days=7):
+    return (as_of - effective_observed_date(account, observation)).days > days
+
+
 def account_json(db, account):
     observation = latest_balance(db, account.id, local_today(db, account.user_id))
     data = serialize(account)
@@ -190,7 +200,7 @@ def overview(db, user_id, start=None, end=None):
             item["observed_balance"] += observation.amount
             if funding_eligible(account):
                 item["liquid_balance"] += observation.amount
-            if (min(end, today) - observation.observed_date).days > 7:
+            if balance_is_stale(account, observation, min(end, today)):
                 warnings.add("Some observed balances are stale")
         else:
             warnings.add("Some accounts have no observed balance")
