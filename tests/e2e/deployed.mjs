@@ -44,6 +44,13 @@ try {
   await page.getByLabel('Bis', { exact: true }).fill('2025-10-31')
   await loaded
   await page.locator('.stat-card').first().getByText(/2\.000/).waitFor()
+  await page.waitForFunction(() => {
+    const charts = [...document.querySelectorAll('.chart-container svg.recharts-surface, .donut-container svg.recharts-surface')]
+    return charts.length === 2 && charts.every(chart => {
+      const box = chart.getBoundingClientRect()
+      return box.width > 100 && box.height > 100
+    })
+  })
   assert.equal(pageErrors.length, 0)
   if (process.env.FINSIGHT_CAPTURE_SCREENSHOTS === '1') {
     const destination = new URL('../../docs/screenshots/', import.meta.url)
@@ -52,6 +59,7 @@ try {
   }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.waitForFunction(() => document.documentElement.scrollWidth <= window.innerWidth, null, { timeout: 5000 })
+  assert.ok(await page.locator('.donut-container svg.recharts-surface').evaluate(chart => chart.getBoundingClientRect().width > 100), 'Mobile SVG must have a visible viewport, not just sector geometry')
   if (process.env.FINSIGHT_CAPTURE_SCREENSHOTS === '1') {
     await page.screenshot({ path: new URL('../../docs/screenshots/mobile.png', import.meta.url).pathname, fullPage: true, animations: 'disabled' })
   }
