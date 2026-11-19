@@ -146,6 +146,7 @@ def test_protocol_scope_restrictions_strict_inputs_safe_errors(transport_app, mc
     anyio.run(run)
 
 
+@pytest.mark.concurrent_db
 def test_concurrent_request_owner_context_isolation(transport_app, mcp_data):
     app, server, _ = transport_app
 
@@ -156,6 +157,7 @@ def test_concurrent_request_owner_context_isolation(transport_app, mcp_data):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
                         result = await session.call_tool("get_overview", {"query": {"start": "2026-01-01", "end": "2026-01-31"}})
+                        assert not result.isError, result.content
                         assert result.structuredContent["items"][0]["expenses"] == expected
         async with server.session_manager.run():
             async with anyio.create_task_group() as group:
