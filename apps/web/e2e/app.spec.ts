@@ -251,6 +251,36 @@ test('populated charts stay inside the viewport after desktop-to-mobile resize',
   expect(png.readUInt32BE(16)).toBe(390)
 })
 
+for (const theme of ['light', 'dark']) {
+  test(`chart SVG viewports remain nonzero with many categories in ${theme} mode`, async ({ page }) => {
+    await mocks(page)
+    await page.addInitScript(value => localStorage.setItem('finsight-theme', value), theme)
+    await page.route('**/api/overview?**', route => route.fulfill({ json: {
+      currencies: [{ currency: 'EUR', income: '1860.00', expenses: '930.00', surplus: '930.00', savings_rate: '0.5' }],
+      trends: Array.from({ length: 12 }, (_, index) => ({ month: `2026-${String(index + 1).padStart(2, '0')}`, currency: 'EUR', income: String(100 + index * 10), expenses: String(50 + index * 5) })),
+      categories: Array.from({ length: 60 }, (_, index) => ({ currency: 'EUR', category: `Synthetic category ${index + 1}`, amount: '15.50' })),
+      warnings: [],
+    } }))
+    await page.goto('/')
+    await expect(page.locator('.category-list li')).toHaveCount(60)
+    // A sector's geometry can exist even when a zero-width SVG clips all paint.
+    for (const selector of ['.chart-container', '.donut-container']) {
+      await expect.poll(async () => (await page.locator(`${selector} svg.recharts-surface`).boundingBox())?.width || 0).toBeGreaterThan(200)
+      await expect.poll(async () => (await page.locator(`${selector} svg.recharts-surface`).boundingBox())?.height || 0).toBeGreaterThan(150)
+    }
+    await expect(page.locator('.chart-container .recharts-area-curve').first()).toBeVisible()
+    await expect(page.locator('.donut-container .recharts-pie-sector').first()).toBeVisible()
+    const list = page.getByRole('region', { name: 'Ausgabenkategorien' })
+    await expect(list).toHaveAttribute('tabindex', '0')
+    expect(await list.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+    expect((await list.boundingBox())!.height).toBeLessThanOrEqual(320)
+    await list.focus()
+    await page.keyboard.press('End')
+    await expect(page.getByText('Synthetic category 60', { exact: true })).toBeInViewport()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+  })
+}
+
 test('large table amounts retain exact decimal cents in the browser', async ({ page }) => {
   await mocks(page)
   await page.route('**/api/transactions?**', route => route.fulfill({ json: { items: [{ ...transaction, amount: '123456789012345.67' }], total: 1 } }))
