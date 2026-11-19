@@ -116,3 +116,13 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - `POST /api/auth/change-password` `{current_password, new_password (12-1024 chars)}`: verifies the current password (403 otherwise), requires a different new password (422), stores a new Argon2 hash and deletes all other sessions of the user while the calling session stays valid. Returns `{ok, sessions_revoked}`.
 - `POST /api/auth/change-email` `{current_password, email}`: verifies the current password, normalizes the address (trim, lowercase), rejects invalid (422) or taken (409) addresses.
 - Both calls share the login rate limit (10 attempts per client per 15 minutes, 429 afterwards) and require the CSRF token.
+
+## Category rules
+
+- `GET/POST /api/category-rules`, `PATCH/DELETE /api/category-rules/{id}`: `name`, `category` (the category to assign), optional `pattern` (case-insensitive substring), `match_field` (`merchant|description|any`), `flow` (`any|income|expense`, by the sign of the amount), optional `account_id`, `position`. A rule needs a pattern, an account or a flow; all set conditions must hold and the first rule by position wins. `GET` also returns `matches` per rule (bookings it decides).
+- A rule never changes imported data: the category is stored as `rule_category` and re-applied after every import and rule change. Precedence for the effective category (`effective_category`, filters, overview, analytics, wishlist, contracts, MCP): manual `category_override`, then the rule, then the imported category.
+
+## Transfer review
+
+- `GET /api/transfers/review` lists the pairs this app marked as transfers itself (not the export's own flags), newest first (`pairs`, `total`, `limit`) plus the user's `rejections`.
+- `POST /api/transfers/reject` `{key}` rejects a pair: both bookings count as income/spending again and the pair is never paired again, also after re-imports; `DELETE /api/transfers/rejections/{id}` restores it. Both re-run the detection.

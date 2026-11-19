@@ -189,7 +189,7 @@ def overview(db, user_id, start=None, end=None):
         item[key] += abs(tx.amount)
         trend[key] += abs(tx.amount)
         if tx.amount < 0:
-            categories[(tx.currency, tx.category_override or tx.category)] += -tx.amount
+            categories[(tx.currency, tx.effective_category)] += -tx.amount
     for account in included.values():
         item = totals(account.currency)
         observation = latest_balance(db, account.id, min(end, today))
@@ -281,7 +281,7 @@ def contracts(db, user_id):
         key = normalize_key(name) or gkey
         decision = decisions.get(key)
         cost = annual(-last.amount, period) if period else None
-        kind = (decision.kind if decision and decision.kind else None) or classify(name, last.category_override or last.category)
+        kind = (decision.kind if decision and decision.kind else None) or classify(name, last.effective_category)
         items.append({"key": key, "name": (decision.name if decision and decision.name else name), "currency": currency,
                       "source": "export" if source else "inferred", "confidence": "high" if source else "medium",
                       "period": period or "unknown", "kind": kind,

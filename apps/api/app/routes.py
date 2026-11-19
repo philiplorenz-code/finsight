@@ -144,7 +144,7 @@ def transactions(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le
         if value is not None:
             query = query.where(predicate)
     if category:
-        query = query.where(func.coalesce(Transaction.category_override, Transaction.category) == category)
+        query = query.where(func.coalesce(Transaction.category_override, Transaction.rule_category, Transaction.category) == category)
     if merchant:
         query = query.where(Transaction.merchant.icontains(merchant, autoescape=True))
     # Portable precise JSON array filtering across SQLite/PostgreSQL.
@@ -158,7 +158,7 @@ def transactions(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le
         item = serialize(row)
         item.pop("source")
         item.pop("user_id")
-        item["effective_category"] = row.category_override or row.category
+        item["effective_category"] = row.effective_category
         items.append(item)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
