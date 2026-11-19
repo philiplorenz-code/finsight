@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Gift, Plus, Settings2, Trash2, Check } from 'lucide-react'
 import { api, send } from '../lib/api'
-import { formatDate, useLocale } from '../lib/i18n'
+import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { formatDate, formatMoney, useLocale } from '../lib/i18n'
 import { Badge, Button, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Assessment = {
@@ -56,6 +57,7 @@ export default function WishlistPage() {
         <Panel title={t('incomeSources')}>
           <div className="stat-grid">{(['employment', 'business', 'other'] as const).map(k => { const s = data.baseline.income_sources?.[k]; return s && <div className="detail-stat" key={k}><span>{t(`src_${k}` as never)} · {Math.round(Number(s.share) * 100)} %</span><Money value={s.monthly_average} currency={data.baseline.currency} /><span className="muted">{t('srcWorst')}: <Money value={s.monthly_lower_quartile} currency={data.baseline.currency} /> · {t('srcMonths')}: {s.months_with_income}/{data.baseline.months_used}</span></div> })}</div>
         </Panel>
+        {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
         {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}
         <div className="buckets-grid">{open.map(w => <Panel key={w.id} className="bucket-card">
           <div className="card-top"><Badge tone={tone[w.assessment?.verdict ?? ''] ?? ''}>{w.assessment ? verdictText(w.assessment.verdict) : '—'}</Badge><Badge>{`P${w.priority}`}</Badge></div>
@@ -164,4 +166,28 @@ function IncomeRules({ unassigned, onClose, onDone }: { unassigned: { merchant: 
       <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={add.isPending}>{t('ruleAdd')}</Button></div>
     </form>
   </Dialog>
+}
+
+function PlanChart({ baseline, wishes }: { baseline: Wishlist['baseline']; wishes: WishItem[] }) {
+  const { t, language } = useLocale()
+  const usable = Number(baseline.usable_cash)
+  const expected = Math.max(0, Number(baseline.expected_surplus))
+  const conservative = Math.max(0, Number(baseline.conservative_surplus))
+  const rows = Array.from({ length: 25 }, (_, m) => ({ month: m, expected: usable + expected * m, conservative: usable + conservative * m }))
+  const targets = wishes.filter(w => w.assessment?.cumulative_price).map(w => ({ id: w.id, name: w.name, price: Number(w.assessment!.cumulative_price) }))
+  const money = (v: unknown) => formatMoney(String(v), baseline.currency, language)
+  return <Panel title={t('planChart')} description={t('planChartText')}>
+    <div className="chart-container" role="img" aria-label={t('planChart')}><ResponsiveContainer width="100%" height="100%">
+      <LineChart data={rows} margin={{ left: -10, right: 12, top: 16, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 5" vertical={false} stroke="var(--border)" />
+        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} label={{ value: t('planAfter'), position: 'insideBottom', offset: -2, fill: 'var(--muted)', fontSize: 11 }} />
+        <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} />
+        <Tooltip formatter={money} labelFormatter={m => `${t('planAfter')}: ${m}`} contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        {targets.map(w => <ReferenceLine key={w.id} y={w.price} stroke="#b5654f" strokeDasharray="4 4" label={{ value: w.name, fill: 'var(--muted)', fontSize: 11, position: 'insideTopLeft' }} />)}
+        <Line isAnimationActive={false} type="monotone" name={t('wishExpected')} dataKey="expected" stroke="#287a68" strokeWidth={2.5} dot={false} />
+        <Line isAnimationActive={false} type="monotone" name={t('wishConservative')} dataKey="conservative" stroke="#d5aa64" strokeWidth={2.5} dot={false} />
+      </LineChart>
+    </ResponsiveContainer></div>
+  </Panel>
 }

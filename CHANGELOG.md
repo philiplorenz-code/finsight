@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Wishlist saving-plan chart: expected and conservative cash path over 24 months against the cumulative price of open wishes.
+
 - Analysis page with seven charts: income by source, income vs outgoings, monthly surplus, surplus rate, cumulative surplus, spending by category and largest payees.
 
 - Income source rules: split income into employment (Bauhaus), business and unassigned, with per-source averages and weak-quarter values on the wishlist.
