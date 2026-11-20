@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Cash on hand, reserve and usable cash now count only the owner's share of each account, so money held for others (tax pots, family) no longer inflates free money.
+
 - German texts for all backend warning notices on imports, transactions, buckets, contracts, net worth and wishlist via one shared table (`lib/warnings.ts`); unknown messages fall back to English.
 
 - AI analyst: bounded adaptive planner (max. 4 typed deterministic tools, 2 s budget; focus category, ranked savings levers, data caveats). The chosen steps are shown with each answer and stored as evidence; no model-chosen tools or SQL.
