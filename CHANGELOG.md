@@ -15,6 +15,8 @@
 - Import from iPhone via the share sheet: import-only device keys (shown once, stored as SHA-256, revocable, 30 uploads/hour) and `POST /api/device/import` (bearer key, no cookies) used by an iOS Shortcut; setup guide under Settings. Migration 0018.
 - Docs: secure phone access via Tailscale HTTPS (`docs/operations.md`).
 
+- Receipts: photograph or upload a receipt (JPEG/PNG/WebP/HEIC, max. 8 MB, stored only in the upload directory), read it with the configured AI model (same consent, budget and settlement as the analyst; the model must accept images) or enter items by hand, automatic match to the bank booking, and analysis by item category and top items with price development. Migration 0017. Refs #84.
+- Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
 - Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
 - Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).
 - Net worth page lists money held in trust for others (accounts with a share below 100 %, e.g. tax pots or family money) with balance and monthly inflow.
