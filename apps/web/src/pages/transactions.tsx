@@ -1,3 +1,4 @@
+import { AccountSelect } from '../components/account-select'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -35,7 +36,7 @@ export default function TransactionsPage() {
   const total = !Array.isArray(query.data) ? query.data?.total : undefined
   const hasMore = !Array.isArray(query.data) && query.data?.has_more !== undefined ? query.data.has_more : total !== undefined ? page * 25 < total : rows.length === 25
   return <><PageHeader title={t('transactions')} description={t('transactionsIntro')} action={<div className="header-actions"><CategoryRulesButton /><TransferCheck /></div>} /><div className="panel transaction-panel">
-    <div className="transaction-toolbar"><form className="search-field" onSubmit={e => { e.preventDefault(); update('search', search) }}><Search size={17} /><input aria-label={t('search')} placeholder={language === 'de' ? 'Buchungen durchsuchen …' : 'Search transactions…'} value={search} onChange={e => setSearch(e.target.value)} /><Button variant="ghost" type="submit">{t('search')}</Button></form><select aria-label={t('account')} value={params.get('account_id') || ''} onChange={e => update('account_id', e.target.value)}><option value="">{t('all')} · {t('accounts')}</option>{items(accounts.data).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select><Button variant="outline" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}><SlidersHorizontal size={16} />Filter</Button></div>
+    <div className="transaction-toolbar"><form className="search-field" onSubmit={e => { e.preventDefault(); update('search', search) }}><Search size={17} /><input aria-label={t('search')} placeholder={language === 'de' ? 'Buchungen durchsuchen …' : 'Search transactions…'} value={search} onChange={e => setSearch(e.target.value)} /><Button variant="ghost" type="submit">{t('search')}</Button></form><AccountSelect accounts={items(accounts.data)} value={params.get('account_id') || ''} onChange={id => update('account_id', id)} anyLabel={`${t('all')} · ${t('accounts')}`} label={t('account')} /><Button variant="outline" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}><SlidersHorizontal size={16} />Filter</Button></div>
     <div className="filter-grid">
       <Field label={language === 'de' ? 'Buchungsansicht' : 'Transaction view'}><select value={view} onChange={e => update('view', e.target.value)}>
         <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'} · all_transactions</option>

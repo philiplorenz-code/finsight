@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Searchable account picker (transaction filter and income rules); accounts with the same name get a short id suffix. Closes #38.
+
 - Import coverage: each import summary lists per account the rows, first/last booking and previous row count, and names accounts whose history shrank (file starts later or rows are missing). The watched folder imports files named like "Alle Buchungen" as full snapshots (`FINSIGHT_WATCH_FULL_SNAPSHOT=auto|true|false`). Closes #48.
 - New accounts after an import: a reminder on the overview, accounts and imports pages and a one-step dialog to classify them (ownership, purpose, include) with suggestions from name, balance and usage; import summaries report `new_accounts`. Closes #49.
 - Category rules (pattern, income/expense, account) assign categories to bookings without touching imported data; manual corrections win. Review list for automatically detected transfers where a pair can be rejected for good (migration 0011). Closes #43.
