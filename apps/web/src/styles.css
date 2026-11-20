@@ -347,3 +347,16 @@
 .negative { color: #e76f51; }
 .provider-line { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; font-size: 12px; }
 .account-filter { margin-bottom: 16px; align-items: end; }
+.upcoming-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.upcoming-list li { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; }
+.upcoming-list li > span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
+.upcoming-icon { display: inline-flex; width: 28px; height: 28px; border-radius: 8px; align-items: center; justify-content: center; background: var(--surface-2, rgba(127,127,127,.12)); }
+.upcoming-icon.income { color: #2d8b72; }
+.upcoming-icon.transfer { color: #5b8fd1; }
+.positive { color: #2d8b72; }
+.forecast-stats { margin-top: 12px; }
+.flow-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2, rgba(127,127,127,.08)); margin: 8px 0 12px; }
+.flow-line > span { display: flex; flex-direction: column; min-width: 0; }
+.flow-line small { opacity: .7; font-size: 11px; }
+.flow-line strong { overflow-wrap: anywhere; }
+.flow-line em { font-style: normal; opacity: .7; font-size: 12px; }

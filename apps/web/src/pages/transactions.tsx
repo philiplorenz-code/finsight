@@ -60,6 +60,7 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
   return <Dialog title={t('details')} onClose={onClose}>
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>{query.data && <>
       <div className="transaction-detail-title"><h3>{query.data.merchant || query.data.counterparty || query.data.description}</h3><Money value={query.data.amount} currency={query.data.currency} /><p className="muted">{formatDate(query.data.booking_date || query.data.date, language)}</p>{query.data.is_transfer && <Badge>{t('transfer')}</Badge>}</div>
+      <FlowLine tx={query.data} de={language === 'de'} />
       {query.data.warnings?.map((w, i) => <Notice key={i} warning>{localizeWarning(w, language)}</Notice>)}
       <h3>{t('correction')}</h3><p className="muted small">{t('correctionText')}</p>
       <form className="form-stack" onSubmit={e => { e.preventDefault(); mutation.mutate(false) }}>
@@ -176,4 +177,24 @@ export function ProviderFilter({ value, onChange }: { value: string; onChange: (
     <option value="">{de ? 'Alle Banken' : 'All banks'}</option>
     {(providers.data?.used ?? []).map(p => <option key={p} value={p}>{p}</option>)}
   </select></Field>
+}
+
+function counterIban(source: unknown): string | null {
+  const row = (source && typeof source === 'object' ? source : {}) as Record<string, unknown>
+  const raw = row['IBAN Beguenstigter/Auftraggeber'] ?? row['IBAN Begünstigter/Auftraggeber'] ?? row['IBAN']
+  return typeof raw === 'string' && raw.trim().length > 6 ? `…${raw.replace(/\s/g, '').slice(-4)}` : null
+}
+// Who paid whom: own account, and for transfers the matching own account; otherwise the counterparty.
+function FlowLine({ tx, de }: { tx: Transaction; de: boolean }) {
+  const mine = tx.account?.name ?? (de ? 'unbekanntes Konto' : 'unknown account')
+  const outgoing = Number(tx.amount) < 0
+  const other = tx.counterpart?.account_name ?? (tx.merchant || tx.counterparty || (de ? 'unbekannt' : 'unknown'))
+  const iban = tx.counterpart ? null : counterIban(tx.source)
+  const [from, to] = outgoing ? [mine, other] : [other, mine]
+  return <div className="flow-line" aria-label={de ? 'Geldfluss' : 'Money flow'}>
+    <span><small>{de ? 'Von' : 'From'}</small><strong>{from}</strong>{!outgoing && iban && <em>{iban}</em>}</span>
+    <span aria-hidden="true">→</span>
+    <span><small>{de ? 'An' : 'To'}</small><strong>{to}</strong>{outgoing && iban && <em>{iban}</em>}</span>
+    {tx.is_transfer && <span className="badge">{tx.counterpart ? (de ? 'Umbuchung zwischen eigenen Konten' : 'Transfer between own accounts') : (de ? 'Umbuchung, Gegenkonto nicht gefunden' : 'Transfer, counter account not found')}</span>}
+  </div>
 }

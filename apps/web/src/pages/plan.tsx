@@ -4,7 +4,9 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, send } from '../lib/api'
 import type { Account } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { AccountSelect } from '../components/account-select'
+import { UpcomingList } from '../components/upcoming'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 export type PlanStatus = 'ok' | 'warning' | 'over'
@@ -67,6 +69,7 @@ export default function PlanPage() {
         <Feedback error={remove.error} />
       </QueryState>
     </Panel>
+    <UpcomingList days={30} />
     <Panel title={de ? 'Daueraufträge in deine Töpfe' : 'Standing orders into your pots'} description={de ? 'Erkannt aus gleich hohen Umbuchungen in mindestens zwei der letzten drei Monate.' : 'Detected from equal transfers in at least two of the last three months.'}>
       <QueryState pending={orders.isPending} error={orders.error} retry={orders.refetch} empty={!orders.data?.transfers.length}>
         <DataTable headers={[de ? 'Ziel' : 'Target', de ? 'Betrag' : 'Amount', de ? 'Tag' : 'Day', de ? 'Monate' : 'Months', de ? 'Status' : 'Status']}>
@@ -78,7 +81,7 @@ export default function PlanPage() {
     <Panel title={de ? 'Lastschriften, Abos und Verträge' : 'Direct debits, subscriptions and contracts'} description={de ? 'Laufende wiederkehrende Abbuchungen (Schätzung aus Buchungen).' : 'Running recurring debits (estimated from bookings).'}>
       <QueryState pending={orders.isPending} error={orders.error} retry={orders.refetch} empty={!orders.data?.debits.length}>
         <DataTable headers={[de ? 'Name' : 'Name', de ? 'Rhythmus' : 'Rhythm', de ? 'pro Monat' : 'per month', de ? 'pro Jahr' : 'per year', de ? 'Nächste' : 'Next']}>
-          {orders.data?.debits.slice().sort((a, b) => Number(b.monthly) - Number(a.monthly)).map((d, i) => <tr key={`${d.name}-${i}`}><td>{d.name}</td><td className="small">{d.period}</td><td><Money value={d.monthly} currency={d.currency} /></td><td><Money value={d.annual} currency={d.currency} /></td><td className="small muted">{d.next_charge ? formatDate(d.next_charge, language) : '—'}</td></tr>)}
+          {orders.data?.debits.slice().sort((a, b) => Number(b.monthly) - Number(a.monthly)).map((d, i) => <tr key={`${d.name}-${i}`}><td>{d.name}</td><td className="small">{label('period', d.period, language)}</td><td><Money value={d.monthly} currency={d.currency} /></td><td><Money value={d.annual} currency={d.currency} /></td><td className="small muted">{d.next_charge ? formatDate(d.next_charge, language) : '—'}</td></tr>)}
         </DataTable>
       </QueryState>
     </Panel>

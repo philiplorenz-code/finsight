@@ -191,7 +191,27 @@ def transactions(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le
 @router.get("/transactions/{ident}")
 def transaction(ident: str, db: Session = Depends(get_db), user=Depends(current_user)):
     tx = owned(db, Transaction, ident, user)
-    return {**serialize(tx), "revisions": serialize(list(db.scalars(select(TransactionRevision).where(TransactionRevision.transaction_id == ident))))}
+    account = db.get(Account, tx.account_id)
+    return {**serialize(tx), "account": {"id": account.id, "name": account.name, "purpose": account.purpose} if account else None,
+            "counterpart": transfer_counterpart(db, tx, user.id),
+            "revisions": serialize(list(db.scalars(select(TransactionRevision).where(TransactionRevision.transaction_id == ident))))}
+
+
+def transfer_counterpart(db: Session, tx, user_id: str) -> dict | None:
+    """For a transfer, the matching booking on another own account (opposite amount, within three days)."""
+    if not tx.is_transfer:
+        return None
+    from datetime import timedelta
+    candidates = db.scalars(select(Transaction).where(
+        Transaction.user_id == user_id, Transaction.id != tx.id, Transaction.account_id != tx.account_id,
+        Transaction.amount == -tx.amount, Transaction.currency == tx.currency, Transaction.is_transfer.is_(True),
+        Transaction.booking_date >= tx.booking_date - timedelta(days=3), Transaction.booking_date <= tx.booking_date + timedelta(days=3)))
+    best = min(candidates, key=lambda c: abs((c.booking_date - tx.booking_date).days), default=None)
+    if not best:
+        return None
+    other = db.get(Account, best.account_id)
+    return {"transaction_id": best.id, "account_id": best.account_id, "account_name": other.name if other else None,
+            "booking_date": best.booking_date.isoformat()}
 
 
 class TransactionPatch(StrictBody):

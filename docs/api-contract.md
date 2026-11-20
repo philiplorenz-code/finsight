@@ -145,3 +145,8 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - `POST /api/plan-items` `{name, amount, category?, account_id?, position?}` (category or pot required), `PATCH /api/plan-items/{id}`, `DELETE /api/plan-items/{id}`.
 - `GET /api/standing-orders` returns regular transfers into own accounts (same target and amount in at least two of the last three months) and active recurring debits.
 - Notification event `plan_exceeded`: one generic message per item and month when an item is over target, checked after imports.
+
+## Upcoming bookings and forecast
+
+- `GET /api/upcoming?days=1..120` returns `items` sorted by date: `kind` `contract` (next charge of an active recurring contract, amount per charge, account of the last charge), `transfer` (active standing order into an own pot) or `income` (expected pay: last pay matched by an employment income rule, one month later). Expectations only.
+- `GET /api/forecast?months=1..60&currency=EUR` returns `start` (cash, net worth), `monthly` surpluses, `loans` (payoff month, freed payment) and `months` with `cash_expected`, `cash_cautious`, `net_worth_expected`, `net_worth_cautious`, `debt`. Assets are held flat; loan payments are already part of spending, so net worth also gains the principal repaid.

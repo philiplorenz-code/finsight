@@ -4,6 +4,7 @@ import { CalendarDays, Plus, PiggyBank, ArrowUpRight, Settings2 } from 'lucide-r
 import { api, items, send } from '../lib/api'
 import type { Account } from '../lib/types'
 import { BucketManage } from '../components/bucket-manage'
+import { AccountSelect } from '../components/account-select'
 import { normalizeBucket, type RawBucket } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
 import { localizeWarning } from '../lib/warnings'
@@ -42,8 +43,22 @@ export default function BucketsPage() {
 }
 function BucketCreate({ onClose }: { onClose: () => void }) {
   const { t } = useLocale(); const client = useQueryClient()
+  const { language } = useLocale(); const de = language === 'de'
   const [form, setForm] = useState({ name: '', kind: 'virtual', currency: 'EUR', target: '', due_date: '' })
-  const mutation = useMutation({ mutationFn: () => send('/buckets', { ...form, target: form.target || null, due_date: form.due_date || null }), onSuccess: () => { client.invalidateQueries({ queryKey: ['buckets'] }); onClose() } })
+  const [accountId, setAccountId] = useState('')
+  const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[]>('/accounts'), enabled: form.kind === 'real' })
+  const eligible = (accounts.data ?? []).filter(a => a.currency === form.currency && a.included !== false && a.ownership === 'owned' && a.purpose !== 'investment')
+  const chosen = eligible.find(a => a.id === accountId)
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const bucket = await send<{ id: string }>('/buckets', { ...form, target: form.target || null, due_date: form.due_date || null })
+      // An account-backed pot earmarks the chosen account: the target, or else its current balance.
+      const amount = form.target || (chosen?.balance && Number(chosen.balance) > 0 ? String(chosen.balance) : '')
+      if (form.kind === 'real' && accountId && amount) await send(`/buckets/${encodeURIComponent(bucket.id)}/allocations`, { allocations: [{ account_id: accountId, amount }] }, 'PUT')
+      return bucket
+    },
+    onSuccess: () => { client.invalidateQueries({ queryKey: ['buckets'] }); onClose() },
+  })
   return <Dialog title={t('createBucket')} onClose={onClose}>
     <form className="form-stack" onSubmit={e => { e.preventDefault(); mutation.mutate() }}>
       <Field label={t('name')}><input required maxLength={120} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
@@ -51,9 +66,13 @@ function BucketCreate({ onClose }: { onClose: () => void }) {
         <Field label={t('kind')}><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="virtual">{t('virtual')}</option><option value="real">{t('real')}</option></select></Field>
         <Field label={t('currency')}><input value={form.currency} pattern="[A-Z]{3}" maxLength={3} required onChange={e => setForm({ ...form, currency: e.target.value.toUpperCase() })} /></Field>
         <Field label={t('target')}><input type="number" min="0.01" step="0.01" value={form.target} onChange={e => setForm({ ...form, target: e.target.value })} /></Field>
-        <Field label={t('due')}><input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></Field>
+        <Field label={t('due')}><input type="date" lang={de ? 'de-DE' : 'en-GB'} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></Field>
       </div>
-      <Feedback error={mutation.error} /><Button busy={mutation.isPending}>{t('createBucket')}</Button>
+      {form.kind === 'real' && <>
+        <AccountSelect accounts={eligible} value={accountId} onChange={setAccountId} anyLabel={de ? 'Konto wählen …' : 'Choose account…'} label={de ? 'Gebunden an Konto' : 'Backed by account'} />
+        {chosen && <p className="muted small">{de ? 'Aktueller Stand' : 'Current balance'}: <Money value={chosen.balance ?? null} currency={chosen.currency} /> · {form.target ? (de ? 'Der Zielbetrag wird auf diesem Konto reserviert.' : 'The target is earmarked on this account.') : (de ? 'Ohne Ziel wird der aktuelle Stand reserviert.' : 'Without a target the current balance is earmarked.')}</p>}
+      </>}
+      <Feedback error={mutation.error} /><Button busy={mutation.isPending} disabled={form.kind === 'real' && !accountId}>{t('createBucket')}</Button>
     </form>
   </Dialog>
 }
