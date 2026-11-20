@@ -21,3 +21,13 @@ cron (daily at 03:15):
 macOS launchd: create `~/Library/LaunchAgents/local.finsight.backup.plist` that runs `/bin/bash -lc 'cd /path/to/finsight && scripts/scheduled-backup.sh'` with a `StartCalendarInterval` of 03:15, then `launchctl load` it.
 
 Dumps are plaintext. Keep the directory private (it is git-ignored) and encrypt before copying off-site. Test restores with `scripts/restore.sh <dump> --confirm-replace-database` on a copy first.
+
+## Forgotten password
+
+Run from the repository root (set `COMPOSE_PROJECT_NAME` if your stack uses a custom project name):
+
+```bash
+scripts/reset-password.sh
+```
+
+It asks for the new password twice without echo, stores a new Argon2 hash and ends all sessions. Nothing is reachable over HTTP; the command runs inside the API container.
