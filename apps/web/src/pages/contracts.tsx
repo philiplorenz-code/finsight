@@ -6,6 +6,7 @@ import { api, items, send } from '../lib/api'
 import type { Contract } from '../lib/types'
 import { normalizeContract, type RawContract } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Extra = { key?: string; kind?: string; status?: string; decision?: string | null; monthly_cost?: string | null; charges?: number }
@@ -47,7 +48,7 @@ export default function ContractsPage() {
     <td>{periodName(c.frequency)}</td><td><Money value={c.monthly_cost} currency={c.currency} /></td><td><Money value={c.annualized_cost} currency={c.currency} /></td>
     <td>{c.status === 'stopped' ? (de ? 'beendet' : 'stopped') : formatDate(c.next_charge, language)}</td><td><Badge>{c.confidence ?? '—'}</Badge></td>
     <td><Button variant="ghost" onClick={() => setDetail(c)} aria-label={`${t('details')}: ${c.name}`}><ChevronRight size={18} /></Button></td></tr>)}</DataTable>
-  return <><PageHeader title={t('contracts')} description={t('contractsIntro')} /><Notice>{t('contractNote')}</Notice>{data?.warnings?.map((w, i) => <Notice key={i} warning>{w}</Notice>)}
+  return <><PageHeader title={t('contracts')} description={t('contractsIntro')} /><Notice>{t('contractNote')}</Notice>{data?.warnings?.map((w, i) => <Notice key={i} warning>{localizeWarning(w, language)}</Notice>)}
     {total && currency && <Panel title={de ? 'Feste Kosten im Überblick' : 'Fixed costs at a glance'} description={de ? 'Nur laufende Verträge; beendete und verworfene zählen nicht.' : 'Running contracts only; stopped and dismissed ones are not counted.'}>
       <div className="stat-grid">
         <div className="detail-stat"><span>{de ? 'Pro Monat' : 'Per month'}</span><Money value={total.monthly} currency={currency} /></div>

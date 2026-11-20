@@ -6,6 +6,7 @@ import { ArrowLeftRight, ChevronLeft, ChevronRight, Search, SlidersHorizontal, T
 import { api, items, queryString, send } from '../lib/api'
 import type { Account, Transaction } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, QueryState } from '../components/ui'
 
 type TransactionList = { items: Transaction[]; total?: number; page?: number; has_more?: boolean }
@@ -58,7 +59,7 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
   return <Dialog title={t('details')} onClose={onClose}>
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>{query.data && <>
       <div className="transaction-detail-title"><h3>{query.data.merchant || query.data.counterparty || query.data.description}</h3><Money value={query.data.amount} currency={query.data.currency} /><p className="muted">{formatDate(query.data.booking_date || query.data.date, language)}</p>{query.data.is_transfer && <Badge>{t('transfer')}</Badge>}</div>
-      {query.data.warnings?.map((w, i) => <Notice key={i} warning>{w}</Notice>)}
+      {query.data.warnings?.map((w, i) => <Notice key={i} warning>{localizeWarning(w, language)}</Notice>)}
       <h3>{t('correction')}</h3><p className="muted small">{t('correctionText')}</p>
       <form className="form-stack" onSubmit={e => { e.preventDefault(); mutation.mutate(false) }}>
         <Field label={t('category')}><input value={category ?? query.data.effective_category ?? query.data.category ?? ''} onChange={e => setCategory(e.target.value)} maxLength={120} /></Field>

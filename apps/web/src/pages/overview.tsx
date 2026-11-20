@@ -5,6 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, ArrowRight, CalendarDays, PiggyBank, Walle
 import { api, queryString } from '../lib/api'
 import { overviewForCurrency, periodDates, type RawOverview } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { CashflowChart, SpendingChart } from '../components/charts'
 import { NewAccountsPrompt } from '../components/new-accounts'
@@ -89,7 +90,7 @@ const HINTS: Record<string, { de: string; quiet?: boolean }> = {
 function DataHints({ warnings, language }: { warnings?: string[]; language: string }) {
   if (!warnings?.length) return null
   const de = language === 'de'
-  const text = (w: string) => (de && HINTS[w]?.de) || w
+  const text = (w: string) => (de && HINTS[w]?.de) || localizeWarning(w, language)
   const loud = warnings.filter(w => !HINTS[w]?.quiet)
   const quiet = warnings.filter(w => HINTS[w]?.quiet)
   return <>
