@@ -153,3 +153,31 @@ def test_structured_findings_are_ranked_and_evidenced(owner):
     assert negative["impact_monthly"] == 500 and negative["evidence"]["source"] == "health_metrics"
     assert {"title", "severity", "confidence", "impact_monthly", "evidence"} <= set(negative)
     assert owner.get("/api/ai/findings", params={"currency": "eur"}).status_code == 422
+
+
+def test_planner_chains_typed_tools_within_the_step_budget():
+    ctx = {"confidence": "low", "health": {"unavailable": ["debt_service_ratio"]}, "data_quality": {"accounts_with_gaps_in_window": 1},
+           "recurring_contracts": {"running_with_price_increase": 2},
+           "spending_categories": [{"category": "Einkaufen", "monthly_typical_earlier": 100, "monthly_typical_recent": 160, "monthly_average": 130, "fixed": False},
+                                   {"category": "Miete", "monthly_typical_earlier": 800, "monthly_typical_recent": 900, "monthly_average": 850, "fixed": True}]}
+    question = "Wo kann ich bei Einkaufen sparen?"
+    extra, trace = analyst.run_planner(question, analyst.plan_for(question), ctx)
+    assert [t["tool"] for t in trace] == ["focus_category", "rank_levers", "data_caveats"] and len(trace) <= analyst.MAX_STEPS
+    assert extra["focus_category"]["category"] == "Einkaufen"
+    assert extra["ranked_levers"][0] == {"kind": "rising_category", "category": "Einkaufen", "monthly_impact": 60}  # fixed Miete is not a lever
+    assert set(extra["caveats"]) == {"low_confidence", "metrics_unavailable:debt_service_ratio", "account_gaps_in_window"}
+
+
+def test_planner_skips_unneeded_tools_and_rejects_unknown_arguments():
+    ctx = {"spending_categories": [], "health": {}, "data_quality": {}}
+    extra, trace = analyst.run_planner("Wie hoch ist mein Kredit?", analyst.plan_for("Wie hoch ist mein Kredit?"), ctx)
+    assert extra == {} and [t["tool"] for t in trace] == ["focus_category", "data_caveats"] and not any(t["used"] for t in trace)
+    with pytest.raises(Exception):
+        analyst.TOOLS["rank_levers"][0](sql="select 1")
+
+
+def test_ask_reports_the_planner_steps(owner, db):
+    user_id = seed(owner, db)
+    enable(db, user_id)
+    result = asyncio.run(analyst.execute_ask(db, user_id, analyst.AskRequest(question="Wo kann ich bei Einkaufen sparen?"), provider=Fake()))
+    assert [s["tool"] for s in result["steps"]][0] == "focus_category" and "focus_category" in result["sent"]

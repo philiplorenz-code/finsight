@@ -76,6 +76,88 @@ def apply_plan(ctx: dict, plan: dict) -> dict:
     return ctx if keep is None else {k: v for k, v in ctx.items() if k in keep}
 
 
+# Adaptive, bounded planner: a fixed registry of typed, deterministic tools runs over the already-minimised
+# context. Which tool runs next depends on earlier results. No model chooses tools, no SQL, no unbounded loop.
+MAX_STEPS = 4
+MAX_PLAN_SECONDS = 2.0
+
+
+class FocusArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question: str
+
+
+class NoArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+def tool_focus_category(ctx: dict, args: FocusArgs) -> dict | None:
+    text = args.question.casefold()
+    hit = next((c for c in ctx.get("spending_categories", []) if c["category"].casefold() in text), None)
+    return None if hit is None else {"focus_category": hit}
+
+
+def tool_rank_levers(ctx: dict, args: NoArgs) -> dict | None:
+    levers = []
+    for c in ctx.get("spending_categories", []):
+        extra = c["monthly_typical_recent"] - c["monthly_typical_earlier"]
+        if not c["fixed"] and extra > 0:
+            levers.append({"kind": "rising_category", "category": c["category"], "monthly_impact": extra})
+    n = ctx.get("recurring_contracts", {}).get("running_with_price_increase", 0)
+    if n:
+        levers.append({"kind": "contract_price_increase", "count": n, "monthly_impact": None})
+    levers.sort(key=lambda l: -(l["monthly_impact"] or 0))
+    return {"ranked_levers": levers[:5]} if levers else None
+
+
+def tool_data_caveats(ctx: dict, args: NoArgs) -> dict | None:
+    caveats = []
+    if ctx.get("confidence") in {"low", "niedrig"}:
+        caveats.append("low_confidence")
+    unavailable = ctx.get("health", {}).get("unavailable") or []
+    if unavailable:
+        caveats.append("metrics_unavailable:" + ",".join(unavailable[:4]))
+    if ctx.get("data_quality", {}).get("accounts_with_gaps_in_window"):
+        caveats.append("account_gaps_in_window")
+    return {"caveats": caveats} if caveats else None
+
+
+TOOLS = {
+    "focus_category": (FocusArgs, tool_focus_category),
+    "rank_levers": (NoArgs, tool_rank_levers),
+    "data_caveats": (NoArgs, tool_data_caveats),
+}
+
+
+def next_step(question: str, plan: dict, done: dict[str, dict | None]) -> tuple[str, dict] | None:
+    """Pick the next tool from the question topics and results so far (adaptive, deterministic)."""
+    topics = set(plan["topics"])
+    if "focus_category" not in done:
+        return "focus_category", {"question": question}
+    if "rank_levers" not in done and (topics & {"savings", "contracts"} or done["focus_category"]):
+        return "rank_levers", {}
+    if "data_caveats" not in done:
+        return "data_caveats", {}
+    return None
+
+
+def run_planner(question: str, plan: dict, ctx: dict) -> tuple[dict, list[dict]]:
+    import time
+    started, extra, trace, done = time.monotonic(), {}, [], {}
+    while len(trace) < MAX_STEPS and time.monotonic() - started < MAX_PLAN_SECONDS:
+        step = next_step(question, plan, done)
+        if step is None:
+            break
+        name, raw = step
+        args_model, fn = TOOLS[name]
+        result = fn(ctx, args_model(**raw))
+        done[name] = result
+        trace.append({"tool": name, "used": result is not None})
+        if result:
+            extra.update(result)
+    return extra, trace
+
+
 def euro(value) -> int:
     return int(Decimal(str(value or 0)).quantize(Decimal(1)))
 
@@ -174,7 +256,9 @@ async def execute_ask(session: Session, owner_id: str, request: AskRequest, prov
         raise AIBlocked("postgresql_required_for_external_ai")
     operator = operator_environment() if provider is litellm_provider else None
     plan = plan_for(request.question)
-    ctx = apply_plan(build_context(session, str(owner_id), request.include_names, request.currency), plan)
+    full = build_context(session, str(owner_id), request.include_names, request.currency)
+    extra, trace = run_planner(request.question, plan, full)
+    ctx = {**apply_plan(full, plan), **extra}
     messages = messages_for(request.question, ctx)
     run, config = reserve(session, str(owner_id), "chat", operator=operator)
     run_id, model = run.id, run.model
@@ -199,14 +283,14 @@ async def execute_ask(session: Session, owner_id: str, request: AskRequest, prov
             raise AIBlocked("output_limit")
         valid = settle(session, run_id, str(owner_id), usage, config)
         stored = session.get(AIRun, run_id)
-        stored.evidence = [{"kind": "analyst_context", "sections": sorted(ctx), "topics": plan["topics"], "include_names": request.include_names}]
+        stored.evidence = [{"kind": "analyst_context", "sections": sorted(ctx), "topics": plan["topics"], "steps": trace, "include_names": request.include_names}]
         if valid:
             session.add(Finding(user_id=str(owner_id), title=request.question.strip()[:200], kind="ai", body=answer,
                                 evidence=[{"run_id": run_id, "kind": "analyst_context", "sections": sorted(ctx)}]))
         session.commit()
         if not valid:
             raise AIBlocked("provider_usage_unverified")
-        return {"run_id": run_id, "answer": answer, "sent": ctx, "topics": plan["topics"], "input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")}
+        return {"run_id": run_id, "answer": answer, "sent": ctx, "topics": plan["topics"], "steps": trace, "input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")}
     except BaseException:
         session.rollback()
         session.scalar(select(AIPolicy).where(AIPolicy.owner_id == str(owner_id)).with_for_update())
@@ -230,7 +314,9 @@ def preview_context(include_names: bool = False, currency: str = "EUR", question
     if len(currency) != 3 or not currency.isupper():
         raise HTTPException(422, "Invalid currency")
     plan = plan_for(question)
-    return {"context": apply_plan(build_context(db, user.id, include_names, currency), plan), "topics": plan["topics"], "system_prompt": SYSTEM_PROMPT}
+    full = build_context(db, user.id, include_names, currency)
+    extra, trace = run_planner(question, plan, full)
+    return {"context": {**apply_plan(full, plan), **extra}, "topics": plan["topics"], "steps": trace, "system_prompt": SYSTEM_PROMPT}
 
 
 FINDING_TEXT = {

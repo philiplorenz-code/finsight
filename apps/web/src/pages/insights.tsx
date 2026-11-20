@@ -86,7 +86,7 @@ function EvidenceLinks({ evidence }: { evidence?: Evidence[] }) {
 }
 
 
-type AskResult = { run_id: string; answer: string; sent: Record<string, unknown>; input_tokens?: number | null; output_tokens?: number | null }
+type AskResult = { run_id: string; answer: string; sent: Record<string, unknown>; steps?: { tool: string; used: boolean }[]; input_tokens?: number | null; output_tokens?: number | null }
 type Preview = { context: Record<string, unknown>; system_prompt: string }
 const QUESTIONS_DE = ['Wo kann ich am meisten sparen?', 'Wie belastbar ist mein Überschuss, besonders mit dem Gewerbe?', 'Welche Versicherungen und Verträge sollte ich prüfen?', 'Kann ich mir meine Wünsche leisten, und in welcher Reihenfolge?', 'Was fällt dir an meinen Einnahmen und Ausgaben der letzten Monate auf?']
 const QUESTIONS_EN = ['Where can I save the most?', 'How reliable is my surplus, especially with the business?', 'Which insurances and contracts should I review?', 'Can I afford my wishes, and in which order?', 'What stands out in my income and spending lately?']
@@ -122,7 +122,7 @@ function Analyst({ enabled }: { enabled: boolean }) {
     {preview.data && <details open><summary>{de ? 'Genau diese Daten gehen an die KI (ohne deine Frage)' : 'Exactly this data goes to the AI (without your question)'}</summary><pre className="json-preview">{JSON.stringify(preview.data.context, null, 1)}</pre></details>}
     {ask.data && <div className="ai-answer" role="status"><h3>{de ? 'Antwort' : 'Answer'}</h3><p style={{ whiteSpace: 'pre-wrap' }}>{ask.data.answer}</p>
       <p className="muted small">{ask.data.input_tokens ?? '—'} / {ask.data.output_tokens ?? '—'} tokens · {de ? 'Planungshilfe, keine Anlage-, Steuer- oder Rechtsberatung.' : 'Planning aid, not investment, tax or legal advice.'}</p>
-      <details><summary>{de ? 'Gesendete Daten dieser Antwort' : 'Data sent for this answer'}</summary><pre className="json-preview">{JSON.stringify(ask.data.sent, null, 1)}</pre></details></div>}
+      {!!ask.data.steps?.length && <p className="muted">{de ? 'Analyseschritte' : 'Analysis steps'}: {ask.data.steps.map((x) => `${x.tool}${x.used ? '' : ' (leer)'}`).join(' → ')}</p>}<details><summary>{de ? 'Gesendete Daten dieser Antwort' : 'Data sent for this answer'}</summary><pre className="json-preview">{JSON.stringify(ask.data.sent, null, 1)}</pre></details></div>}
   </Panel>
 }
 
