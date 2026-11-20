@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
+- Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).
+- Net worth page lists money held in trust for others (accounts with a share below 100 %, e.g. tax pots or family money) with balance and monthly inflow.
+
 - Transaction details show the money flow: from which account to which (own account, and for transfers the matching own counter account; otherwise the counterparty with the last four IBAN digits).
 - Account-backed savings buckets: choose the backing account when creating; the target (or the current balance) is earmarked on it.
 - Balance history dialog shows a chart; time charts (balance history, overview cash flow) zoom Grafana-style by dragging across a range, double-click resets.

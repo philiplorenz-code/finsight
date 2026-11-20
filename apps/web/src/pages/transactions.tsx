@@ -67,6 +67,7 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
         <Field label={t('tags')} hint={language === 'de' ? 'Mit Komma trennen.' : 'Separate with commas.'}><input value={tags ?? query.data.tags?.join(', ') ?? ''} onChange={e => setTags(e.target.value)} maxLength={1000} /></Field>
         <Feedback error={mutation.error} success={mutation.isSuccess} /><div className="form-actions"><Button variant="outline" type="button" disabled={mutation.isPending} onClick={() => mutation.mutate(true)}>{t('reset')}</Button><Button busy={mutation.isPending}>{t('save')}</Button></div>
       </form><details className="source-details"><summary>{t('source')}</summary><pre>{JSON.stringify(query.data.source || {}, null, 2)}</pre></details>
+      {mutation.isSuccess && mutation.variables === false && query.data.merchant && (category ?? '').trim() && <LearnRule merchant={query.data.merchant} category={(category ?? '').trim()} outgoing={Number(query.data.amount) < 0} />}
       <RevisionDiffs id={id} />
     </>}</QueryState>
   </Dialog>
@@ -187,4 +188,16 @@ function FlowLine({ tx, de }: { tx: Transaction; de: boolean }) {
     <span><small>{de ? 'An' : 'To'}</small><strong>{to}</strong>{outgoing && iban && <em>{iban}</em>}</span>
     {tx.is_transfer && <span className="badge">{tx.counterpart ? (de ? 'Umbuchung zwischen eigenen Konten' : 'Transfer between own accounts') : (de ? 'Umbuchung, Gegenkonto nicht gefunden' : 'Transfer, counter account not found')}</span>}
   </div>
+}
+
+// After a manual correction: offer to turn it into a rule for every booking of this merchant.
+function LearnRule({ merchant, category, outgoing }: { merchant: string; category: string; outgoing: boolean }) {
+  const { language } = useLocale(); const de = language === 'de'; const client = useQueryClient()
+  const create = useMutation({
+    mutationFn: () => send<{ reapplied?: number; matches?: number }>('/category-rules', { name: `${merchant} → ${category}`.slice(0, 200), category, pattern: merchant.slice(0, 200), match_field: 'merchant', flow: outgoing ? 'expense' : 'income' }),
+    onSuccess: () => { client.invalidateQueries({ queryKey: ['transactions'] }); client.invalidateQueries({ queryKey: ['category-rules'] }) },
+  })
+  if (create.isSuccess) return <Notice>{de ? `Regel angelegt: alle Buchungen von „${merchant}“ → ${category}` : `Rule created: all bookings from “${merchant}” → ${category}`}{create.data?.reapplied != null ? ` (${create.data.reapplied} ${de ? 'Buchungen aktualisiert' : 'bookings updated'})` : ''}.</Notice>
+  return <div className="learn-rule"><span>{de ? `Auch für alle anderen Buchungen von „${merchant}“ übernehmen?` : `Apply to all other bookings from “${merchant}”?`}</span>
+    <Button type="button" variant="outline" busy={create.isPending} onClick={() => create.mutate()}>{de ? 'Als Regel speichern' : 'Save as rule'}</Button><Feedback error={create.error} /></div>
 }
