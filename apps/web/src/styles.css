@@ -357,3 +357,12 @@
 .flow-line small { opacity: .7; font-size: 11px; }
 .flow-line strong { overflow-wrap: anywhere; }
 .flow-line em { font-style: normal; opacity: .7; font-size: 12px; }
+.pnl-steps { display: grid; gap: 4px; margin-bottom: 14px; }
+.pnl-step { display: grid; grid-template-columns: minmax(220px, 340px) 1fr 120px; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 8px; }
+.pnl-step.sum { font-weight: 600; background: var(--surface-2, rgba(127,127,127,.06)); }
+.pnl-step .money { text-align: right; }
+.pnl-track { height: 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); overflow: hidden; }
+.pnl-track span { display: block; height: 100%; border-radius: 999px; background: var(--accent, #2d8b72); }
+.pnl-step.minus .pnl-track span { background: #d4ab70; }
+@media (max-width: 700px) { .pnl-step { grid-template-columns: 1fr auto; } .pnl-track { display: none; } }
+.detail-stat small .money { font-size: inherit; font-weight: 500; }

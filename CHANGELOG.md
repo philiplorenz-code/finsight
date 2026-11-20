@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Side business gross to net: gross income → VAT (19/7/0 %) → net revenue → business expenses → EBITDA (= EBIT) → tax adviser → profit before income tax → income-tax reserve → what is left, per month and year with net margin; required reserves against actual transfers into tax pots (Umsatzsteuer/Einkommensteuer/Steuerberater) and payments from them.
+
 - Side business page: income per client (business income rules) and business expenses per month, months without payments, reserve suggestion and an EÜR-style CSV preview (`GET /api/business/overview`, `GET /api/business/euer.csv`).
 - Merchant profile: click a merchant in the transaction list for monthly spending (zoomable), categories, accounts, contract match and recent bookings (`GET /api/merchants/profile`).
 - Savings goals: buckets with target and due date get a traffic light comparing the needed monthly rate with standing orders into the backing accounts, plus the projected amount at the due date.
