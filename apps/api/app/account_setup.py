@@ -23,18 +23,19 @@ from .models import Account, Transaction
 router = APIRouter(tags=["accounts"])
 
 Ownership = Literal["owned", "external"]
-Purpose = Literal["checking", "savings", "investment", "credit", "cash", "other"]
+Purpose = Literal["checking", "savings", "investment", "credit", "cash", "other", "mirror"]
 KEYWORDS = {
     "investment": ("depot", "etf", "broker", "wertpapier", "invest", "trade republic", "scalable", "aktien", "msci"),
     "credit": ("kredit", "visa", "mastercard", "amex", "american express", "kreditkarte", "card"),
     "savings": ("spar", "tagesgeld", "festgeld", "ziel", "topf", "pot", "rücklage", "ruecklage", "umzug", "urlaub", "notgroschen"),
     "cash": ("bargeld", "cash", "kasse", "wallet"),
+    "mirror": ("paypal", "@"),
 }
 
 
 def suggest(name: str, balance, bookings: int, transfers: int) -> dict:
     text = (name or "").casefold()
-    for purpose in ("investment", "credit", "savings", "cash"):
+    for purpose in ("mirror", "investment", "credit", "savings", "cash"):
         if any(word in text for word in KEYWORDS[purpose]):
             return {"ownership": "owned", "purpose": purpose, "reason": f"name:{purpose}"}
     if balance is not None and balance < 0:

@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
+- New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.
+
 - Plan vs. actual weights each booking by the owner share that applied on its booking day (e.g. 50 % while an account was shared), using the account setting history.
 
 - Plan vs. actual (Soll/Ist): monthly targets per item (pot and/or category), actuals from the pot plus the same category on other accounts, traffic light on the overview, six-month history, projection for the running month, `plan_exceeded` notification, and an overview of standing orders into pots and recurring debits.
