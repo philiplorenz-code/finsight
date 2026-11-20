@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Consistent language: backend codes (account purpose and ownership, rhythms, import and run states, confidence, notification events, wish and finding status) are shown through one label table (`lib/labels.ts`) in German or English instead of raw English codes.
+
 - Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
 - New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.
 
