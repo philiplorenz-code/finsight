@@ -12,6 +12,9 @@
 ## Unreleased
 
 - Consistent language: backend codes (account purpose and ownership, rhythms, import and run states, confidence, notification events, wish and finding status) are shown through one label table (`lib/labels.ts`) in German or English instead of raw English codes.
+- Overview and its cash-flow trend place month-end pay in the following month when the income rule sets `shift_from_day` (e.g. salary on the 29th counts for next month).
+- Overview balance tile shows your share (`observed_mine`) and lists money held for others (`held_for_others`) instead of the gross sum; available liquidity uses the owner share.
+- Dev: Vite proxy target configurable via `FINSIGHT_API_PROXY`.
 
 - Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
 - New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.
