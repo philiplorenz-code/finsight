@@ -5,6 +5,7 @@ import { Gift, Plus, Settings2, Trash2, Check } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDate, formatMoney, useLocale } from '../lib/i18n'
+import { Simulator } from '../components/simulator'
 import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
@@ -93,6 +94,7 @@ export default function WishlistPage() {
           <table className="data-table"><thead><tr><th>{language === 'de' ? 'Schuld' : 'Debt'}</th><th>{language === 'de' ? 'Abbezahlt' : 'Paid off'}</th><th>{language === 'de' ? 'Frei pro Monat' : 'Freed / month'}</th><th>{language === 'de' ? 'Überschuss danach' : 'Surplus after'}</th><th>{language === 'de' ? 'Vorsichtig danach' : 'Cautious after'}</th></tr></thead>
             <tbody>{data.payoff_scenarios.map(p => <tr key={p.holding_id}><td>{p.name}</td><td>{p.payoff_date.slice(0, 7)} ({p.months_left} {language === 'de' ? 'Mon.' : 'mo.'})</td><td><Money value={p.freed_monthly} currency={data.baseline.currency} /></td><td><Money value={p.expected_surplus_after} currency={data.baseline.currency} /></td><td><Money value={p.conservative_surplus_after} currency={data.baseline.currency} /></td></tr>)}</tbody></table>
         </Panel>}
+        <Simulator />
         {data.baseline.business && <BusinessPanel business={data.baseline.business} prefs={data.prefs} currency={data.baseline.currency} de={language === 'de'} onDone={refresh} />}
         {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
         {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}

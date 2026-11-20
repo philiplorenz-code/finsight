@@ -89,3 +89,13 @@ def test_anomalies_double_high_and_new_recurring(owner):
     assert kinds["double_debit"]["merchant"] == "Synthetic Shop" and kinds["double_debit"]["severity"] == "high"
     assert kinds["unusually_high"]["merchant"] == "Synthetic Cafe2" and D(kinds["unusually_high"]["typical"]) == D(20)
     assert items[0]["kind"] == "double_debit"
+
+
+def test_flows_balance_in_and_out(owner):
+    from test_wishlist import workbook
+    workbook(owner)
+    data = owner.get("/api/flows").json()
+    hub = next(i for i, n in enumerate(data["nodes"]) if n["name"] == "Dein Geld")
+    inflow = sum(D(str(l["value"])) for l in data["links"] if l["target"] == hub)
+    outflow = sum(D(str(l["value"])) for l in data["links"] if l["source"] == hub)
+    assert inflow == outflow and inflow > 0

@@ -199,3 +199,33 @@ def queue_anomaly_alerts(session: Session, owner_id: str, now=None) -> list[str]
         return []
     found = [a for a in anomalies(session, str(owner_id), 14) if a["severity"] == "high" or a["kind"] in {"new_recurring", "price_increase"}]
     return [queue_notification(session, str(owner_id), "anomaly", "anomaly:" + a["key"][:180], now).id for a in found]
+
+
+@router.get("/flows")
+def money_flows(currency: str = Query("EUR", pattern="^[A-Z]{3}$"), top: int = Query(7, ge=3, le=12),
+                db: Session = Depends(get_db), user=Depends(current_user)):
+    """Average monthly flows for a Sankey: income sources -> your money -> spending categories, tax reserve, surplus."""
+    from .wishlist import baseline
+    base = baseline(db, user.id, currency, local_today(db, user.id))
+    names = {"employment": "Gehalt", "business": "Nebengewerbe", "other": "Sonstige Einnahmen"}
+    sources = [(names.get(k, k), Decimal(v["monthly_average"])) for k, v in base["income_sources"].items() if Decimal(v["monthly_average"]) > 0]
+    cats = sorted(((c["category"], Decimal(c["average"])) for c in base["savings"]["categories"] if Decimal(c["average"]) > 0), key=lambda c: -c[1])
+    consumption = Decimal(base["monthly_consumption"])
+    shown = cats[:top]
+    rest = consumption - sum((v for _, v in shown), ZERO)
+    uses = shown + ([("Weitere Ausgaben", rest)] if rest > 1 else [])
+    tax = Decimal(base["monthly_tax"])
+    if tax > 0:
+        uses.append(("Steuerrücklage", tax))
+    income = sum((v for _, v in sources), ZERO)
+    gap = income - consumption - tax
+    if gap > 0:
+        uses.append(("Überschuss", gap))
+    elif gap < 0:
+        sources.append(("Aus Rücklagen", -gap))
+    nodes = [{"name": n} for n, _ in sources] + [{"name": "Dein Geld"}] + [{"name": n} for n, _ in uses]
+    hub = len(sources)
+    links = [{"source": i, "target": hub, "value": v} for i, (_, v) in enumerate(sources)]
+    links += [{"source": hub, "target": hub + 1 + i, "value": v} for i, (_, v) in enumerate(uses)]
+    return {"currency": currency, "months": base["months_used"], "nodes": nodes, "links": links,
+            "income": income, "consumption": consumption, "tax": tax, "surplus": gap}

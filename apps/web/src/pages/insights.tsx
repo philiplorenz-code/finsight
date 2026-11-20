@@ -7,6 +7,7 @@ import { periodDates } from '../lib/adapters'
 import type { Finding } from '../lib/types'
 import type { SettingsData } from './settings'
 import { formatDate, useLocale } from '../lib/i18n'
+import { AnomalyPanel } from '../components/anomalies'
 import { label } from '../lib/labels'
 import { Badge, Button, DataTable, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
@@ -24,7 +25,7 @@ export default function InsightsPage() {
   const state = useMutation({ mutationFn: ({ id, status }: { id: string; status: string }) => send(`/findings/${encodeURIComponent(id)}`, { status }, 'PATCH'), onSuccess: () => client.invalidateQueries({ queryKey: ['findings'] }) })
   const enabled = !!(settings.data?.ai?.enabled ?? settings.data?.ai_enabled) && !!(settings.data?.ai?.external_consent ?? settings.data?.external_ai_consent) && (!settings.data?.ai || settings.data.ai.budget_currency === 'EUR')
   return <>
-    <PageHeader title={t('insights')} description={t('insightsIntro')} /><Notice>{t('aiNote')}</Notice>
+    <PageHeader title={t('insights')} description={t('insightsIntro')} /><Notice>{t('aiNote')}</Notice><AnomalyPanel days={90} limit={20} />
     <Analyst enabled={enabled} />
     <div className="insights-grid">
       <Panel title={t('assistant')} action={<Sparkles size={20} />}>

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
+import { FlowSankey } from '../components/flow-sankey'
 import { label } from '../lib/labels'
 import { Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
@@ -63,7 +64,7 @@ export default function AnalysisPage() {
   const legend = <Legend wrapperStyle={{ fontSize: 12 }} />
   const srcName = (k: string) => t(`src_${k}` as never)
   return <>
-    <PageHeader title={t('analysis')} description={t('analysisIntro')} />
+    <PageHeader title={t('analysis')} description={t('analysisIntro')} /><FlowSankey />
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>
       {data && view && (view.rows.length === 0 ? <Notice>{t('noChart')}</Notice> : <div className="charts-stack">
         <Panel title={t('chIncomeSources')}>
