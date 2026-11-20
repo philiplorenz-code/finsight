@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
 - Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
 - Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).
 - Net worth page lists money held in trust for others (accounts with a share below 100 %, e.g. tax pots or family money) with balance and monthly inflow.
