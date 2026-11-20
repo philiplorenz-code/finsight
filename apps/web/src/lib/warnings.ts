@@ -1,5 +1,7 @@
 // German texts for the backend's English warning strings. Unknown strings fall back to the original.
 const DE: Record<string, string> = {
+  'Inferred recurrence and next dates are estimates, not contractual commitments.': 'Erkannte Wiederholungen und nächste Termine sind Schätzungen, keine vertraglichen Zusagen.',
+  'Inferred recurrence and next dates are estimates, not contractual commitments': 'Erkannte Wiederholungen und nächste Termine sind Schätzungen, keine vertraglichen Zusagen.',
   'Account identity uses source name fallback; renamed exports may require reconciliation': 'Konten werden über den Namen aus der Datei erkannt; umbenannte Konten können einen Abgleich erfordern.',
   'Duplicate booking identities preserved with occurrence suffix; reconciliation uncertain': 'Doppelte Buchungs-IDs wurden mit Nummer erhalten; der Abgleich ist unsicher.',
   'Historical allocation snapshots unavailable; current allocations not subtracted': 'Für früher gibt es keine Zuteilungsstände; aktuelle Zuteilungen werden nicht abgezogen.',

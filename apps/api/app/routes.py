@@ -392,6 +392,8 @@ async def upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)
                 queue_notification(db, user.id, "import_changed", "import:" + record.id)
             from .plan import queue_plan_alerts
             queue_plan_alerts(db, user.id)
+            from .insights_extra import queue_anomaly_alerts
+            queue_anomaly_alerts(db, user.id)
             db.commit()
     return {**serialize(record), "duplicate": duplicate}
 

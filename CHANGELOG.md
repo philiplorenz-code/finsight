@@ -12,6 +12,18 @@
 ## Unreleased
 
 - Receipts: photograph or upload a receipt (JPEG/PNG/WebP/HEIC, max. 8 MB, stored only in the upload directory), read it with the configured AI model (same consent, budget and settlement as the analyst; the model must accept images) or enter items by hand, automatic match to the bank booking, and analysis by item category and top items with price development. Migration 0017. Refs #84.
+- Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
+- Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
+- Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).
+- Net worth page lists money held in trust for others (accounts with a share below 100 %, e.g. tax pots or family money) with balance and monthly inflow.
+
+- Side business page: income per client (business income rules) and business expenses per month, months without payments, reserve suggestion and an EÜR-style CSV preview (`GET /api/business/overview`, `GET /api/business/euer.csv`).
+- Merchant profile: click a merchant in the transaction list for monthly spending (zoomable), categories, accounts, contract match and recent bookings (`GET /api/merchants/profile`).
+- Savings goals: buckets with target and due date get a traffic light comparing the needed monthly rate with standing orders into the backing accounts, plus the projected amount at the due date.
+- Anomaly watch: possible double debits, unusually high amounts, new recurring payments and price increases (`GET /api/anomalies`), on the overview and insights page; `anomaly` notification after imports.
+- What-if simulator on the wishlist page: salary, side business, rent and extra savings sliders update surplus, cash in 12 months and wish timing instantly.
+- Sankey diagram of regular monthly flows (income sources → your money → categories, tax reserve, surplus) on the analysis page (`GET /api/flows`).
+- Transaction list shows account names instead of IDs.
 
 - Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
 - Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.
