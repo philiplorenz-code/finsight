@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- AI analyst planner: two more typed tools (max. 5 steps): `contract_focus` (top running contracts with rhythm and price change, names only with consent) for contract and savings questions, `tax_check` (side-business VAT and income-tax reserves against tax pots) for income and forecast questions. Tool inputs are kept server-side unless a tool selects them.
+
 - Side business page: income per client (business income rules) and business expenses per month, months without payments, reserve suggestion and an EÜR-style CSV preview (`GET /api/business/overview`, `GET /api/business/euer.csv`).
 - Merchant profile: click a merchant in the transaction list for monthly spending (zoomable), categories, accounts, contract match and recent bookings (`GET /api/merchants/profile`).
 - Savings goals: buckets with target and due date get a traffic light comparing the needed monthly rate with standing orders into the backing accounts, plus the projected amount at the due date.
