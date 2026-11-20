@@ -4,6 +4,8 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
+import { TrustPanel } from '../components/trust-panel'
+import { ForecastPanel } from '../components/forecast-panel'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, Dialog, Feedback, Field, Money, PageHeader, Panel, QueryState } from '../components/ui'
 
@@ -36,6 +38,7 @@ export default function NetWorthPage() {
   const cur = data?.currency ?? 'EUR'
   return <>
     <PageHeader title={de ? 'Vermögen' : 'Net worth'} description={de ? 'Alles, was du besitzt und schuldest – getrennt nach dem Anteil, der dir gehört, und dem, der jemand anderem gehört.' : 'Everything you own and owe, split into your share and what belongs to someone else.'} action={<Button onClick={() => setEditing('new')}><Plus size={16} />{de ? 'Eintrag hinzufügen' : 'Add entry'}</Button>} />
+    <ForecastPanel currency={cur} />
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>
       {data && tt && <>
         <div className="stat-grid">
@@ -48,6 +51,7 @@ export default function NetWorthPage() {
         {(data.accounts_without_balance > 0 || data.stale_balances > 0) && <p className="muted">{de
           ? `Datengrundlage: ${data.accounts_without_balance} Konten ohne Kontostand, ${data.stale_balances} mit Kontostand älter als 7 Tage. Ein frischer Export aktualisiert das.`
           : `${data.accounts_without_balance} accounts without balance, ${data.stale_balances} with a balance older than 7 days.`}</p>}
+        <TrustPanel accounts={data.accounts as never} currency={cur} />
         {history.length > 1 && <Panel title={de ? 'Verlauf des Vermögens (mein Anteil)' : 'Net worth over time (my share)'} description={de ? 'Sachwerte und Schulden zählen ab ihrer ersten Bewertung; jede Wertänderung wird festgehalten.' : 'Holdings count from their first valuation; every value change is recorded.'}>
           <div className="chart-container" role="img" aria-label="net worth history"><ResponsiveContainer width="100%" height="100%">
             <AreaChart data={history} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>

@@ -43,11 +43,12 @@ export default function TransactionsPage() {
     <div className="transaction-toolbar"><form className="search-field" onSubmit={e => { e.preventDefault(); update('search', search) }}><Search size={17} /><input aria-label={t('search')} placeholder={language === 'de' ? 'Buchungen durchsuchen …' : 'Search transactions…'} value={search} onChange={e => setSearch(e.target.value)} /><Button variant="ghost" type="submit">{t('search')}</Button></form><AccountSelect accounts={items(accounts.data)} value={params.get('account_id') || ''} onChange={id => update('account_id', id)} anyLabel={`${t('all')} · ${t('accounts')}`} label={t('account')} /><Button variant="outline" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}><SlidersHorizontal size={16} />Filter</Button></div>
     <div className="filter-grid">
       <Field label={language === 'de' ? 'Buchungsansicht' : 'Transaction view'}><select value={view} onChange={e => update('view', e.target.value)}>
-        <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'} · all_transactions</option>
-        <option value="included_spending">{language === 'de' ? 'Einbezogene Ausgaben' : 'Included spending'} · included_spending</option>
-        <option value="owned_liquid">{language === 'de' ? 'Eigene liquide Konten' : 'Owned liquid accounts'} · owned_liquid</option>
+        <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'}</option>
+        <option value="included_spending">{language === 'de' ? 'Einbezogene Ausgaben' : 'Included spending'}</option>
+        <option value="owned_liquid">{language === 'de' ? 'Eigene liquide Konten' : 'Owned liquid accounts'}</option>
         {!views.some(value => value === view) && <option value={view}>{view}</option>}
       </select></Field>
+      <ProviderFilter value={params.get('provider') || ''} onChange={v => update('provider', v)} />
       <Field label={t('currency')} hint={language === 'de' ? 'ISO-Code, z. B. EUR; leer = alle Währungen.' : 'ISO code, e.g. EUR; empty = all currencies.'}><input value={params.get('currency') || ''} maxLength={3} placeholder={t('all')} onChange={e => update('currency', e.target.value.toUpperCase())} /></Field>
     </div>
     {expanded && <div className="filter-grid">{[['start', 'from', 'date'], ['end', 'to', 'date'], ['category', 'category', 'text'], ['merchant', 'merchant', 'text'], ['min_amount', 'min', 'number'], ['max_amount', 'max', 'number'], ['tag', 'tags', 'text'], ['contract', 'contracts', 'text']].map(([key, label, type]) => <Field key={key} label={t(label as 'from')}><input type={type} step={type === 'number' ? '0.01' : undefined} value={filterValue(key)} onChange={e => update(key, e.target.value)} /></Field>)}<Field label={t('transfer')}><select value={params.get('is_transfer') || ''} onChange={e => update('is_transfer', e.target.value)}><option value="">{t('all')}</option><option value="true">{language === 'de' ? 'Nur Umbuchungen' : 'Only transfers'}</option><option value="false">{language === 'de' ? 'Ohne Umbuchungen' : 'Exclude transfers'}</option></select></Field></div>}
@@ -70,6 +71,7 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
         <Field label={t('tags')} hint={language === 'de' ? 'Mit Komma trennen.' : 'Separate with commas.'}><input value={tags ?? query.data.tags?.join(', ') ?? ''} onChange={e => setTags(e.target.value)} maxLength={1000} /></Field>
         <Feedback error={mutation.error} success={mutation.isSuccess} /><div className="form-actions"><Button variant="outline" type="button" disabled={mutation.isPending} onClick={() => mutation.mutate(true)}>{t('reset')}</Button><Button busy={mutation.isPending}>{t('save')}</Button></div>
       </form><details className="source-details"><summary>{t('source')}</summary><pre>{JSON.stringify(query.data.source || {}, null, 2)}</pre></details>
+      {mutation.isSuccess && mutation.variables === false && query.data.merchant && (category ?? '').trim() && <LearnRule merchant={query.data.merchant} category={(category ?? '').trim()} outgoing={Number(query.data.amount) < 0} />}
       <RevisionDiffs id={id} />
     </>}</QueryState>
   </Dialog>
@@ -172,6 +174,15 @@ function TransferReview({ de, onClose }: { de: boolean; onClose: () => void }) {
   </Dialog>
 }
 
+export function ProviderFilter({ value, onChange }: { value: string; onChange: (provider: string) => void }) {
+  const { language } = useLocale(); const de = language === 'de'
+  const providers = useQuery({ queryKey: ['account-providers'], queryFn: () => api<{ known: string[]; used: string[] }>('/account-providers') })
+  return <Field label={de ? 'Bank / Anbieter' : 'Bank / provider'}><select value={value} onChange={e => onChange(e.target.value)}>
+    <option value="">{de ? 'Alle Banken' : 'All banks'}</option>
+    {(providers.data?.used ?? []).map(p => <option key={p} value={p}>{p}</option>)}
+  </select></Field>
+}
+
 function counterIban(source: unknown): string | null {
   const row = (source && typeof source === 'object' ? source : {}) as Record<string, unknown>
   const raw = row['IBAN Beguenstigter/Auftraggeber'] ?? row['IBAN Begünstigter/Auftraggeber'] ?? row['IBAN']
@@ -190,4 +201,16 @@ function FlowLine({ tx, de }: { tx: Transaction; de: boolean }) {
     <span><small>{de ? 'An' : 'To'}</small><strong>{to}</strong>{outgoing && iban && <em>{iban}</em>}</span>
     {tx.is_transfer && <span className="badge">{tx.counterpart ? (de ? 'Umbuchung zwischen eigenen Konten' : 'Transfer between own accounts') : (de ? 'Umbuchung, Gegenkonto nicht gefunden' : 'Transfer, counter account not found')}</span>}
   </div>
+}
+
+// After a manual correction: offer to turn it into a rule for every booking of this merchant.
+function LearnRule({ merchant, category, outgoing }: { merchant: string; category: string; outgoing: boolean }) {
+  const { language } = useLocale(); const de = language === 'de'; const client = useQueryClient()
+  const create = useMutation({
+    mutationFn: () => send<{ reapplied?: number; matches?: number }>('/category-rules', { name: `${merchant} → ${category}`.slice(0, 200), category, pattern: merchant.slice(0, 200), match_field: 'merchant', flow: outgoing ? 'expense' : 'income' }),
+    onSuccess: () => { client.invalidateQueries({ queryKey: ['transactions'] }); client.invalidateQueries({ queryKey: ['category-rules'] }) },
+  })
+  if (create.isSuccess) return <Notice>{de ? `Regel angelegt: alle Buchungen von „${merchant}“ → ${category}` : `Rule created: all bookings from “${merchant}” → ${category}`}{create.data?.reapplied != null ? ` (${create.data.reapplied} ${de ? 'Buchungen aktualisiert' : 'bookings updated'})` : ''}.</Notice>
+  return <div className="learn-rule"><span>{de ? `Auch für alle anderen Buchungen von „${merchant}“ übernehmen?` : `Apply to all other bookings from “${merchant}”?`}</span>
+    <Button type="button" variant="outline" busy={create.isPending} onClick={() => create.mutate()}>{de ? 'Als Regel speichern' : 'Save as rule'}</Button><Feedback error={create.error} /></div>
 }
