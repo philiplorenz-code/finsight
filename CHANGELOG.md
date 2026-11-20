@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Receipts: photograph or upload a receipt (JPEG/PNG/WebP/HEIC, max. 8 MB, stored only in the upload directory), read it with the configured AI model (same consent, budget and settlement as the analyst; the model must accept images) or enter items by hand, automatic match to the bank booking, and analysis by item category and top items with price development. Migration 0017. Refs #84.
+- Side business gross to net: gross income → VAT (19/7/0 %) → net revenue → business expenses → EBITDA (= EBIT) → tax adviser → profit before income tax → income-tax reserve → what is left, per month and year with net margin; required reserves against actual transfers into tax pots (Umsatzsteuer/Einkommensteuer/Steuerberater) and payments from them.
 - Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
 - Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
 - Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).

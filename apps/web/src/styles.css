@@ -381,6 +381,15 @@
 .item-bar { display: grid; grid-template-columns: minmax(140px, 200px) 1fr auto; gap: 10px; align-items: center; }
 .item-bar-track { height: 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); overflow: hidden; }
 .item-bar-track span { display: block; height: 100%; background: var(--accent, #2d8b72); border-radius: 999px; }
+.pnl-steps { display: grid; gap: 4px; margin-bottom: 14px; }
+.pnl-step { display: grid; grid-template-columns: minmax(220px, 340px) 1fr 120px; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 8px; }
+.pnl-step.sum { font-weight: 600; background: var(--surface-2, rgba(127,127,127,.06)); }
+.pnl-step .money { text-align: right; }
+.pnl-track { height: 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); overflow: hidden; }
+.pnl-track span { display: block; height: 100%; border-radius: 999px; background: var(--accent, #2d8b72); }
+.pnl-step.minus .pnl-track span { background: #d4ab70; }
+@media (max-width: 700px) { .pnl-step { grid-template-columns: 1fr auto; } .pnl-track { display: none; } }
+.detail-stat small .money { font-size: inherit; font-weight: 500; }
 /* Contracts */
 .contract-summary { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 16px; margin: 16px 0; }
 .contract-total { display: flex; flex-direction: column; gap: 4px; padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); }
