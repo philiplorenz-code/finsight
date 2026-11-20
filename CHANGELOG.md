@@ -11,6 +11,15 @@
 
 ## Unreleased
 
+- Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
+- Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.
+
+- Overview and its cash-flow trend place month-end pay in the following month when the income rule sets `shift_from_day` (e.g. salary on the 29th counts for next month).
+- Overview balance tile shows your share (`observed_mine`) and lists money held for others (`held_for_others`) instead of the gross sum; available liquidity uses the owner share.
+- Dev: Vite proxy target configurable via `FINSIGHT_API_PROXY`.
+- Transaction details show the money flow: from which account to which (own account, and for transfers the matching own counter account; otherwise the counterparty with the last four IBAN digits).
+- Account-backed savings buckets: choose the backing account when creating; the target (or the current balance) is earmarked on it.
+- Balance history dialog shows a chart; time charts (balance history, overview cash flow) zoom Grafana-style by dragging across a range, double-click resets.
 - Transaction details show the money flow: from which account to which (own account, and for transfers the matching own counter account; otherwise the counterparty with the last four IBAN digits).
 - Account-backed savings buckets: choose the backing account when creating; the target (or the current balance) is earmarked on it.
 - Balance history dialog shows a chart; time charts (balance history, overview cash flow) zoom Grafana-style by dragging across a range, double-click resets.
