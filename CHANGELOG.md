@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Plan vs. actual weights each booking by the owner share that applied on its booking day (e.g. 50 % while an account was shared), using the account setting history.
+
 - Plan vs. actual (Soll/Ist): monthly targets per item (pot and/or category), actuals from the pot plus the same category on other accounts, traffic light on the overview, six-month history, projection for the running month, `plan_exceeded` notification, and an overview of standing orders into pots and recurring debits.
 
 - Cash on hand, reserve and usable cash now count only the owner's share of each account, so money held for others (tax pots, family) no longer inflates free money.

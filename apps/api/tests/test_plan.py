@@ -58,10 +58,13 @@ def test_actual_counts_pot_and_category_once_and_classifies(owner):
     assert "Tanken" in report["categories"]
 
 
-def test_owner_share_weights_actuals_and_past_month_over(owner):
+def test_owner_share_weights_actuals_and_past_month_over(owner, db):
+    from app.models import Account, AccountChange
     accounts = seed(owner)
     main = accounts["Synthetic main"]["id"]
-    assert owner.patch(f"/api/accounts/{main}", json={"owner_share": 50}).status_code == 200
+    db.query(AccountChange).filter(AccountChange.account_id == main).delete()
+    db.get(Account, main).owner_share = D(50)  # no change history: the current share applies
+    db.commit()
     assert owner.post("/api/plan-items", json={"name": "Tanken", "amount": "30", "category": "Tanken"}).status_code == 201
     report = owner.get("/api/plan", params={"month": "2026-09"}).json()
     item = report["items"][0]
@@ -109,3 +112,20 @@ def test_over_target_queues_one_generic_notification_per_month(owner, db):
     assert len(first) == 1 and first == second
     row = db.scalar(select(Notification).where(Notification.owner_id == user_id))
     assert row.event == "plan_exceeded" and row.dedupe_key.endswith(":2026-10")
+
+
+def test_actuals_use_the_owner_share_of_the_booking_day(owner, db):
+    from datetime import datetime, timezone
+    from app.asof import snapshot
+    from app.models import Account, AccountChange
+    accounts = seed(owner)
+    main = db.get(Account, accounts["Synthetic main"]["id"])
+    after = snapshot(main)
+    db.add(AccountChange(account_id=main.id, changed_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+                         before=dict(after, owner_share="50.0000"), after=after))
+    db.commit()
+    assert owner.post("/api/plan-items", json={"name": "Tanken", "amount": "100", "category": "Tanken"}).status_code == 201
+    report = owner.get("/api/plan", params={"history": 2}).json()
+    september, october = report["items"][0]["history"]
+    assert D(september["actual"]) == D(35)  # shared flat: half of 70
+    assert D(october["actual"]) == D(100)   # after the move: pot fuel 60 + main 50 - 10 refund, all at 100 %
