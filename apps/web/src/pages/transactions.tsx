@@ -1,4 +1,5 @@
 import { AccountSelect } from '../components/account-select'
+import { MerchantProfile } from '../components/merchant-profile'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +20,7 @@ export default function TransactionsPage() {
   const [expanded, setExpanded] = useState(() => ['start', 'end', 'date_from', 'date_to', 'category', 'merchant', 'min_amount', 'max_amount', 'amount_min', 'amount_max', 'tag', 'contract', 'contract_id', 'is_transfer'].some(key => params.has(key)))
   const page = Math.max(1, Number(params.get('page') || 1))
   const selected = params.get('detail')
+  const [merchant, setMerchant] = useState<string | null>(null)
   const update = (key: string, value: string) => setParams(p => {
     const next = new URLSearchParams(p)
     const canonical = aliases[key] || key
@@ -33,6 +35,7 @@ export default function TransactionsPage() {
   const view = params.get('view') || 'all_transactions'
   const query = useQuery({ queryKey: ['transactions', params.toString().replace(/(&|^)detail=[^&]*/, '')], queryFn: () => api<TransactionList | Transaction[]>(`/transactions${queryString({ ...filters, page, page_size: 25 })}`) })
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[] | { items: Account[] }>('/accounts') })
+  const accountNames = new Map(items(accounts.data).map(a => [a.id, a.name] as const))
   const rows = items(query.data)
   const total = !Array.isArray(query.data) ? query.data?.total : undefined
   const hasMore = !Array.isArray(query.data) && query.data?.has_more !== undefined ? query.data.has_more : total !== undefined ? page * 25 < total : rows.length === 25
@@ -40,15 +43,16 @@ export default function TransactionsPage() {
     <div className="transaction-toolbar"><form className="search-field" onSubmit={e => { e.preventDefault(); update('search', search) }}><Search size={17} /><input aria-label={t('search')} placeholder={language === 'de' ? 'Buchungen durchsuchen …' : 'Search transactions…'} value={search} onChange={e => setSearch(e.target.value)} /><Button variant="ghost" type="submit">{t('search')}</Button></form><AccountSelect accounts={items(accounts.data)} value={params.get('account_id') || ''} onChange={id => update('account_id', id)} anyLabel={`${t('all')} · ${t('accounts')}`} label={t('account')} /><Button variant="outline" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}><SlidersHorizontal size={16} />Filter</Button></div>
     <div className="filter-grid">
       <Field label={language === 'de' ? 'Buchungsansicht' : 'Transaction view'}><select value={view} onChange={e => update('view', e.target.value)}>
-        <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'} · all_transactions</option>
-        <option value="included_spending">{language === 'de' ? 'Einbezogene Ausgaben' : 'Included spending'} · included_spending</option>
-        <option value="owned_liquid">{language === 'de' ? 'Eigene liquide Konten' : 'Owned liquid accounts'} · owned_liquid</option>
+        <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'}</option>
+        <option value="included_spending">{language === 'de' ? 'Einbezogene Ausgaben' : 'Included spending'}</option>
+        <option value="owned_liquid">{language === 'de' ? 'Eigene liquide Konten' : 'Owned liquid accounts'}</option>
         {!views.some(value => value === view) && <option value={view}>{view}</option>}
       </select></Field>
+      <ProviderFilter value={params.get('provider') || ''} onChange={v => update('provider', v)} />
       <Field label={t('currency')} hint={language === 'de' ? 'ISO-Code, z. B. EUR; leer = alle Währungen.' : 'ISO code, e.g. EUR; empty = all currencies.'}><input value={params.get('currency') || ''} maxLength={3} placeholder={t('all')} onChange={e => update('currency', e.target.value.toUpperCase())} /></Field>
     </div>
     {expanded && <div className="filter-grid">{[['start', 'from', 'date'], ['end', 'to', 'date'], ['category', 'category', 'text'], ['merchant', 'merchant', 'text'], ['min_amount', 'min', 'number'], ['max_amount', 'max', 'number'], ['tag', 'tags', 'text'], ['contract', 'contracts', 'text']].map(([key, label, type]) => <Field key={key} label={t(label as 'from')}><input type={type} step={type === 'number' ? '0.01' : undefined} value={filterValue(key)} onChange={e => update(key, e.target.value)} /></Field>)}<Field label={t('transfer')}><select value={params.get('is_transfer') || ''} onChange={e => update('is_transfer', e.target.value)}><option value="">{t('all')}</option><option value="true">{language === 'de' ? 'Nur Umbuchungen' : 'Only transfers'}</option><option value="false">{language === 'de' ? 'Ohne Umbuchungen' : 'Exclude transfers'}</option></select></Field></div>}
-    <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!rows.length}><DataTable headers={[t('merchant'), t('date'), t('category'), t('account'), t('amount'), '']}>{rows.map(row => <tr key={row.id}><td><div className="transaction-name"><span className={`transaction-icon ${row.is_transfer ? 'transfer' : Number(row.amount) >= 0 ? 'positive' : ''}`}>{row.is_transfer ? <ArrowLeftRight size={17} /> : (row.merchant || row.counterparty || '?').slice(0, 1).toUpperCase()}</span><div><strong>{row.merchant || row.counterparty || row.description || '—'}</strong><small>{row.description}</small>{row.pending && <Badge tone="warning">{t('pending')}</Badge>}</div></div></td><td className="nowrap muted">{formatDate(row.booking_date || row.date, language)}</td><td><Badge>{row.is_transfer ? t('transfer') : row.category || '—'}</Badge></td><td className="muted">{row.account_name || row.account_id || '—'}</td><td className="text-right"><Money value={row.amount} currency={row.currency} className={Number(row.amount) >= 0 ? 'positive-text' : ''} /></td><td><Button variant="ghost" aria-label={`${t('details')}: ${row.merchant || row.id}`} onClick={() => update('detail', row.id)}><ChevronRight size={18} /></Button></td></tr>)}</DataTable></QueryState><div className="pagination"><span>{t('page')} {page}{total !== undefined && <> · {total} {t('transactions')}</>}</span><div><Button variant="outline" disabled={page === 1 || query.isFetching} onClick={() => update('page', String(page - 1))}><ChevronLeft size={16} />{t('previous')}</Button><Button variant="outline" disabled={!hasMore || query.isFetching} onClick={() => update('page', String(page + 1))}>{t('next')}<ChevronRight size={16} /></Button></div></div></div>{selected && <TransactionDetail id={selected} onClose={() => update('detail', '')} />}</>
+    <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!rows.length}><DataTable headers={[t('merchant'), t('date'), t('category'), t('account'), t('amount'), '']}>{rows.map(row => <tr key={row.id}><td><div className="transaction-name"><span className={`transaction-icon ${row.is_transfer ? 'transfer' : Number(row.amount) >= 0 ? 'positive' : ''}`}>{row.is_transfer ? <ArrowLeftRight size={17} /> : (row.merchant || row.counterparty || '?').slice(0, 1).toUpperCase()}</span><div>{row.merchant ? <button type="button" className="link-button" title={language === 'de' ? 'Händler-Profil öffnen' : 'Open merchant profile'} onClick={e => { e.stopPropagation(); setMerchant(row.merchant!) }}><strong>{row.merchant}</strong></button> : <strong>{row.counterparty || row.description || '—'}</strong>}<small>{row.description}</small>{row.pending && <Badge tone="warning">{t('pending')}</Badge>}</div></div></td><td className="nowrap muted">{formatDate(row.booking_date || row.date, language)}</td><td><Badge>{row.is_transfer ? t('transfer') : row.category || '—'}</Badge></td><td className="muted">{row.account_name || (row.account_id && accountNames.get(row.account_id)) || row.account_id || '—'}</td><td className="text-right"><Money value={row.amount} currency={row.currency} className={Number(row.amount) >= 0 ? 'positive-text' : ''} /></td><td><Button variant="ghost" aria-label={`${t('details')}: ${row.merchant || row.id}`} onClick={() => update('detail', row.id)}><ChevronRight size={18} /></Button></td></tr>)}</DataTable></QueryState><div className="pagination"><span>{t('page')} {page}{total !== undefined && <> · {total} {t('transactions')}</>}</span><div><Button variant="outline" disabled={page === 1 || query.isFetching} onClick={() => update('page', String(page - 1))}><ChevronLeft size={16} />{t('previous')}</Button><Button variant="outline" disabled={!hasMore || query.isFetching} onClick={() => update('page', String(page + 1))}>{t('next')}<ChevronRight size={16} /></Button></div></div></div>{selected && <TransactionDetail id={selected} onClose={() => update('detail', '')} />}{merchant && <MerchantProfile name={merchant} onClose={() => setMerchant(null)} />}</>
 }
 function TransactionDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { t, language } = useLocale(); const client = useQueryClient()
@@ -168,6 +172,15 @@ function TransferReview({ de, onClose }: { de: boolean; onClose: () => void }) {
     </QueryState>
     <Feedback error={reject.error || restore.error} />
   </Dialog>
+}
+
+export function ProviderFilter({ value, onChange }: { value: string; onChange: (provider: string) => void }) {
+  const { language } = useLocale(); const de = language === 'de'
+  const providers = useQuery({ queryKey: ['account-providers'], queryFn: () => api<{ known: string[]; used: string[] }>('/account-providers') })
+  return <Field label={de ? 'Bank / Anbieter' : 'Bank / provider'}><select value={value} onChange={e => onChange(e.target.value)}>
+    <option value="">{de ? 'Alle Banken' : 'All banks'}</option>
+    {(providers.data?.used ?? []).map(p => <option key={p} value={p}>{p}</option>)}
+  </select></Field>
 }
 
 function counterIban(source: unknown): string | null {

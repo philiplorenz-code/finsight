@@ -384,6 +384,10 @@ def default_worker_factory():
                     queue_notification(session, owner_id, "import_changed", "import:" + latest.id, now)
                 from .plan import queue_plan_alerts
                 queue_plan_alerts(session, owner_id, now)
+                if latest.id != getattr(poll, "anomaly_import", None):
+                    from .insights_extra import queue_anomaly_alerts
+                    queue_anomaly_alerts(session, owner_id, now)
+                    poll.anomaly_import = latest.id
             schedule_reminders(session, owner_id, now)
             if watcher and owner_id == watch_owner:
                 watcher.poll(session, owner_id, now=now)
