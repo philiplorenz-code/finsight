@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- iPhone: installable as a home-screen app (manifest, icons, standalone safe areas, no input zoom), Sankey labels fit small screens.
+- Import from iPhone via the share sheet: import-only device keys (shown once, stored as SHA-256, revocable, 30 uploads/hour) and `POST /api/device/import` (bearer key, no cookies) used by an iOS Shortcut; setup guide under Settings. Migration 0018.
+- Docs: secure phone access via Tailscale HTTPS (`docs/operations.md`).
+
 - Receipts: photograph or upload a receipt (JPEG/PNG/WebP/HEIC, max. 8 MB, stored only in the upload directory), read it with the configured AI model (same consent, budget and settlement as the analyst; the model must accept images) or enter items by hand, automatic match to the bank booking, and analysis by item category and top items with price development. Migration 0017. Refs #84.
 - Side business gross to net: gross income → VAT (19/7/0 %) → net revenue → business expenses → EBITDA (= EBIT) → tax adviser → profit before income tax → income-tax reserve → what is left, per month and year with net margin; required reserves against actual transfers into tax pots (Umsatzsteuer/Einkommensteuer/Steuerberater) and payments from them.
 - Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
@@ -25,6 +29,7 @@
 - What-if simulator on the wishlist page: salary, side business, rent and extra savings sliders update surplus, cash in 12 months and wish timing instantly.
 - Sankey diagram of regular monthly flows (income sources → your money → categories, tax reserve, surplus) on the analysis page (`GET /api/flows`).
 - Transaction list shows account names instead of IDs.
+- Receipts: photograph or upload a receipt (JPEG/PNG/WebP/HEIC, max. 8 MB, stored only in the upload directory), read it with the configured AI model (same consent, budget and settlement as the analyst; the model must accept images) or enter items by hand, automatic match to the bank booking, and analysis by item category and top items with price development. Migration 0017. Refs #84.
 
 - Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
 - Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.

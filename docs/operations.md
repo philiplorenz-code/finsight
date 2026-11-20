@@ -31,3 +31,23 @@ scripts/reset-password.sh
 ```
 
 It asks for the new password twice without echo, stores a new Argon2 hash and ends all sessions. Nothing is reachable over HTTP; the command runs inside the API container.
+
+## Using FinSight from an iPhone
+
+The stack listens on `127.0.0.1` and the session cookie is `Secure`, so the phone needs an HTTPS address that only you can reach.
+
+Recommended: [Tailscale](https://tailscale.com) on the Mac and the iPhone (private network, no open ports), then on the Mac:
+
+```bash
+tailscale serve --bg https / http://127.0.0.1:8080
+```
+
+FinSight is then at `https://<mac-name>.<tailnet>.ts.net`. Add that origin to `.env` so the login accepts it, and restart the stack:
+
+```bash
+FINSIGHT_ALLOWED_ORIGINS=["https://<mac-name>.<tailnet>.ts.net"]
+```
+
+Do not bind to `0.0.0.0` on an untrusted network: bookings would travel unencrypted over Wi-Fi.
+
+On the iPhone: open the address in Safari → Share → **Add to Home Screen** for an app icon. For one-tap imports from the share sheet, create an upload key under **Settings → Import from iPhone** and follow the steps shown there (iOS Shortcut posting to `/api/device/import`). The key can only start imports and can be revoked at any time.
