@@ -6,6 +6,7 @@ import type { Account } from '../lib/types'
 import { BucketManage } from '../components/bucket-manage'
 import { normalizeBucket, type RawBucket } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 export default function BucketsPage() {
@@ -26,7 +27,7 @@ export default function BucketsPage() {
           <h2>{b.name}</h2>
           <div className="bucket-money"><Money value={funded} currency={b.currency} /><span>/ <Money value={b.target_amount} currency={b.currency} /></span></div>
           <div className="progress-track" role="progressbar" aria-label={b.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><span style={{ width: `${percent || 0}%` }} /></div>
-          {b.warnings?.map((w, i) => <Notice warning key={i}>{w}</Notice>)}
+          {b.warnings?.map((w, i) => <Notice warning key={i}>{localizeWarning(w, language)}</Notice>)}
           <div className="bucket-meta"><span>{t('required')}</span><Money value={b.required_monthly} currency={b.currency} /></div>
           <div className="bucket-meta muted"><span><CalendarDays size={14} />{t('due')}</span><span>{formatDate(b.due_date, language)}</span></div>
           {!!b.obligations?.length && <ul className="obligation-list">{b.obligations.map(o => <li key={o.id}><span>{o.name}</span><Money value={o.amount} currency={b.currency} /></li>)}</ul>}

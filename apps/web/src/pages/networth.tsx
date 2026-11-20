@@ -4,6 +4,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, Dialog, Feedback, Field, Money, PageHeader, Panel, QueryState } from '../components/ui'
 
 type AccountRow = { id: string; name: string; purpose: string; balance: string; observed_date: string; share: string; mine: string; others: string }
@@ -148,7 +149,7 @@ function AsOfPanel({ de, cur }: { de: boolean; cur: string }) {
       <p>{de ? 'Mein Anteil an den Kontoständen' : 'My share of balances'}: <Money value={d.total_mine} currency={cur} /></p>
       <table className="data-table"><tbody>{d.accounts.map(a => <tr key={a.id}><td>{a.name}</td><td>{a.mine != null ? <Money value={a.mine} currency={cur} /> : '—'}</td><td className="muted small">{a.flags.map(f => (de ? FLAG_DE[f] : f) ?? f).join(', ')}</td></tr>)}</tbody></table>
       {d.earmarked.length > 0 && <p className="muted small">{de ? 'Zugeteilt' : 'Earmarked'}: {d.earmarked.map(e => `${e.bucket} ${e.amount}`).join(', ')}</p>}
-      {d.warnings.map((w, i) => <p className="muted small" key={i}>{w}</p>)}
+      {d.warnings.map((w, i) => <p className="muted small" key={i}>{localizeWarning(w, de ? 'de' : 'en')}</p>)}
     </>}
   </Panel>
 }

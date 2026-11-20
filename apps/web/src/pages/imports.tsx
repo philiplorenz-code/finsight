@@ -4,6 +4,7 @@ import { CloudUpload, FileSpreadsheet, ShieldCheck, X } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import type { Coverage, Import } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Feedback, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { NewAccountsPrompt } from '../components/new-accounts'
 
@@ -35,7 +36,7 @@ export default function ImportsPage() {
       {fileError && <div role="alert" className="feedback error">{t('fileError')}</div>}
       {file && <div className="selected-file"><FileSpreadsheet size={25} /><div><strong>{file.name}</strong><small>{(file.size / 1024).toFixed(1)} KB</small></div><Button variant="ghost" aria-label={t('cancel')} disabled={preview.isPending || upload.isPending} onClick={() => { setFile(null); preview.reset() }}><X size={17} /></Button><Button onClick={() => preview.mutate()} busy={preview.isPending} disabled={upload.isPending}>{t('preview')}</Button></div>}
       <Feedback error={preview.error || upload.error} success={upload.isSuccess} />
-      {preview.data && <div className="preview"><div className="panel-heading"><h2>{t('preview')} <Badge>{preview.data.row_count ?? '—'} {t('rows')}</Badge></h2><Button onClick={() => upload.mutate()} busy={upload.isPending}>{t('upload')}</Button></div>{preview.data.warnings?.map((w, i) => <Notice key={i} warning>{w}</Notice>)}
+      {preview.data && <div className="preview"><div className="panel-heading"><h2>{t('preview')} <Badge>{preview.data.row_count ?? '—'} {t('rows')}</Badge></h2><Button onClick={() => upload.mutate()} busy={upload.isPending}>{t('upload')}</Button></div>{preview.data.warnings?.map((w, i) => <Notice key={i} warning>{localizeWarning(w, language)}</Notice>)}
         <div className="badge-row">{columns.map(c => <Badge key={c}>{c}</Badge>)}</div>
         {!!previewRows.length && <DataTable headers={columns}>{previewRows.slice(0, 10).map((row, i) => <tr key={i}>{columns.map(c => <td key={c}>{typeof row[c] === 'object' ? JSON.stringify(row[c]) : String(row[c] ?? '')}</td>)}</tr>)}</DataTable>}
         <Notice>{t('importWarning')}</Notice>

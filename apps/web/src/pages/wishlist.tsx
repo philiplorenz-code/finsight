@@ -5,6 +5,7 @@ import { Gift, Plus, Settings2, Trash2, Check } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDate, formatMoney, useLocale } from '../lib/i18n'
+import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Assessment = {
@@ -48,7 +49,7 @@ function localize(message: string, language: string) {
   if (language !== 'de') return message
   if (DE_MESSAGES[message]) return DE_MESSAGES[message]
   for (const [re, fn] of DE_PATTERNS) { const m = message.match(re); if (m) return fn(m) }
-  return message
+  return localizeWarning(message, language)
 }
 const tone: Record<string, string> = { affordable: 'success', save_up: '', tight: 'warning', not_now: 'danger', unsupported_currency: 'warning' }
 
