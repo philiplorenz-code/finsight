@@ -7,6 +7,7 @@ import { periodDates } from '../lib/adapters'
 import type { Finding } from '../lib/types'
 import type { SettingsData } from './settings'
 import { formatDate, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { Badge, Button, DataTable, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Evidence = { query?: { start?: string; end?: string; currency?: string; metric?: string }; as_of?: string; transaction_id?: string; description?: string }
@@ -51,7 +52,7 @@ export default function InsightsPage() {
         <p className="muted small">{language === 'de' ? 'Reservierung, Modellfreigabe und Kostenlimits werden serverseitig geprüft. Unbestätigte Abrechnung bleibt sichtbar.' : 'Reservations, model approval and spending limits are checked by the server. Unverified billing remains visible.'}</p>
         <QueryState pending={usage.isPending} error={usage.error} retry={usage.refetch} empty={!usage.data?.runs.length}>
           <DataTable headers={[t('date'), t('status'), language === 'de' ? 'Reserviert / Abgerechnet' : 'Reserved / Charged']}>{usage.data?.runs.map(r => <tr key={r.id}>
-            <td>{formatDate(r.created_at, language)}</td><td><Badge>{r.state}</Badge></td>
+            <td>{formatDate(r.created_at, language)}</td><td><Badge>{label('runState', r.state, language)}</Badge></td>
             <td>{r.currency && /^[A-Z]{3}$/.test(r.currency) ? <><Money value={r.reserved} currency={r.currency} /> / <Money value={r.charged} currency={r.currency} /> <Badge tone={r.currency === 'EUR' ? '' : 'warning'}>{r.currency}{r.currency !== 'EUR' ? ' · legacy' : ''}</Badge></> : <span className="muted">{r.reserved} / {r.charged ?? '—'} <Badge tone="warning">{language === 'de' ? 'Währung unbekannt · Abstimmung nötig' : 'Unknown currency · reconciliation needed'}</Badge></span>}</td>
           </tr>)}</DataTable>
         </QueryState>
@@ -63,7 +64,7 @@ export default function InsightsPage() {
         <div className="findings-list">{items(findings.data).map(f => <article className={`finding ${f.status === 'dismissed' ? 'dismissed' : ''}`} key={f.id}>
           <div className="finding-icon"><Sparkles size={19} /></div>
           <div className="finding-body">
-            <div className="finding-heading"><h3>{f.title}</h3><Badge>{f.status || 'open'}</Badge></div><p>{f.body || f.summary}</p>
+            <div className="finding-heading"><h3>{f.title}</h3><Badge>{label('findingStatus', f.status || 'open', language)}</Badge></div><p>{f.body || f.summary}</p>
             <EvidenceLinks evidence={f.evidence} />
             <div className="badge-row"><Button variant="ghost" disabled={state.isPending || f.status === 'acknowledged'} onClick={() => state.mutate({ id: f.id, status: 'acknowledged' })}><Check size={15} />{t('acknowledge')}</Button><Button variant="ghost" disabled={state.isPending || f.status === 'dismissed'} onClick={() => state.mutate({ id: f.id, status: 'dismissed' })}><EyeOff size={15} />{t('dismiss')}</Button></div>
           </div>

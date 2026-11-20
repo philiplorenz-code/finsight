@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Consistent language: backend codes (account purpose and ownership, rhythms, import and run states, confidence, notification events, wish and finding status) are shown through one label table (`lib/labels.ts`) in German or English instead of raw English codes.
 - Overview and its cash-flow trend place month-end pay in the following month when the income rule sets `shift_from_day` (e.g. salary on the 29th counts for next month).
 - Overview balance tile shows your share (`observed_mine`) and lists money held for others (`held_for_others`) instead of the gross sum; available liquidity uses the owner share.
 - Dev: Vite proxy target configurable via `FINSIGHT_API_PROXY`.
