@@ -322,3 +322,6 @@
 .header-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: flex-end; }
 .review-list { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
 .review-list li { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; }
+
+.account-select { display: flex; flex-direction: column; gap: 6px; }
+.account-select input { width: 100%; }

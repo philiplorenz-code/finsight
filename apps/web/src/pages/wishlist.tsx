@@ -1,3 +1,4 @@
+import { AccountSelect } from '../components/account-select'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Gift, Plus, Settings2, Trash2, Check } from 'lucide-react'
@@ -191,7 +192,7 @@ function IncomeRules({ unassigned, onClose, onDone }: { unassigned: { merchant: 
         <Field label={t('ruleField')}><select value={form.match_field} onChange={e => setForm({ ...form, match_field: e.target.value })}>{[['any', 'ruleAny'], ['merchant', 'ruleMerchant'], ['description', 'ruleDescription']].map(([v, k]) => <option key={v} value={v}>{t(k as never)}</option>)}</select></Field>
         <Field label={t('rulePattern')} hint={t('rulePatternHint')}><input maxLength={200} value={form.pattern} onChange={e => setForm({ ...form, pattern: e.target.value })} /></Field>
         <Field label={t('ruleShift')} hint={t('ruleShiftHint')}><input type="number" min={1} max={31} placeholder="25" value={form.shift_from_day} onChange={e => setForm({ ...form, shift_from_day: e.target.value })} /></Field>
-        <Field label={t('ruleAccount')}><select value={form.account_id} onChange={e => setForm({ ...form, account_id: e.target.value })}><option value="">{t('ruleAnyAccount')}</option>{accounts.data?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+        <Field label={t('ruleAccount')}><div><AccountSelect accounts={accounts.data ?? []} value={form.account_id} onChange={id => setForm({ ...form, account_id: id })} anyLabel={t('ruleAnyAccount')} label={t('ruleAccount')} /></div></Field>
       </div>
       <Feedback error={add.error} />
       <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={add.isPending}>{t('ruleAdd')}</Button></div>
@@ -271,7 +272,7 @@ function BusinessRules({ onClose, onDone }: { onClose: () => void; onDone: () =>
         <Field label={t('ruleField')}><select value={form.match_field} onChange={e => setForm({ ...form, match_field: e.target.value })}>{[['any', 'ruleAny'], ['merchant', 'ruleMerchant'], ['description', 'ruleDescription']].map(([v, k]) => <option key={v} value={v}>{t(k as never)}</option>)}</select></Field>
         <Field label={t('rulePattern')} hint={t('rulePatternHint')}><input maxLength={200} value={form.pattern} onChange={e => setForm({ ...form, pattern: e.target.value })} /></Field>
         <Field label={de ? 'Kategorie (genau)' : 'Category (exact)'}><input maxLength={300} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} /></Field>
-        <Field label={t('ruleAccount')}><select value={form.account_id} onChange={e => setForm({ ...form, account_id: e.target.value })}><option value="">{t('ruleAnyAccount')}</option>{accounts.data?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+        <Field label={t('ruleAccount')}><div><AccountSelect accounts={accounts.data ?? []} value={form.account_id} onChange={id => setForm({ ...form, account_id: id })} anyLabel={t('ruleAnyAccount')} label={t('ruleAccount')} /></div></Field>
       </div>
       <Feedback error={add.error} />
       <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={add.isPending}>{t('ruleAdd')}</Button></div>
