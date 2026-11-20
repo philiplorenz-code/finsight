@@ -180,8 +180,8 @@ def overview(db, user_id, start=None, end=None):
             warnings.add("Split reconciliation uncertain")
         if tx.missing_from_latest:
             warnings.add("Records missing from a later full snapshot retained")
-        if not eligible(tx):
-            continue
+        if not eligible(tx) or included[tx.account_id].purpose == "mirror":
+            continue  # mirror accounts (e.g. PayPal) repeat payments already booked on the bank account
         item = totals(tx.currency)
         trend = trends.setdefault((tx.booking_date.strftime("%Y-%m"), tx.currency),
                                    {"month": tx.booking_date.strftime("%Y-%m"), "currency": tx.currency, "income": ZERO, "expenses": ZERO})

@@ -4,6 +4,7 @@ import { Wallet, Pencil } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import type { Account } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
+import { PURPOSE_DE, PURPOSE_EN } from '../components/new-accounts'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { NewAccountsPrompt } from '../components/new-accounts'
 
@@ -15,13 +16,13 @@ export default function AccountsPage() {
   return <><PageHeader title={t('accounts')} description={t('accountsIntro')} /><NewAccountsPrompt /><Notice>{t('balanceWarning')}</Notice><QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!items(query.data).length} importLink><div className="accounts-grid">{items(query.data).map(account => <Panel key={account.id} className="account-card"><div className="card-top"><span className="account-icon"><Wallet size={23} /></span><Button variant="ghost" aria-label={`${t('edit')}: ${account.name}`} onClick={() => setEditing(account)}><Pencil size={16} /></Button></div><div className="account-heading"><h2>{account.name}</h2><Badge>{account.currency}</Badge></div><p className="muted small">{account.purpose || account.ownership || '—'}</p><Money value={account.balance} currency={account.currency} /><div className="account-bottom"><span className="muted small">{formatDate(account.balance_date, language)}</span><Button variant="ghost" onClick={() => setDetail(account)}>{t('balanceHistory')}</Button></div><div className="badge-row">{account.included === false && <Badge tone="warning">{language === 'de' ? 'Ausgeschlossen' : 'Excluded'}</Badge>}{account.inactive && <Badge>{t('inactive')}</Badge>}</div></Panel>)}</div></QueryState>{editing && <AccountEditor account={editing} onClose={() => setEditing(null)} />}{detail && <AccountHistory account={detail} onClose={() => setDetail(null)} />}</>
 }
 function AccountEditor({ account, onClose }: { account: Account; onClose: () => void }) {
-  const { t } = useLocale(); const client = useQueryClient()
+  const { t, language } = useLocale(); const client = useQueryClient()
   const [form, setForm] = useState({ name: account.name, purpose: account.purpose || '', included: account.included !== false, ownership: account.ownership || 'unknown', inactive: !!account.inactive })
   const mutation = useMutation({ mutationFn: () => send(`/accounts/${encodeURIComponent(account.id)}`, { ...form, purpose: form.purpose || null }, 'PATCH'), onSuccess: () => { client.invalidateQueries({ queryKey: ['accounts'] }); client.invalidateQueries({ queryKey: ['overview'] }); onClose() } })
   return <Dialog title={`${t('edit')}: ${account.name}`} onClose={onClose}>
     <form className="form-stack" onSubmit={e => { e.preventDefault(); mutation.mutate() }}>
       <Field label={t('name')}><input required maxLength={120} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
-      <Field label={t('purpose')}><select value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })}><option value="">—</option>{['checking', 'savings', 'investment', 'credit', 'cash', 'other'].map(p => <option key={p} value={p}>{p}</option>)}</select></Field>
+      <Field label={t('purpose')}><select value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })}><option value="">—</option>{['checking', 'savings', 'investment', 'credit', 'cash', 'other', 'mirror'].map(p => <option key={p} value={p}>{(language === 'de' ? PURPOSE_DE : PURPOSE_EN)[p] ?? p}</option>)}</select></Field>
       <Field label={t('ownership')}><select value={form.ownership} onChange={e => setForm({ ...form, ownership: e.target.value })}><option value="unknown">Unknown / Unbekannt</option><option value="owned">Owned / Eigen</option><option value="external">External / Extern</option></select></Field>
       <label className="checkbox"><input type="checkbox" checked={form.included} onChange={e => setForm({ ...form, included: e.target.checked })} />{t('included')}</label>
       <label className="checkbox"><input type="checkbox" checked={form.inactive} onChange={e => setForm({ ...form, inactive: e.target.checked })} />{t('inactive')}</label>

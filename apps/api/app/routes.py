@@ -93,7 +93,7 @@ class AccountPatch(StrictBody):
     name: str | None = Field(default=None, min_length=1, max_length=300)
     included: bool | None = None
     ownership: Literal["owned", "external", "unknown"] | None = None
-    purpose: Literal["checking", "savings", "investment", "credit", "cash", "other"] | None = None
+    purpose: Literal["checking", "savings", "investment", "credit", "cash", "other", "mirror"] | None = None
     inactive: bool | None = None
     owner_share: Decimal | None = Field(default=None, ge=0, le=100)
 

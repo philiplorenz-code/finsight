@@ -9,8 +9,8 @@ type Item = { id: string; name: string; currency: string; balance: string | null
 type Unclassified = { count: number; items: Item[] }
 type Choice = { ownership: string; purpose: string; included: boolean }
 
-const PURPOSE_DE: Record<string, string> = { checking: 'Girokonto', savings: 'Sparen / Rücklage', investment: 'Depot / Anlage', credit: 'Kreditkarte / Kredit', cash: 'Bargeld', other: 'Sonstiges' }
-const PURPOSE_EN: Record<string, string> = { checking: 'Current account', savings: 'Savings / pot', investment: 'Investment', credit: 'Credit', cash: 'Cash', other: 'Other' }
+export const PURPOSE_DE: Record<string, string> = { checking: 'Girokonto', savings: 'Sparen / Rücklage', investment: 'Depot / Anlage', credit: 'Kreditkarte / Kredit', cash: 'Bargeld', other: 'Sonstiges', mirror: 'Spiegelkonto (z. B. PayPal, doppelt zur Bank)' }
+export const PURPOSE_EN: Record<string, string> = { checking: 'Current account', savings: 'Savings / pot', investment: 'Investment', credit: 'Credit', cash: 'Cash', other: 'Other', mirror: 'Mirror (e.g. PayPal, duplicates bank)' }
 
 /** Reminder for accounts that arrived with an import and still have unknown ownership (they count nowhere until decided). */
 export function NewAccountsPrompt() {

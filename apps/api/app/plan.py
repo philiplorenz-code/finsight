@@ -66,7 +66,7 @@ def classify(actual: Decimal, target: Decimal, projected: Decimal | None) -> str
 def actuals(db: Session, user_id: str, items: list[PlanItem], first: date, last: date) -> dict[tuple[str, date], dict]:
     """Per (item, month start): total, part from the pot and part from the category elsewhere."""
     accounts = {a.id: a for a in db.scalars(select(Account).where(Account.user_id == user_id))}
-    counted = {a.id for a in accounts.values() if a.included and a.ownership == "owned"}
+    counted = {a.id for a in accounts.values() if a.included and a.ownership == "owned" and a.purpose != "mirror"}
     history = defaultdict(list)
     if counted:
         for change in db.scalars(select(AccountChange).where(AccountChange.account_id.in_(counted))):

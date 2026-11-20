@@ -34,7 +34,8 @@ MIN_MONTHS_FOR_MEDIUM_CONFIDENCE = 6
 STALE_DATA_DAYS = 45
 SAVING_CATEGORIES = {"sparen", "kapitalanlage"}
 CASHFLOW_PURPOSES = {"checking", "cash"}
-CASH_PURPOSES = {"checking", "savings", "cash"}
+CASH_PURPOSES = {"checking", "savings", "cash", "mirror"}
+POT_PURPOSES = {"savings"}  # spending straight from a pot is real spending; its transfers are excluded anyway
 CONSERVATIVE_HORIZON_MONTHS = 12
 EXPECTED_HORIZON_MONTHS = 24
 
@@ -78,13 +79,14 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 if a.included and a.ownership == "owned" and a.currency == currency]
     cashflow_ids = {a.id for a in accounts if a.purpose in CASHFLOW_PURPOSES}
     tax_ids = {a.id for a in accounts if a.purpose == "other"}
+    pot_ids = {a.id for a in accounts if a.purpose in POT_PURPOSES}
     warnings: list[str] = []
     if not any(a.ownership == "owned" for a in db.scalars(select(Account).where(Account.user_id == user_id))):
         warnings.append("No account is marked as owned; classify accounts before relying on this assessment")
 
     rows = [tx for tx in db.scalars(select(Transaction).where(
             Transaction.user_id == user_id, Transaction.currency == currency, Transaction.booking_date <= today))
-            if tx.account_id in cashflow_ids | tax_ids]
+            if tx.account_id in cashflow_ids | tax_ids | pot_ids]
     in_cashflow = [tx for tx in rows if tx.account_id in cashflow_ids]
     data_through = max((tx.booking_date for tx in in_cashflow), default=None)
 
@@ -119,6 +121,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 if tx.amount < 0:
                     tax_paid += -tx.amount
                 continue
+            if tx.account_id in pot_ids and tx.amount >= 0:
+                continue  # pot interest or refunds are not salary-like income
             if tx.amount >= 0:
                 income[key] += tx.amount
                 source = rule.source if rule else "other"
