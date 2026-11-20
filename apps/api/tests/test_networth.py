@@ -60,3 +60,48 @@ def test_payoff_with_interest_and_unpayable():
 
 def test_net_worth_requires_login(client):
     assert client.get("/api/net-worth").status_code in {401, 403}
+
+
+def test_amortisation_schedule_is_deterministic():
+    from app.networth import amortisation
+    today = date(2026, 1, 15)
+    zero = amortisation(D(1200), D(400), D(0), today)
+    assert [r["balance"] for r in zero] == [D(800), D(400), D(0)] and zero[0]["month"] == "2026-02"
+    # 12 % p.a. -> 1 % per month: 1000 + 10 - 300 = 710, then 710 + 7.10 - 300 = 417.10
+    rate = amortisation(D(1000), D(300), D(12), today)
+    assert rate[0]["balance"] == D("710.00") and rate[1]["balance"] == D("417.10") and rate[-1]["balance"] == 0
+    assert amortisation(D(1000), D(10), D(12), today) == [], "payment below interest never repays"
+    assert amortisation(D(1000), None, D(5), today) == [] and amortisation(D(0), D(10), D(5), today) == []
+
+
+def test_payoff_edge_cases():
+    today = date(2026, 1, 15)
+    assert payoff(D(1000), D(10), D(12), today)["months_left"] is None
+    assert payoff(D(1000), D(1000), D(0), today)["months_left"] == 1
+    assert payoff(D(0), D(10), D(5), today)["months_left"] == 0
+
+
+def test_snapshots_history_and_wishlist_scenario(owner, db):
+    from datetime import timedelta
+    from app.models import Holding, HoldingSnapshot
+    setup_account(owner)
+    car = owner.post("/api/holdings", json={"name": "Auto", "kind": "asset", "category": "car", "value": "20000"}).json()
+    loan = owner.post("/api/holdings", json={"name": "Kredit", "kind": "liability", "category": "loan", "value": "3000",
+                                              "share": 50, "monthly_payment": "300", "interest_rate": "0"}).json()
+    from sqlalchemy import select
+    assert len(db.scalars(select(HoldingSnapshot)).all()) == 2
+    owner.patch(f"/api/holdings/{car['id']}", json={"value": "19000"})
+    owner.patch(f"/api/holdings/{car['id']}", json={"value": "18500"})
+    snaps = db.scalars(select(HoldingSnapshot).where(HoldingSnapshot.holding_id == car["id"])).all()
+    assert len(snaps) == 1 and snaps[0].value == D(18500), "one snapshot per day, latest value wins"
+    data = owner.get("/api/net-worth").json()
+    last = data["history"][-1]
+    assert D(last["holdings_mine"]) == D(18500) - D(1500) and last["holdings_counted"] == 2
+    assert D(last["net_worth_mine"]) == D(last["accounts_mine"]) + D(17000)
+    schedule = next(h for h in data["holdings"] if h["kind"] == "liability")["schedule"]
+    assert len(schedule) == 10 and D(schedule[-1]["balance"]) == 0
+    scenario = owner.get("/api/wishlist").json()["payoff_scenarios"]
+    assert len(scenario) == 1 and scenario[0]["months_left"] == 10 and D(scenario[0]["freed_monthly"]) == D(150)
+    assert D(scenario[0]["expected_surplus_after"]) - D(owner.get("/api/wishlist").json()["baseline"]["expected_surplus"]) == D(150)
+    owner.delete(f"/api/holdings/{car['id']}")
+    assert not db.scalars(select(HoldingSnapshot).where(HoldingSnapshot.holding_id == car["id"])).all()

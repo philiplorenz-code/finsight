@@ -7,11 +7,11 @@ import { formatMoney, useLocale } from '../lib/i18n'
 import { Badge, Button, Dialog, Feedback, Field, Money, PageHeader, Panel, QueryState } from '../components/ui'
 
 type AccountRow = { id: string; name: string; purpose: string; balance: string; observed_date: string; share: string; mine: string; others: string }
-type Holding = { id: string; name: string; kind: 'asset' | 'liability'; category: string; value: string; share: string; mine: string; others: string; monthly_payment: string | null; interest_rate: string | null; note: string; months_left?: number | null; payoff_date?: string | null }
+type Holding = { id: string; name: string; kind: 'asset' | 'liability'; category: string; value: string; share: string; mine: string; others: string; monthly_payment: string | null; interest_rate: string | null; note: string; months_left?: number | null; payoff_date?: string | null; schedule?: { month: string; balance: string }[] }
 type NetWorth = {
   currency: string; accounts: AccountRow[]; holdings: Holding[]; accounts_without_balance: number; stale_balances: number
   totals: Record<'assets_mine' | 'assets_others' | 'liabilities_mine' | 'liabilities_others' | 'net_worth_mine' | 'net_worth_others' | 'net_worth_gross' | 'monthly_debt_service', string>
-  history: { month: string; accounts_mine: string }[]
+  history: { month: string; accounts_mine: string; holdings_mine?: string; holdings_counted?: number; net_worth_mine?: string }[]
 }
 const CATEGORIES = ['car', 'property', 'loan', 'depot', 'cash', 'other'] as const
 
@@ -29,7 +29,9 @@ export default function NetWorthPage() {
   const cat = (c: string) => de ? ({ car: 'Auto', property: 'Immobilie', loan: 'Kredit', depot: 'Depot', cash: 'Bargeld', other: 'Sonstiges' } as Record<string, string>)[c] ?? c : c
   const assets = data?.holdings.filter(h => h.kind === 'asset') ?? []
   const debts = data?.holdings.filter(h => h.kind === 'liability') ?? []
-  const history = data?.history.map(h => ({ month: h.month, value: Number(h.accounts_mine) })) ?? []
+  const history = data?.history.map(h => ({ month: h.month, accounts: Number(h.accounts_mine), total: Number(h.net_worth_mine ?? h.accounts_mine) })) ?? []
+  const [debtId, setDebtId] = useState('')
+  const schedDebt = debts.find(d => d.id === debtId) ?? debts.find(d => d.schedule?.length)
   const cur = data?.currency ?? 'EUR'
   return <>
     <PageHeader title={de ? 'Vermögen' : 'Net worth'} description={de ? 'Alles, was du besitzt und schuldest – getrennt nach dem Anteil, der dir gehört, und dem, der jemand anderem gehört.' : 'Everything you own and owe, split into your share and what belongs to someone else.'} action={<Button onClick={() => setEditing('new')}><Plus size={16} />{de ? 'Eintrag hinzufügen' : 'Add entry'}</Button>} />
@@ -45,17 +47,30 @@ export default function NetWorthPage() {
         {(data.accounts_without_balance > 0 || data.stale_balances > 0) && <p className="muted">{de
           ? `Datengrundlage: ${data.accounts_without_balance} Konten ohne Kontostand, ${data.stale_balances} mit Kontostand älter als 7 Tage. Ein frischer Export aktualisiert das.`
           : `${data.accounts_without_balance} accounts without balance, ${data.stale_balances} with a balance older than 7 days.`}</p>}
-        {history.length > 1 && <Panel title={de ? 'Verlauf der Kontostände (mein Anteil)' : 'Account balances over time (my share)'}>
+        {history.length > 1 && <Panel title={de ? 'Verlauf des Vermögens (mein Anteil)' : 'Net worth over time (my share)'} description={de ? 'Sachwerte und Schulden zählen ab ihrer ersten Bewertung; jede Wertänderung wird festgehalten.' : 'Holdings count from their first valuation; every value change is recorded.'}>
           <div className="chart-container" role="img" aria-label="net worth history"><ResponsiveContainer width="100%" height="100%">
             <AreaChart data={history} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} />
               <YAxis axisLine={false} tickLine={false} width={64} tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={v => formatMoney(String(v), cur, language)} />
               <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12 }} formatter={(v) => formatMoney(String(v), cur, language)} />
-              <Area dataKey="value" name={de ? 'Kontostände' : 'Balances'} stroke="#287a68" fill="#287a68" fillOpacity={0.18} />
+              <Area dataKey="total" name={de ? 'Vermögen gesamt' : 'Net worth'} stroke="#287a68" fill="#287a68" fillOpacity={0.18} />
+              <Area dataKey="accounts" name={de ? 'Nur Kontostände' : 'Accounts only'} stroke="#6b7fd7" fill="none" strokeDasharray="4 3" />
             </AreaChart>
           </ResponsiveContainer></div>
         </Panel>}
+        {schedDebt?.schedule?.length ? <Panel title={de ? 'Tilgungsplan' : 'Repayment schedule'} description={de ? 'Restschuld pro Monat bei gleichbleibender Rate und Zins (Zinsen monatlich = Zinssatz/12).' : 'Remaining debt per month at a fixed payment and rate (monthly interest = rate/12).'}>
+          {debts.filter(d => d.schedule?.length).length > 1 && <select aria-label={de ? 'Schuld wählen' : 'Choose debt'} value={schedDebt.id} onChange={e => setDebtId(e.target.value)}>{debts.filter(d => d.schedule?.length).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select>}
+          <div className="chart-container" role="img" aria-label="repayment schedule"><ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={schedDebt.schedule.map(r => ({ month: r.month, value: Number(r.balance) }))} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} minTickGap={40} />
+              <YAxis axisLine={false} tickLine={false} width={64} tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={v => formatMoney(String(v), cur, language)} />
+              <Tooltip contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 12 }} formatter={(v) => formatMoney(String(v), cur, language)} />
+              <Area dataKey="value" name={de ? 'Restschuld' : 'Remaining'} stroke="#b4503c" fill="#b4503c" fillOpacity={0.16} />
+            </AreaChart>
+          </ResponsiveContainer></div>
+        </Panel> : null}
         <Panel title={de ? 'Konten' : 'Accounts'} description={de ? 'Anteil: wie viel Prozent des Kontostands dir gehören (Gemeinschaftskonto, Konto von Partner/Firma …).' : 'Share: percentage of the balance that is yours.'}>
           <table className="data-table"><thead><tr><th>{de ? 'Konto' : 'Account'}</th><th>{de ? 'Kontostand' : 'Balance'}</th><th>{de ? 'Mein Anteil %' : 'My share %'}</th><th>{de ? 'Mir' : 'Mine'}</th><th>{de ? 'Anderen' : 'Others'}</th></tr></thead>
             <tbody>{data.accounts.map(a => <tr key={a.id}><td>{a.name}</td><td><Money value={a.balance} currency={cur} /></td>
