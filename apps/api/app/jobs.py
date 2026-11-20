@@ -285,6 +285,16 @@ def main() -> None:
     asyncio.run(run_worker(session_factory, handlers, poll_hook=poll_hook, handler_timeout=timeout, lease_seconds=timeout + 30))
 
 
+def watch_full_snapshot(filename: str) -> bool:
+    """FINSIGHT_WATCH_FULL_SNAPSHOT: auto (default) treats 'Alle Buchungen' exports as full snapshots."""
+    mode = os.environ.get("FINSIGHT_WATCH_FULL_SNAPSHOT", "auto").strip().lower()
+    if mode in ("true", "1", "yes"):
+        return True
+    if mode == "auto":
+        return "alle_buchungen" in filename.lower().replace("-", "_").replace(" ", "_")
+    return False
+
+
 def watched_import_handler(session_factory: Callable, root: Path = Path("/data/imports"), max_bytes: int = 32 * 1024 * 1024):
     """Core importer adapter: owner-scoped, digest-verified, claim-fenced, never delete.
 
@@ -317,7 +327,7 @@ def watched_import_handler(session_factory: Callable, root: Path = Path("/data/i
             owner = session.scalar(select(User).where(User.id == item.owner_id).with_for_update())
             if not owner:
                 raise ValueError("owner_missing")
-            ingest(session, owner, data, name, full_snapshot=False)
+            ingest(session, owner, data, name, full_snapshot=watch_full_snapshot(name))
     return handle
 
 

@@ -52,6 +52,10 @@ Never run `docker compose down --volumes` against data you wish to keep. Standar
 
 See [`.env.example`](.env.example) and [configuration](docs/deployment/configuration.md). AI and ntfy are off by default. Enabling external AI requires explicit consent, a model allowlist, known conservative EUR token prices and budgets. Provider charges may differ from application estimates. No implicit model escalation or telemetry is intended.
 
+## Drop-folder imports
+
+With `FINSIGHT_WATCH_IMPORTS=true` and `FINSIGHT_WATCH_OWNER_ID=<owner UUID>` the worker imports `.xlsx` files placed in the mounted `/data/imports` folder once they are stable; source files are never deleted. Files whose name contains "Alle Buchungen" count as full snapshots (rows missing from the file are flagged); set `FINSIGHT_WATCH_FULL_SNAPSHOT=true|false` to force a mode. After each import the imports page lists the coverage per account and names accounts whose history shrank, e.g. when a bank link was re-created.
+
 ## Ask your finances through MCP
 
 FinSight offers an optional **Streamable HTTP MCP server** at `https://your-host/mcp`, independent of its internal AI agent. Set `MCP_ENABLED=true`, use a reachable HTTPS `APP_URL` and secure session cookies, then add the endpoint to an MCP-capable assistant using OAuth. In FinSight, review the client and requested permissions before granting access. Manage and revoke connections under **Settings → MCP**.
