@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- Transaction details show the money flow: from which account to which (own account, and for transfers the matching own counter account; otherwise the counterparty with the last four IBAN digits).
+- Account-backed savings buckets: choose the backing account when creating; the target (or the current balance) is earmarked on it.
+- Balance history dialog shows a chart; time charts (balance history, overview cash flow) zoom Grafana-style by dragging across a range, double-click resets.
+
 - Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
 - New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.
 
