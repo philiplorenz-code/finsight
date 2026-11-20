@@ -17,6 +17,7 @@ from .db import get_db
 from .finance import account_json, allocation_backing, bucket_json, contracts, funding_eligible, latest_balance, local_today, overview, serialize, ZERO
 from .importer import ingest, parse_workbook
 from .locking import lock_owner
+from . import uploads
 from .models import Account, Allocation, AllocationEvent, Balance, Bucket, Finding, Import, Obligation, Setting, Transaction, TransactionRevision, User
 
 router = APIRouter(tags=["finance"])
@@ -223,7 +224,10 @@ def expire_stale_imports(db, user_id):
         created = record.created_at if record.created_at.tzinfo else record.created_at.replace(tzinfo=cutoff.tzinfo)
         if created < cutoff:
             record.status = "failed"
-            record.summary = {"error": "Import interrupted", "retry": "Upload the file again; source uploads are not retained"}
+            kept = uploads.exists(record.sha256)
+            record.summary = {"error": "Import interrupted", "retry_available": kept,
+                              "full_snapshot": bool((record.summary or {}).get("full_snapshot")),
+                              "retry": "Use retry; the upload is retained temporarily" if kept else "Upload the file again; the upload was not retained"}
             changed = True
     if changed:
         db.commit()
@@ -236,17 +240,62 @@ def run_background_import(bind, user_id, data, filename, full_snapshot):
         try:
             user = session.get(User, user_id)
             ingest(session, user, data, filename, full_snapshot)
+            uploads.discard(digest)
         except BaseException as exc:
             session.rollback()
             record = session.scalar(select(Import).where(Import.user_id == user_id, Import.sha256 == digest))
             if record is not None and record.status != "completed":
                 unsafe = isinstance(exc, HTTPException)
                 record.status = "failed"
-                record.summary = {"error": "Invalid or unsafe workbook" if unsafe else "Import failed",
-                                  "retry": "Re-upload corrected workbook; source uploads are not retained"}
+                kept = not unsafe and uploads.exists(digest)
+                if unsafe:
+                    uploads.discard(digest)
+                record.summary = {"error": "Invalid or unsafe workbook" if unsafe else "Import failed", "retry_available": kept,
+                                  "full_snapshot": bool(full_snapshot),
+                                  "retry": "Use retry" if kept else "Re-upload corrected workbook"}
                 session.commit()
             if not isinstance(exc, Exception):
                 raise
+
+
+def resume_import(bind, user_id: str, record_id: str) -> bool:
+    """Re-run an import from its retained upload (idempotent: ingest is keyed by the file hash and row keys)."""
+    with sessionmaker(bind=bind, expire_on_commit=False)() as session:
+        record = session.get(Import, record_id)
+        if record is None or record.user_id != user_id or record.status == "completed":
+            return False
+        data = uploads.load(record.sha256)
+        if data is None:
+            record.status = "failed"
+            record.summary = {"error": "Import interrupted", "retry_available": False, "retry": "Upload the file again; the upload was not retained"}
+            session.commit()
+            return False
+        filename, snapshot = record.filename, bool((record.summary or {}).get("full_snapshot"))
+        record.status, record.summary = "processing", {"full_snapshot": snapshot, "retained": True}
+        session.commit()
+    run_background_import(bind, user_id, data, filename, snapshot)
+    return True
+
+
+def resume_interrupted_imports(bind) -> int:
+    """Called once at start-up: imports left 'processing' by a previous process continue from their retained upload."""
+    uploads.purge_old()
+    with sessionmaker(bind=bind, expire_on_commit=False)() as session:
+        pending = [(r.id, r.user_id) for r in session.scalars(select(Import).where(Import.status == "processing"))]
+    return sum(1 for rid, uid in pending if resume_import(bind, uid, rid))
+
+
+@router.post("/imports/{ident}/retry", status_code=202)
+def retry_import(ident: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db), user=Depends(current_user)):
+    lock_owner(db, user.id)
+    record = owned(db, Import, ident, user)
+    if record.status != "failed" or not uploads.exists(record.sha256):
+        raise HTTPException(409, "No retained upload to retry; upload the file again")
+    snapshot = bool((record.summary or {}).get("full_snapshot"))
+    record.status, record.summary = "processing", {"full_snapshot": snapshot, "retained": True}
+    db.commit()
+    background_tasks.add_task(resume_import, db.get_bind(), user.id, record.id)
+    return serialize(record)
 
 
 @router.post("/imports")
@@ -260,12 +309,13 @@ async def upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)
         record = db.scalar(select(Import).where(Import.user_id == user.id, Import.sha256 == digest).execution_options(populate_existing=True))
         if record is None or record.status != "completed":
             if record is None:
-                record = Import(user_id=user.id, filename=filename, sha256=digest, status="processing", row_count=0, summary={})
+                record = Import(user_id=user.id, filename=filename, sha256=digest, status="processing", row_count=0,
+                                summary={"full_snapshot": full_snapshot, "retained": uploads.retain(digest, data)})
                 db.add(record)
                 db.commit()
                 background_tasks.add_task(run_background_import, db.get_bind(), user.id, data, filename, full_snapshot)
             elif record.status == "failed":
-                record.status, record.summary = "processing", {}
+                record.status, record.summary = "processing", {"full_snapshot": full_snapshot, "retained": uploads.retain(digest, data)}
                 db.commit()
                 background_tasks.add_task(run_background_import, db.get_bind(), user.id, data, filename, full_snapshot)
             # status "processing": the same file is already being imported; report it instead of starting a second run

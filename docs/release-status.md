@@ -28,7 +28,7 @@ The publication gate scans working/index content and all historical Git objects,
 
 ## Explicitly deferred or incomplete
 
-- Browser HTTP imports are synchronous; retry requires re-upload. Watched-folder jobs are durable, but retained HTTP uploads with resumable progress/retry are not implemented. [#18](https://github.com/philiplorenz-code/finsight/issues/18)
+- Browser uploads run in the background and are retained until the import completes (resume after restart, retry button); there is no percentage progress, only status. Watched-folder jobs are durable.
 - Internal AI is a bounded fixed-topic aggregate explainer, **not adaptive/free-text financial chat**. Structured adaptive planning, broader reasoning and complete proactive insight coverage remain deferred. External MCP clients can perform their own analyses, but that does not complete FinSight's internal AI backlog. [#19](https://github.com/philiplorenz-code/finsight/issues/19)
 - Observed balances are not complete net worth. Multiple observations on one day can be ambiguous; historical account settings/plans are not versioned, and historical allocation snapshots are absent. Negative/missing/stale/unknown ownership observations remain visible limitations. [#20](https://github.com/philiplorenz-code/finsight/issues/20)
 - Complete forecasts, volatility, debt-service ratios, emergency-fund coverage and all proactive alert producers are not implemented. Investment purchases are not comprehensively separated from consumption unless source/account classifications establish their semantics. [#21](https://github.com/philiplorenz-code/finsight/issues/21)

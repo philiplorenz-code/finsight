@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Durable imports: background uploads are kept (private directory, named by hash, removed after success, purged after 7 days) so an import interrupted by a crash or restart resumes at start-up, and failed imports can be retried without re-uploading (`POST /api/imports/{id}/retry`). Set `FINSIGHT_UPLOAD_DIR` to move the directory (default `/data/app/uploads`). Closes #18.
+
 - Administration: manage dialog for buckets (rename, delete with confirmation, edit/delete obligations), append-only allocation history (migration 0013), source revision diffs per booking. Refs #22 (retention/purge controls are still open).
 
 - Financial check on the overview: savings rate, emergency-fund months, debt-service ratio and spending volatility (each stays empty with a reason when its inputs are missing), a 6-month free-cash forecast (expected and cautious) and alerts for underfunding, low emergency fund, negative surplus, volatile spending, category anomalies and price increases of recurring contracts. Closes #21.

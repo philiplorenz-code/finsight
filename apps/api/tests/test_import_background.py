@@ -60,3 +60,57 @@ def test_stale_processing_imports_expire(owner, db):
     imports = listing(owner)
     assert imports["old.xlsx"]["status"] == "failed" and imports["old.xlsx"]["summary"]["error"] == "Import interrupted"
     assert imports["new.xlsx"]["status"] == "processing"
+
+
+def test_interrupted_import_resumes_from_retained_upload(owner, db, upload_dir):
+    from app import uploads
+    from app.routes import resume_interrupted_imports
+    data = xlsx([booking("a"), booking("b", "-7,25")])
+    digest = hashlib.sha256(data).hexdigest()
+    uid = db.scalar(select(User.id))
+    # What a crash leaves behind: a 'processing' record, the retained file, no transactions.
+    assert uploads.retain(digest, data)
+    db.add(Import(user_id=uid, filename="crash.xlsx", sha256=digest, status="processing", row_count=0,
+                  summary={"full_snapshot": True, "retained": True}))
+    db.commit()
+    assert resume_interrupted_imports(db.get_bind()) == 1
+    done = listing(owner)["crash.xlsx"]
+    assert done["status"] == "completed" and done["summary"]["added"] == 2 and done["summary"]["full_snapshot"] is True
+    assert not uploads.exists(digest), "retained file is removed after success"
+    assert resume_interrupted_imports(db.get_bind()) == 0, "nothing left to resume; no duplicate transactions"
+    assert len(owner.get("/api/transactions").json()["items"]) == 2
+
+
+def test_failed_import_with_retained_upload_can_be_retried(owner, db, monkeypatch):
+    from app import routes, uploads
+    data = xlsx([booking("a")])
+    real = routes.ingest
+    calls = {"n": 0}
+
+    def flaky(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("simulated crash")
+        return real(*args, **kwargs)
+    monkeypatch.setattr(routes, "ingest", flaky)
+    assert post(owner, data, background=True).status_code == 202
+    failed = listing(owner)["bg.xlsx"]
+    assert failed["status"] == "failed" and failed["summary"]["retry_available"] is True
+    assert owner.get("/api/transactions").json()["items"] == []
+    retry = owner.post(f"/api/imports/{failed['id']}/retry")
+    assert retry.status_code == 202
+    again = listing(owner)["bg.xlsx"]
+    assert again["status"] == "completed" and not uploads.exists(failed["sha256"] if "sha256" in failed else hashlib.sha256(data).hexdigest())
+    assert len(owner.get("/api/transactions").json()["items"]) == 1
+    assert owner.post(f"/api/imports/{failed['id']}/retry").status_code == 409, "completed imports cannot be retried"
+
+
+def test_retention_purges_old_files_and_ignores_bad_names(upload_dir):
+    import os
+    import time
+    from app import uploads
+    digest = "a" * 64
+    assert uploads.retain(digest, b"x") and uploads.load(digest) == b"x"
+    os.utime(upload_dir / f"{digest}.xlsx", (time.time() - 9 * 86400,) * 2)
+    assert uploads.purge_old() == 1 and not uploads.exists(digest)
+    assert uploads.load("../etc/passwd") is None and uploads.exists("not-a-hash") is False
