@@ -43,11 +43,12 @@ export default function TransactionsPage() {
     <div className="transaction-toolbar"><form className="search-field" onSubmit={e => { e.preventDefault(); update('search', search) }}><Search size={17} /><input aria-label={t('search')} placeholder={language === 'de' ? 'Buchungen durchsuchen …' : 'Search transactions…'} value={search} onChange={e => setSearch(e.target.value)} /><Button variant="ghost" type="submit">{t('search')}</Button></form><AccountSelect accounts={items(accounts.data)} value={params.get('account_id') || ''} onChange={id => update('account_id', id)} anyLabel={`${t('all')} · ${t('accounts')}`} label={t('account')} /><Button variant="outline" onClick={() => setExpanded(e => !e)} aria-expanded={expanded}><SlidersHorizontal size={16} />Filter</Button></div>
     <div className="filter-grid">
       <Field label={language === 'de' ? 'Buchungsansicht' : 'Transaction view'}><select value={view} onChange={e => update('view', e.target.value)}>
-        <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'} · all_transactions</option>
-        <option value="included_spending">{language === 'de' ? 'Einbezogene Ausgaben' : 'Included spending'} · included_spending</option>
-        <option value="owned_liquid">{language === 'de' ? 'Eigene liquide Konten' : 'Owned liquid accounts'} · owned_liquid</option>
+        <option value="all_transactions">{language === 'de' ? 'Alle Buchungen' : 'All transactions'}</option>
+        <option value="included_spending">{language === 'de' ? 'Einbezogene Ausgaben' : 'Included spending'}</option>
+        <option value="owned_liquid">{language === 'de' ? 'Eigene liquide Konten' : 'Owned liquid accounts'}</option>
         {!views.some(value => value === view) && <option value={view}>{view}</option>}
       </select></Field>
+      <ProviderFilter value={params.get('provider') || ''} onChange={v => update('provider', v)} />
       <Field label={t('currency')} hint={language === 'de' ? 'ISO-Code, z. B. EUR; leer = alle Währungen.' : 'ISO code, e.g. EUR; empty = all currencies.'}><input value={params.get('currency') || ''} maxLength={3} placeholder={t('all')} onChange={e => update('currency', e.target.value.toUpperCase())} /></Field>
     </div>
     {expanded && <div className="filter-grid">{[['start', 'from', 'date'], ['end', 'to', 'date'], ['category', 'category', 'text'], ['merchant', 'merchant', 'text'], ['min_amount', 'min', 'number'], ['max_amount', 'max', 'number'], ['tag', 'tags', 'text'], ['contract', 'contracts', 'text']].map(([key, label, type]) => <Field key={key} label={t(label as 'from')}><input type={type} step={type === 'number' ? '0.01' : undefined} value={filterValue(key)} onChange={e => update(key, e.target.value)} /></Field>)}<Field label={t('transfer')}><select value={params.get('is_transfer') || ''} onChange={e => update('is_transfer', e.target.value)}><option value="">{t('all')}</option><option value="true">{language === 'de' ? 'Nur Umbuchungen' : 'Only transfers'}</option><option value="false">{language === 'de' ? 'Ohne Umbuchungen' : 'Exclude transfers'}</option></select></Field></div>}
@@ -170,6 +171,15 @@ function TransferReview({ de, onClose }: { de: boolean; onClose: () => void }) {
     </QueryState>
     <Feedback error={reject.error || restore.error} />
   </Dialog>
+}
+
+export function ProviderFilter({ value, onChange }: { value: string; onChange: (provider: string) => void }) {
+  const { language } = useLocale(); const de = language === 'de'
+  const providers = useQuery({ queryKey: ['account-providers'], queryFn: () => api<{ known: string[]; used: string[] }>('/account-providers') })
+  return <Field label={de ? 'Bank / Anbieter' : 'Bank / provider'}><select value={value} onChange={e => onChange(e.target.value)}>
+    <option value="">{de ? 'Alle Banken' : 'All banks'}</option>
+    {(providers.data?.used ?? []).map(p => <option key={p} value={p}>{p}</option>)}
+  </select></Field>
 }
 
 function counterIban(source: unknown): string | null {

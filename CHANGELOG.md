@@ -19,6 +19,15 @@
 - Sankey diagram of regular monthly flows (income sources → your money → categories, tax reserve, surplus) on the analysis page (`GET /api/flows`).
 - Transaction list shows account names instead of IDs.
 
+- Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
+- Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.
+
+- Overview and its cash-flow trend place month-end pay in the following month when the income rule sets `shift_from_day` (e.g. salary on the 29th counts for next month).
+- Overview balance tile shows your share (`observed_mine`) and lists money held for others (`held_for_others`) instead of the gross sum; available liquidity uses the owner share.
+- Dev: Vite proxy target configurable via `FINSIGHT_API_PROXY`.
+- Transaction details show the money flow: from which account to which (own account, and for transfers the matching own counter account; otherwise the counterparty with the last four IBAN digits).
+- Account-backed savings buckets: choose the backing account when creating; the target (or the current balance) is earmarked on it.
+- Balance history dialog shows a chart; time charts (balance history, overview cash flow) zoom Grafana-style by dragging across a range, double-click resets.
 - Transaction details show the money flow: from which account to which (own account, and for transfers the matching own counter account; otherwise the counterparty with the last four IBAN digits).
 - Account-backed savings buckets: choose the backing account when creating; the target (or the current balance) is earmarked on it.
 - Balance history dialog shows a chart; time charts (balance history, overview cash flow) zoom Grafana-style by dragging across a range, double-click resets.
@@ -26,6 +35,7 @@
 - Overview and its cash-flow trend place month-end pay in the following month when the income rule sets `shift_from_day` (e.g. salary on the 29th counts for next month).
 - Overview balance tile shows your share (`observed_mine`) and lists money held for others (`held_for_others`) instead of the gross sum; available liquidity uses the owner share.
 - Dev: Vite proxy target configurable via `FINSIGHT_API_PROXY`.
+- Bank/provider per account: detected from the IBAN's bank code (e.g. DKB, N26, ING, Sparkasse, Volksbank, bunq, Revolut) or the name (PayPal), only the provider name is stored. Set or clear it manually; filter accounts and transactions by bank (`provider` query parameter, `GET /api/account-providers`). Migration 0016.
 
 - Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
 - New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.
