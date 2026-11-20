@@ -72,9 +72,37 @@ export default function WishlistPage() {
   const closed = data?.wishes.filter(w => w.status !== 'open') ?? []
   return <>
     <PageHeader title={t('wishlist')} description={t('wishlistIntro')} action={<><Button variant="outline" onClick={() => setRules(true)}>{t('incomeRules')}</Button><Button variant="outline" onClick={() => setBizRules(true)}>{language === 'de' ? 'Gewerbe-Ausgaben' : 'Business expenses'}</Button><Button variant="outline" onClick={() => setPrefs(true)}><Settings2 size={17} />{t('wishPrefs')}</Button><Button onClick={() => setCreate(true)}><Plus size={17} />{t('wishAdd')}</Button></>} />
-    <Notice>{data?.disclaimer ?? t('wishDisclaimer')}</Notice>
+    <Notice>{language === 'de' ? t('wishDisclaimer') : (data?.disclaimer ?? t('wishDisclaimer'))}</Notice>
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>
       {data && <>
+        <WishTimeline wishes={open} baseline={data.baseline} />
+        {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}
+        <div className="buckets-grid">{open.map(w => <Panel key={w.id} className="bucket-card">
+          <div className="card-top"><Badge tone={tone[w.assessment?.verdict ?? ''] ?? ''}>{w.assessment ? verdictText(w.assessment.verdict) : '—'}</Badge><Badge>{`P${w.priority}`}</Badge></div>
+          <h2>{w.name}</h2>
+          <div className="bucket-money"><Money value={w.price} currency={w.currency} /></div>
+          {w.assessment && w.assessment.verdict !== 'unsupported_currency' && <details className="wish-details"><summary>{language === 'de' ? 'Details' : 'Details'}</summary>
+            {w.assessment.verdict === 'affordable'
+              ? <p>{t('wishAffordableText')}</p>
+              : <>
+                <div className="bucket-meta"><span>{t('wishShortfall')}</span><Money value={w.assessment.shortfall} currency={w.currency} /></div>
+                <div className="bucket-meta"><span>{t('wishConservative')}</span><span>{w.assessment.months_conservative != null ? `${w.assessment.months_conservative} ${t('wishMonthsShort')} · ${formatDate(w.assessment.date_conservative ?? undefined, language)}` : t('wishNever')}</span></div>
+                <div className="bucket-meta"><span>{t('wishExpected')}</span><span>{w.assessment.months_expected != null ? `${w.assessment.months_expected} ${t('wishMonthsShort')} · ${formatDate(w.assessment.date_expected ?? undefined, language)}` : t('wishNever')}</span></div>
+              </>}
+            {w.due_date && <div className="bucket-meta muted"><span>{t('due')}</span><span>{formatDate(w.due_date, language)} · {w.assessment.on_time_conservative ? t('wishOnTime') : w.assessment.on_time_expected ? t('wishOnTimeExpected') : t('wishLate')}</span></div>}
+            {Number(w.follow_up_monthly_cost) > 0 && <div className="bucket-meta muted"><span>{t('wishFollowUp')}</span><Money value={w.follow_up_monthly_cost} currency={w.currency} /></div>}
+            {w.assessment.share_of_annual_surplus != null && <div className="bucket-meta muted"><span>{t('wishShare')}</span><span>{(Number(w.assessment.share_of_annual_surplus) * 100).toFixed(0)} %</span></div>}
+            {w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{localize(m, language)}</Notice>)}
+          </details>}
+          {w.assessment?.verdict === 'unsupported_currency' && w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{localize(m, language)}</Notice>)}
+          <div className="bucket-actions">
+            <Button variant="outline" onClick={() => update.mutate({ id: w.id, status: 'bought' })}><Check size={15} />{t('wishBought')}</Button>
+            <Button variant="ghost" aria-label={`${t('delete')}: ${w.name}`} onClick={() => remove.mutate(w.id)}><Trash2 size={17} /></Button>
+          </div>
+        </Panel>)}</div>
+        {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
+        <Simulator />
+        <details className="wish-basis"><summary>{language === 'de' ? 'Rechengrundlage, Einkommen und Gewerbe' : 'Basis, income and business'}</summary>
         <Panel title={t('wishBasis')} description={`${t('wishMonths')}: ${data.baseline.months_used} · ${t('wishConfidence')}: ${language === 'de' ? DE_CONFIDENCE[data.baseline.confidence] ?? data.baseline.confidence : data.baseline.confidence}`}>
           <div className="stat-grid">
             <div className="detail-stat"><span>{t('wishIncome')}</span><Money value={data.baseline.monthly_income} currency={data.baseline.currency} /></div>
@@ -94,33 +122,8 @@ export default function WishlistPage() {
           <table className="data-table"><thead><tr><th>{language === 'de' ? 'Schuld' : 'Debt'}</th><th>{language === 'de' ? 'Abbezahlt' : 'Paid off'}</th><th>{language === 'de' ? 'Frei pro Monat' : 'Freed / month'}</th><th>{language === 'de' ? 'Überschuss danach' : 'Surplus after'}</th><th>{language === 'de' ? 'Vorsichtig danach' : 'Cautious after'}</th></tr></thead>
             <tbody>{data.payoff_scenarios.map(p => <tr key={p.holding_id}><td>{p.name}</td><td>{p.payoff_date.slice(0, 7)} ({p.months_left} {language === 'de' ? 'Mon.' : 'mo.'})</td><td><Money value={p.freed_monthly} currency={data.baseline.currency} /></td><td><Money value={p.expected_surplus_after} currency={data.baseline.currency} /></td><td><Money value={p.conservative_surplus_after} currency={data.baseline.currency} /></td></tr>)}</tbody></table>
         </Panel>}
-        <Simulator />
         {data.baseline.business && <BusinessPanel business={data.baseline.business} prefs={data.prefs} currency={data.baseline.currency} de={language === 'de'} onDone={refresh} />}
-        {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
-        {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}
-        <div className="buckets-grid">{open.map(w => <Panel key={w.id} className="bucket-card">
-          <div className="card-top"><Badge tone={tone[w.assessment?.verdict ?? ''] ?? ''}>{w.assessment ? verdictText(w.assessment.verdict) : '—'}</Badge><Badge>{`P${w.priority}`}</Badge></div>
-          <h2>{w.name}</h2>
-          <div className="bucket-money"><Money value={w.price} currency={w.currency} /></div>
-          {w.assessment && w.assessment.verdict !== 'unsupported_currency' && <>
-            {w.assessment.verdict === 'affordable'
-              ? <p>{t('wishAffordableText')}</p>
-              : <>
-                <div className="bucket-meta"><span>{t('wishShortfall')}</span><Money value={w.assessment.shortfall} currency={w.currency} /></div>
-                <div className="bucket-meta"><span>{t('wishConservative')}</span><span>{w.assessment.months_conservative != null ? `${w.assessment.months_conservative} ${t('wishMonthsShort')} · ${formatDate(w.assessment.date_conservative ?? undefined, language)}` : t('wishNever')}</span></div>
-                <div className="bucket-meta"><span>{t('wishExpected')}</span><span>{w.assessment.months_expected != null ? `${w.assessment.months_expected} ${t('wishMonthsShort')} · ${formatDate(w.assessment.date_expected ?? undefined, language)}` : t('wishNever')}</span></div>
-              </>}
-            {w.due_date && <div className="bucket-meta muted"><span>{t('due')}</span><span>{formatDate(w.due_date, language)} · {w.assessment.on_time_conservative ? t('wishOnTime') : w.assessment.on_time_expected ? t('wishOnTimeExpected') : t('wishLate')}</span></div>}
-            {Number(w.follow_up_monthly_cost) > 0 && <div className="bucket-meta muted"><span>{t('wishFollowUp')}</span><Money value={w.follow_up_monthly_cost} currency={w.currency} /></div>}
-            {w.assessment.share_of_annual_surplus != null && <div className="bucket-meta muted"><span>{t('wishShare')}</span><span>{(Number(w.assessment.share_of_annual_surplus) * 100).toFixed(0)} %</span></div>}
-            {w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{localize(m, language)}</Notice>)}
-          </>}
-          {w.assessment?.verdict === 'unsupported_currency' && w.assessment.warnings?.map((m, i) => <Notice warning key={i}>{localize(m, language)}</Notice>)}
-          <div className="bucket-actions">
-            <Button variant="outline" onClick={() => update.mutate({ id: w.id, status: 'bought' })}><Check size={15} />{t('wishBought')}</Button>
-            <Button variant="ghost" aria-label={`${t('delete')}: ${w.name}`} onClick={() => remove.mutate(w.id)}><Trash2 size={17} /></Button>
-          </div>
-        </Panel>)}</div>
+        </details>
         {!!closed.length && <Panel title={t('wishClosed')}><ul className="obligation-list">{closed.map(w => <li key={w.id}><span>{w.name} · {label('wishStatus', w.status, language)}</span><Money value={w.price} currency={w.currency} /></li>)}</ul></Panel>}
         <Feedback error={update.error || remove.error} />
       </>}
@@ -287,4 +290,28 @@ function BusinessRules({ onClose, onDone }: { onClose: () => void; onDone: () =>
       <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{t('cancel')}</Button><Button type="submit" busy={add.isPending}>{t('ruleAdd')}</Button></div>
     </form>
   </Dialog>
+}
+
+const TONE_DOT: Record<string, string> = { affordable: 'ok', save_up: 'ok', tight: 'warning', not_now: 'over', unsupported_currency: 'none' }
+// "What works when": open wishes in priority order with the expected and cautious date and how far the money already reaches.
+function WishTimeline({ wishes, baseline }: { wishes: WishItem[]; baseline: Wishlist['baseline'] }) {
+  const { t, language } = useLocale(); const de = language === 'de'
+  if (!wishes.length) return null
+  const sorted = [...wishes].sort((a, b) => a.priority - b.priority)
+  let left = Math.max(0, Number(baseline.usable_cash))
+  return <Panel title={de ? 'Was geht wann?' : 'What works when?'} description={de ? `Nach Priorität. Freies Geld heute: ${formatMoney(baseline.usable_cash, baseline.currency, language)} · Überschuss erwartet ${formatMoney(baseline.expected_surplus, baseline.currency, language)}, vorsichtig ${formatMoney(baseline.conservative_surplus, baseline.currency, language)} pro Monat.` : `By priority. Free cash today: ${formatMoney(baseline.usable_cash, baseline.currency, language)}.`}>
+    <ol className="wish-timeline">{sorted.map(w => {
+      const a = w.assessment
+      const price = Number(w.price)
+      const covered = Math.min(price, left); left = Math.max(0, left - price)
+      const pct = price ? Math.round(covered / price * 100) : 0
+      const when = !a ? '—' : a.verdict === 'affordable' ? (de ? 'jetzt möglich' : 'possible now') : a.date_expected ? `${de ? 'erwartet' : 'expected'} ${formatDate(a.date_expected, language)}${a.date_conservative ? ` · ${de ? 'vorsichtig' : 'cautious'} ${formatDate(a.date_conservative, language)}` : ''}` : t('wishNever' as never)
+      return <li key={w.id}>
+        <span className={`plan-dot ${TONE_DOT[a?.verdict ?? ''] ?? 'none'}`} aria-hidden="true" />
+        <span className="wish-timeline-main"><strong>{w.name}</strong><small className="muted">P{w.priority} · {when}{w.due_date ? ` · ${de ? 'gewünscht bis' : 'wanted by'} ${formatDate(w.due_date, language)}` : ''}</small>
+          <span className="item-bar-track" title={`${pct} %`}><span style={{ width: `${Math.max(2, pct)}%` }} /></span></span>
+        <Money value={w.price} currency={w.currency} />
+      </li>
+    })}</ol>
+  </Panel>
 }

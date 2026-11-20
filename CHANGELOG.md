@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Wishlist redesign: "What works when" timeline on top (priority order, traffic light, expected and cautious date, how far free cash already reaches), compact wish cards with details folded, simulator and plan chart below, calculation basis, income and business folded away.
+
 - Side business page: income per client (business income rules) and business expenses per month, months without payments, reserve suggestion and an EÜR-style CSV preview (`GET /api/business/overview`, `GET /api/business/euer.csv`).
 - Merchant profile: click a merchant in the transaction list for monthly spending (zoomable), categories, accounts, contract match and recent bookings (`GET /api/merchants/profile`).
 - Savings goals: buckets with target and due date get a traffic light comparing the needed monthly rate with standing orders into the backing accounts, plus the projected amount at the due date.
