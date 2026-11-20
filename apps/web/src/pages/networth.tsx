@@ -71,6 +71,7 @@ export default function NetWorthPage() {
             </AreaChart>
           </ResponsiveContainer></div>
         </Panel> : null}
+        <AsOfPanel de={de} cur={cur} />
         <Panel title={de ? 'Konten' : 'Accounts'} description={de ? 'Anteil: wie viel Prozent des Kontostands dir gehören (Gemeinschaftskonto, Konto von Partner/Firma …).' : 'Share: percentage of the balance that is yours.'}>
           <table className="data-table"><thead><tr><th>{de ? 'Konto' : 'Account'}</th><th>{de ? 'Kontostand' : 'Balance'}</th><th>{de ? 'Mein Anteil %' : 'My share %'}</th><th>{de ? 'Mir' : 'Mine'}</th><th>{de ? 'Anderen' : 'Others'}</th></tr></thead>
             <tbody>{data.accounts.map(a => <tr key={a.id}><td>{a.name}</td><td><Money value={a.balance} currency={cur} /></td>
@@ -132,4 +133,22 @@ function HoldingDialog({ holding, de, cat, onClose, onDone }: { holding: Holding
       <div className="dialog-actions"><Button variant="ghost" type="button" onClick={onClose}>{de ? 'Abbrechen' : 'Cancel'}</Button><Button type="submit" busy={save.isPending}>{de ? 'Speichern' : 'Save'}</Button></div>
     </form>
   </Dialog>
+}
+
+type AsOf = { date: string; accounts: { id: string; name: string; balance?: string; mine?: string; observed_date?: string; flags: string[] }[]; total_mine: string; earmarked: { bucket: string; amount: string }[]; warnings: string[] }
+const FLAG_DE: Record<string, string> = { no_opening_balance: 'kein Kontostand bis dahin', ambiguous_same_day: 'widersprüchliche Stände am selben Tag', observation_old: 'Kontostand älter als 45 Tage', closed_or_inactive: 'Konto inaktiv', settings_not_versioned: 'Einstellungen nicht historisiert' }
+function AsOfPanel({ de, cur }: { de: boolean; cur: string }) {
+  const [day, setDay] = useState('')
+  const query = useQuery({ queryKey: ['as-of', day, cur], queryFn: () => api<AsOf>(`/as-of?date=${day}&currency=${cur}`), enabled: !!day })
+  const d = query.data
+  return <Panel title={de ? 'Stand an einem Stichtag' : 'Position on a past day'} description={de ? 'Rekonstruiert Kontostände, damals gültige Konto-Einstellungen und Zuteilungen. Es werden nie spätere Daten verwendet; Lücken werden markiert.' : 'Reconstructs balances, the account settings and earmarks that applied then. Later data is never used; gaps are flagged.'}>
+    <Field label={de ? 'Stichtag' : 'Day'}><input type="date" max={new Date().toISOString().slice(0, 10)} value={day} onChange={e => setDay(e.target.value)} /></Field>
+    <Feedback error={query.error} />
+    {d && Array.isArray(d.accounts) && <>
+      <p>{de ? 'Mein Anteil an den Kontoständen' : 'My share of balances'}: <Money value={d.total_mine} currency={cur} /></p>
+      <table className="data-table"><tbody>{d.accounts.map(a => <tr key={a.id}><td>{a.name}</td><td>{a.mine != null ? <Money value={a.mine} currency={cur} /> : '—'}</td><td className="muted small">{a.flags.map(f => (de ? FLAG_DE[f] : f) ?? f).join(', ')}</td></tr>)}</tbody></table>
+      {d.earmarked.length > 0 && <p className="muted small">{de ? 'Zugeteilt' : 'Earmarked'}: {d.earmarked.map(e => `${e.bucket} ${e.amount}`).join(', ')}</p>}
+      {d.warnings.map((w, i) => <p className="muted small" key={i}>{w}</p>)}
+    </>}
+  </Panel>
 }

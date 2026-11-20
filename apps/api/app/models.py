@@ -150,10 +150,21 @@ class AllocationEvent(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     bucket_id: Mapped[str] = mapped_column(String(36), index=True)
     bucket_name: Mapped[str] = mapped_column(String(300))
+    batch_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     account_id: Mapped[str] = mapped_column(String(36))
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 8))
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AccountChange(Base):
+    """Settings of an account before and after a change, so past views can use the settings that applied then."""
+    __tablename__ = "account_changes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), index=True)
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    before: Mapped[dict] = mapped_column(JSON)
+    after: Mapped[dict] = mapped_column(JSON)
 
 
 class Obligation(Base):
