@@ -53,6 +53,7 @@ export default function OverviewPage() {
         <Money value={value} currency={currency} /><p><span className={`tiny-dot ${color}`} />{note}</p>
       </article>)}</div>
       <NewAccountsPrompt />
+      <DiskHint language={language} />
       <DataHints warnings={data?.warnings} language={language} />
       <div className="charts-grid"><CashflowChart trends={data?.trends} currency={currency} /><SpendingChart categories={data?.categories} currency={currency} /></div>
       <div className="bottom-grid">
@@ -93,4 +94,12 @@ function DataHints({ warnings, language }: { warnings?: string[]; language: stri
     {loud.map(w => <Notice warning key={w}>{text(w)}</Notice>)}
     {quiet.length > 0 && <details className="muted small"><summary>{de ? `Hinweise zur Datengrundlage (${quiet.length})` : `Data notes (${quiet.length})`}</summary><ul>{quiet.map(w => <li key={w}>{text(w)}</li>)}</ul></details>}
   </>
+}
+
+function DiskHint({ language }: { language: string }) {
+  const query = useQuery({ queryKey: ['disk'], queryFn: () => api<{ level: string; free_percent: number; free_gb: number }>('/system/disk'), staleTime: 300000 })
+  const d = query.data
+  if (!d || d.level === 'ok') return null
+  const de = language === 'de'
+  return <Notice warning>{de ? `Der Speicherplatz wird knapp (${d.free_percent} % bzw. ${d.free_gb} GB frei). Bei vollem Docker-Datenträger kann die Datenbank abstürzen: „docker builder prune -f“ räumt den Build-Cache auf, ein Backup schützt die Daten (docs/operations.md).` : `Disk space is low (${d.free_percent}% / ${d.free_gb} GB free). A full Docker disk can crash the database: "docker builder prune -f" clears the build cache and a backup protects your data (docs/operations.md).`}</Notice>
 }

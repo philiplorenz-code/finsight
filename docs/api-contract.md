@@ -76,6 +76,7 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 
 ## Net worth
 
+- `GET /api/system/disk`: free disk space of the API volume (`level` ok/warning/critical, `free_percent`, `free_gb`, `total_gb`); the overview warns below 15%.
 - `GET /api/net-worth?currency=EUR`: observed balances of owned included accounts plus manual holdings, each split into the user's share (`mine`) and the part that belongs to others (`others`). Negative account balances count as liabilities. Returns `totals` (`assets_mine/others`, `liabilities_mine/others`, `net_worth_mine/others/gross`, `monthly_debt_service`), `accounts`, `holdings` (liabilities include `months_left`/`payoff_date` from payment and interest rate) and a 24-month account-balance `history`.
 - `POST /api/holdings`, `PATCH /api/holdings/{id}`, `DELETE /api/holdings/{id}`: `name`, `kind` (`asset|liability`), `category` (`car|property|loan|depot|cash|other`), `value`, `currency`, `share` (0-100, the user's percentage), optional `monthly_payment`, `interest_rate`, `note`.
 - `PATCH /api/accounts/{id}` accepts `owner_share` (0-100).
