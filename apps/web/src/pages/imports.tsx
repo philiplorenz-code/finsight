@@ -4,6 +4,7 @@ import { CloudUpload, FileSpreadsheet, ShieldCheck, X } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import type { Coverage, Import } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Feedback, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { NewAccountsPrompt } from '../components/new-accounts'
@@ -48,7 +49,7 @@ export default function ImportsPage() {
     <CoverageReport imports={items(query.data)} />
     <Panel title={t('history')} description={t('reconciliation')}>
       <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!items(query.data).length}>
-        <DataTable headers={[t('name'), t('date'), t('status'), t('rows'), t('reconciliation')]}>{items(query.data).map(i => <tr key={i.id}><td><div className="file-name"><FileSpreadsheet size={18} />{i.filename || i.id}</div></td><td className="nowrap muted">{formatDate(i.created_at, language)}</td><td><Badge tone={['failed', 'error'].includes(i.status) ? 'warning' : ''}>{i.status}</Badge></td><td>{i.row_count ?? '—'}</td><td className="small muted">{language === 'de' ? 'Neu / Geändert / Unverändert' : 'New / Updated / Unchanged'}: {i.summary?.inserted ?? i.imported ?? '—'} / {i.summary?.updated ?? i.updated ?? '—'} / {i.summary?.unchanged ?? i.unchanged ?? '—'}{['failed', 'error'].includes(i.status) && (i.summary?.retry_available ? <p><Button variant="outline" busy={retry.isPending} onClick={() => retry.mutate(i.id)}>{language === 'de' ? 'Import erneut versuchen' : 'Retry import'}</Button> <span className="muted">{language === 'de' ? 'Die Datei ist noch gespeichert (max. 7 Tage).' : 'The file is still stored (max. 7 days).'}</span></p> : <p>{language === 'de' ? 'Bitte Datei erneut auswählen und importieren.' : 'Please select the file again to retry the import.'}</p>)}</td></tr>)}</DataTable>
+        <DataTable headers={[t('name'), t('date'), t('status'), t('rows'), t('reconciliation')]}>{items(query.data).map(i => <tr key={i.id}><td><div className="file-name"><FileSpreadsheet size={18} />{i.filename || i.id}</div></td><td className="nowrap muted">{formatDate(i.created_at, language)}</td><td><Badge tone={['failed', 'error'].includes(i.status) ? 'warning' : ''}>{label('importStatus', i.status, language)}</Badge></td><td>{i.row_count ?? '—'}</td><td className="small muted">{language === 'de' ? 'Neu / Geändert / Unverändert' : 'New / Updated / Unchanged'}: {i.summary?.inserted ?? i.imported ?? '—'} / {i.summary?.updated ?? i.updated ?? '—'} / {i.summary?.unchanged ?? i.unchanged ?? '—'}{['failed', 'error'].includes(i.status) && (i.summary?.retry_available ? <p><Button variant="outline" busy={retry.isPending} onClick={() => retry.mutate(i.id)}>{language === 'de' ? 'Import erneut versuchen' : 'Retry import'}</Button> <span className="muted">{language === 'de' ? 'Die Datei ist noch gespeichert (max. 7 Tage).' : 'The file is still stored (max. 7 days).'}</span></p> : <p>{language === 'de' ? 'Bitte Datei erneut auswählen und importieren.' : 'Please select the file again to retry the import.'}</p>)}</td></tr>)}</DataTable>
       </QueryState>
     </Panel>
   </>

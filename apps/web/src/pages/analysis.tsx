@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Series = {
@@ -158,7 +159,7 @@ function SavingsSection({ savings, months, currency, de, grid, xAxis, yAxis, tip
     </Panel>}
     {savings.recurring.length > 0 && <Panel title={de ? 'Wiederkehrende Kosten' : 'Recurring costs'} description={de ? 'Verträge und Abos aus dem Export bzw. erkannt (Schätzung). Prüfe, was du kündigen oder neu verhandeln kannst.' : 'Contracts and subscriptions from the export or inferred (estimate).'}>
       <table className="data-table"><thead><tr><th>{de ? 'Name' : 'Name'}</th><th>{de ? 'Pro Monat' : 'Per month'}</th><th>{de ? 'Rhythmus' : 'Period'}</th><th>{de ? 'Preisänderung' : 'Price change'}</th></tr></thead>
-        <tbody>{savings.recurring.map(r => <tr key={r.name}><td>{r.name}</td><td><Money value={r.monthly_cost} currency={currency} /></td><td>{r.period}</td><td>{r.price_change && Number(r.price_change) !== 0 ? <Money value={r.price_change} currency={currency} className={Number(r.price_change) > 0 ? 'negative-text' : ''} /> : '—'}</td></tr>)}</tbody></table>
+        <tbody>{savings.recurring.map(r => <tr key={r.name}><td>{r.name}</td><td><Money value={r.monthly_cost} currency={currency} /></td><td>{label('period', r.period, de ? 'de' : 'en')}</td><td>{r.price_change && Number(r.price_change) !== 0 ? <Money value={r.price_change} currency={currency} className={Number(r.price_change) > 0 ? 'negative-text' : ''} /> : '—'}</td></tr>)}</tbody></table>
     </Panel>}
   </>
 }

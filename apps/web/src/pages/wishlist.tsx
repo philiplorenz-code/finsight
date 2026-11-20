@@ -5,6 +5,7 @@ import { Gift, Plus, Settings2, Trash2, Check } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDate, formatMoney, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
@@ -118,7 +119,7 @@ export default function WishlistPage() {
             <Button variant="ghost" aria-label={`${t('delete')}: ${w.name}`} onClick={() => remove.mutate(w.id)}><Trash2 size={17} /></Button>
           </div>
         </Panel>)}</div>
-        {!!closed.length && <Panel title={t('wishClosed')}><ul className="obligation-list">{closed.map(w => <li key={w.id}><span>{w.name} · {w.status}</span><Money value={w.price} currency={w.currency} /></li>)}</ul></Panel>}
+        {!!closed.length && <Panel title={t('wishClosed')}><ul className="obligation-list">{closed.map(w => <li key={w.id}><span>{w.name} · {label('wishStatus', w.status, language)}</span><Money value={w.price} currency={w.currency} /></li>)}</ul></Panel>}
         <Feedback error={update.error || remove.error} />
       </>}
     </QueryState>

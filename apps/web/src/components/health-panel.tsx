@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, CartesianGrid, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../lib/api'
 import { formatMoney, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { Money, Notice, Panel } from './ui'
 
 type Alert = { code: string; severity: string; month?: string; category?: string; latest?: string; typical?: string; name?: string; increase?: string; detail?: string }
@@ -56,7 +57,7 @@ export function HealthPanel({ currency }: { currency: string }) {
           <Line dataKey="cautious" name={de ? 'Vorsichtig' : 'Cautious'} stroke="#b4503c" strokeDasharray="4 3" dot={false} />
         </AreaChart>
       </ResponsiveContainer></div>
-      <p className="muted small">{de ? 'Startwert' : 'Start'}: <Money value={d.forecast.start_cash} currency={d.currency} /> · {de ? 'Konfidenz' : 'Confidence'}: {d.confidence}</p>
+      <p className="muted small">{de ? 'Startwert' : 'Start'}: <Money value={d.forecast.start_cash} currency={d.currency} /> · {de ? 'Konfidenz' : 'Confidence'}: {label('confidence', d.confidence, de ? 'de' : 'en')}</p>
     </>}
   </Panel>
 }

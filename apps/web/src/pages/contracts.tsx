@@ -6,6 +6,7 @@ import { api, items, send } from '../lib/api'
 import type { Contract } from '../lib/types'
 import { normalizeContract, type RawContract } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
+import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
@@ -46,7 +47,7 @@ export default function ContractsPage() {
   const table = (rows: Row[]) => <DataTable headers={[t('name'), de ? 'Rhythmus' : 'Rhythm', de ? 'Pro Monat' : 'Per month', t('annual'), t('nextCharge'), t('confidence'), '']}>{rows.map(c => <tr key={c.id}>
     <td><strong>{c.name}</strong> {c.kind && <Badge>{kindName(c.kind)}</Badge>}{c.decision === 'confirmed' && <Badge tone="success"><Check size={12} /></Badge>}<small className="block muted">{c.source || t('inferred')}{c.charges ? ` · ${c.charges}×` : ''}</small></td>
     <td>{periodName(c.frequency)}</td><td><Money value={c.monthly_cost} currency={c.currency} /></td><td><Money value={c.annualized_cost} currency={c.currency} /></td>
-    <td>{c.status === 'stopped' ? (de ? 'beendet' : 'stopped') : formatDate(c.next_charge, language)}</td><td><Badge>{c.confidence ?? '—'}</Badge></td>
+    <td>{c.status === 'stopped' ? (de ? 'beendet' : 'stopped') : formatDate(c.next_charge, language)}</td><td><Badge>{label('confidence', c.confidence == null ? null : String(c.confidence), language)}</Badge></td>
     <td><Button variant="ghost" onClick={() => setDetail(c)} aria-label={`${t('details')}: ${c.name}`}><ChevronRight size={18} /></Button></td></tr>)}</DataTable>
   return <><PageHeader title={t('contracts')} description={t('contractsIntro')} /><Notice>{t('contractNote')}</Notice>{data?.warnings?.map((w, i) => <Notice key={i} warning>{localizeWarning(w, language)}</Notice>)}
     {total && currency && <Panel title={de ? 'Feste Kosten im Überblick' : 'Fixed costs at a glance'} description={de ? 'Nur laufende Verträge; beendete und verworfene zählen nicht.' : 'Running contracts only; stopped and dismissed ones are not counted.'}>
