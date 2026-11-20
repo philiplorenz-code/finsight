@@ -17,7 +17,10 @@ from .db import get_db
 from .finance import account_json, allocation_backing, bucket_json, contracts, funding_eligible, latest_balance, local_today, overview, serialize, ZERO
 from .importer import ingest, parse_workbook
 from .locking import lock_owner
+from uuid import uuid4
+
 from . import uploads
+from .asof import record_account_change, snapshot
 from .models import Account, Allocation, AllocationEvent, Balance, Bucket, Finding, Import, Obligation, Setting, Transaction, TransactionRevision, User
 
 router = APIRouter(tags=["finance"])
@@ -99,8 +102,10 @@ class AccountPatch(StrictBody):
 def update_account(ident: str, body: AccountPatch, db: Session = Depends(get_db), user=Depends(current_user)):
     lock_owner(db, user.id)
     account = owned(db, Account, ident, user)
+    before = snapshot(account)
     for key, value in body.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(account, key, value)
+    record_account_change(db, account, before)
     db.commit()
     return account_json(db, account)
 
@@ -439,12 +444,13 @@ def put_allocations(ident: str, body: AllocationList, db: Session = Depends(get_
         if not balance or item.amount + reserved > max(ZERO, balance.amount):
             raise HTTPException(409, "Insufficient unallocated observed funds")
     db.execute(delete(Allocation).where(Allocation.bucket_id == ident))
+    batch = str(uuid4())
     for item in body.allocations:
         db.add(Allocation(bucket_id=ident, **item.model_dump()))
-        db.add(AllocationEvent(bucket_id=ident, bucket_name=bucket.name, user_id=user.id, **item.model_dump()))
+        db.add(AllocationEvent(bucket_id=ident, bucket_name=bucket.name, batch_id=batch, user_id=user.id, **item.model_dump()))
     if not body.allocations:
         # An explicit release is history too: amount zero marks "nothing earmarked any more".
-        db.add(AllocationEvent(bucket_id=ident, bucket_name=bucket.name, user_id=user.id, account_id="", amount=ZERO))
+        db.add(AllocationEvent(bucket_id=ident, bucket_name=bucket.name, batch_id=batch, user_id=user.id, account_id="", amount=ZERO))
     db.commit()
     return bucket_json(db, bucket)
 

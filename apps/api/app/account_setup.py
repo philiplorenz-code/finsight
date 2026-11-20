@@ -17,6 +17,7 @@ from .auth import current_user
 from .db import get_db
 from .finance import latest_balance, local_today, serialize
 from .locking import lock_owner
+from .asof import record_account_change, snapshot
 from .models import Account, Transaction
 
 router = APIRouter(tags=["accounts"])
@@ -84,6 +85,8 @@ def classify(body: ClassifyBody, db: Session = Depends(get_db), user=Depends(cur
         raise HTTPException(404, "Unknown account")
     for item in body.items:
         account = accounts[item.id]
+        before = snapshot(account)
         account.ownership, account.purpose, account.included = item.ownership, item.purpose, item.included
+        record_account_change(db, account, before)
     db.commit()
     return {"classified": len(body.items)}
