@@ -48,7 +48,7 @@ jobs:
       - run: npm run build
       - run: npm test -- --run
       - run: npm audit --audit-level=high
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
       - run: npx playwright test
   privacy:
     runs-on: ubuntu-latest
@@ -93,7 +93,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --prefix apps/web
-      - run: npx --prefix apps/web playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
       - run: FINSIGHT_SYNTHETIC_SMOKE=1 node tests/e2e/deployed.mjs
       - name: Backup and restore synthetic database
         run: |
