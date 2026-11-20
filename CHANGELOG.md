@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Receipts: photograph or upload a receipt (JPEG/PNG/WebP/HEIC, max. 8 MB, stored only in the upload directory), read it with the configured AI model (same consent, budget and settlement as the analyst; the model must accept images) or enter items by hand, automatic match to the bank booking, and analysis by item category and top items with price development. Migration 0017. Refs #84.
+
 - Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
 - Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3, Landmark, Target } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3, Landmark, Target, Receipt } from 'lucide-react'
 import { send } from '../lib/api'
 import { useLocale, type TranslationKey } from '../lib/i18n'
 import { Brand } from './auth'
@@ -10,7 +10,7 @@ import { useTheme } from '../lib/theme'
 
 const navigation = [
   { key: 'overview', path: '/', icon: LayoutDashboard }, { key: 'accounts', path: '/accounts', icon: Wallet },
-  { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank }, { key: 'plan', path: '/plan', icon: Target },
+  { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank }, { key: 'plan', path: '/plan', icon: Target }, { key: 'receipts', path: '/receipts', icon: Receipt },
   { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'analysis', path: '/analysis', icon: BarChart3 }, { key: 'networth', path: '/net-worth', icon: Landmark }, { key: 'wishlist', path: '/wishlist', icon: Gift }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
 ] as const
 export function Layout() {

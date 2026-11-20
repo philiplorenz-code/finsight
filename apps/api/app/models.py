@@ -328,3 +328,32 @@ class PlanItem(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 8))
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class Receipt(Base):
+    """A photographed receipt; the image lives in the upload directory, only its file name is stored."""
+    __tablename__ = "receipts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    image_path: Mapped[str] = mapped_column(String(200))
+    image_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    image_type: Mapped[str] = mapped_column(String(10))
+    status: Mapped[str] = mapped_column(String(30), default="uploaded")  # uploaded | extracted | extraction_failed | reviewed
+    merchant: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    receipt_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    total: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
+    transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id"), nullable=True)
+    run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ReceiptItem(Base):
+    __tablename__ = "receipt_items"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    receipt_id: Mapped[str] = mapped_column(ForeignKey("receipts.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    name: Mapped[str] = mapped_column(String(200))
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal(1))
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
+    total: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    category: Mapped[str] = mapped_column(String(60), default="Sonstiges")
