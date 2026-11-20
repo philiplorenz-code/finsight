@@ -195,7 +195,7 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         observation = latest_balance(db, account.id, today)
         if observation:
             observed += 1
-            cash += observation.amount
+            cash += observation.amount * account.owner_share / Decimal(100)  # money held for others is not yours
             if balance_is_stale(account, observation, today):
                 warnings.append("Some observed balances are stale")
     if not observed:

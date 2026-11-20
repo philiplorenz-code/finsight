@@ -358,3 +358,13 @@ def test_sporadic_accounts_are_not_reported_as_gaps():
     from app.quality import assess_account
     sporadic = Counter({m: 5 for m in (24300, 24302, 24305, 24309, 24311, 24313, 24315)})
     assert assess_account(sporadic, 24316) is None
+
+
+def test_cash_on_hand_counts_only_the_owners_share(owner, db):
+    account = workbook(owner, [booking("x", "100", day="2026-03-10")])
+    full = baseline(db, user_id(db), today=date(2026, 7, 5))["cash_on_hand"]
+    assert full > 0
+    assert owner.patch(f"/api/accounts/{account['id']}", json={"owner_share": 0}).status_code == 200
+    assert baseline(db, user_id(db), today=date(2026, 7, 5))["cash_on_hand"] == D(0)
+    assert owner.patch(f"/api/accounts/{account['id']}", json={"owner_share": 50}).status_code == 200
+    assert baseline(db, user_id(db), today=date(2026, 7, 5))["cash_on_hand"] == full / 2
