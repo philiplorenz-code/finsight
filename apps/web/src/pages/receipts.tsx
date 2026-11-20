@@ -26,6 +26,8 @@ export default function ReceiptsPage() {
   const [editing, setEditing] = useState<Receipt | null>(null)
   const list = useQuery({ queryKey: ['receipts'], queryFn: () => api<{ items: Receipt[]; categories: string[] }>('/receipts') })
   const stats = useQuery({ queryKey: ['receipt-stats'], queryFn: () => api<Stats>('/receipts/stats?months=6') })
+  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api<{ ai?: { enabled?: boolean; external_consent?: boolean } }>('/settings') })
+  const aiReady = !!settings.data?.ai?.enabled && !!settings.data?.ai?.external_consent
   const refresh = () => { client.invalidateQueries({ queryKey: ['receipts'] }); client.invalidateQueries({ queryKey: ['receipt-stats'] }) }
   const upload = useMutation({ mutationFn: uploadFile, onSuccess: r => { refresh(); setEditing(r) } })
   const extract = useMutation({ mutationFn: (id: string) => send<Receipt>(`/receipts/${encodeURIComponent(id)}/extract`), onSuccess: r => { refresh(); setEditing(r) } })
@@ -36,7 +38,7 @@ export default function ReceiptsPage() {
       action={<><input ref={input} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = '' }} />
         <Button busy={upload.isPending} onClick={() => input.current?.click()}><Camera size={17} />{de ? 'Kassenzettel fotografieren' : 'Photograph receipt'}</Button></>} />
     <Feedback error={upload.error || extract.error || remove.error} />
-    <Notice>{de ? '„Mit KI auslesen“ sendet das Foto an den in den Einstellungen gewählten KI-Anbieter (Budget und Einwilligung wie beim Analysten). Das Modell muss Bilder verstehen. Ohne KI kannst du die Positionen selbst eintragen.' : '“Read with AI” sends the photo to the AI provider chosen in settings (same budget and consent as the analyst). The model must support images. Without AI you can enter items yourself.'}</Notice>
+    {aiReady ? <Notice>{de ? '„Mit KI auslesen“ sendet das Foto an den in den Einstellungen gewählten KI-Anbieter (Budget und Einwilligung wie beim Analysten). Das Modell muss Bilder verstehen. Ohne KI kannst du die Positionen selbst eintragen.' : '“Read with AI” sends the photo to the AI provider chosen in settings (same budget and consent as the analyst). The model must support images. Without AI you can enter items yourself.'}</Notice> : <Notice>{de ? 'Nach dem Foto öffnet sich der Editor: Händler, Datum, Summe und Positionen eintragen. Die Kategorien landen direkt in der Auswertung. Auslesen per KI lässt sich später in den Einstellungen aktivieren (bildfähiges Modell nötig).' : 'After the photo the editor opens: enter merchant, date, total and items. AI reading can be enabled later in settings (image-capable model required).'}</Notice>}
     {!!stats.data?.categories.length && <Panel title={de ? 'Wofür dein Einkauf draufgeht (6 Monate)' : 'Where your shopping goes (6 months)'} description={`${stats.data.receipts} ${de ? 'Kassenzettel' : 'receipts'} · ${de ? 'zusammen' : 'together'}`} action={<Money value={stats.data.total} />}>
       <div className="item-bars">{stats.data.categories.map(c => <div key={c.category} className="item-bar"><span className="item-bar-label">{c.category}</span><span className="item-bar-track"><span style={{ width: `${Math.max(2, Number(c.total) / max * 100)}%` }} /></span><Money value={c.total} /></div>)}</div>
       <h3>{de ? 'Teuerste Artikel' : 'Top items'}</h3>
@@ -54,7 +56,7 @@ export default function ReceiptsPage() {
             <Money value={r.total ?? r.items_total} />
             <span className="badge-row"><Badge tone={tone}>{de ? sde : sen}</Badge>{r.transaction_id ? <Badge tone="success">{de ? 'Buchung gefunden' : 'Booking matched'}</Badge> : r.total ? <Badge>{de ? 'keine Buchung' : 'no booking'}</Badge> : null}</span>
             <span className="badge-row">
-              {r.status !== 'reviewed' && <Button variant="outline" busy={extract.isPending && extract.variables === r.id} onClick={() => extract.mutate(r.id)}><Sparkles size={15} />{de ? 'Mit KI auslesen' : 'Read with AI'}</Button>}
+              {aiReady && r.status !== 'reviewed' && <Button variant="outline" busy={extract.isPending && extract.variables === r.id} onClick={() => extract.mutate(r.id)}><Sparkles size={15} />{de ? 'Mit KI auslesen' : 'Read with AI'}</Button>}
               <Button variant="ghost" aria-label={`${de ? 'Bearbeiten' : 'Edit'}: ${r.merchant ?? r.id}`} onClick={() => setEditing(r)}><Pencil size={15} /></Button>
               <Button variant="ghost" aria-label={de ? 'Löschen' : 'Delete'} onClick={() => remove.mutate(r.id)}><Trash2 size={15} /></Button>
             </span>
