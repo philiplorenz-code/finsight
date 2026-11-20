@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Financial check on the overview: savings rate, emergency-fund months, debt-service ratio and spending volatility (each stays empty with a reason when its inputs are missing), a 6-month free-cash forecast (expected and cautious) and alerts for underfunding, low emergency fund, negative surplus, volatile spending, category anomalies and price increases of recurring contracts. Closes #21.
+
 - Net worth history now includes holdings (dated value snapshot whenever a value is set or changed, migration 0012), an amortisation chart per debt (monthly interest, cent rounding, payment below interest never repays) and a wishlist panel showing the surplus once a debt is repaid. Closes #36.
 
 - Operations: disk-space warning on the overview (`GET /api/system/disk`), `scripts/scheduled-backup.sh` with retention and a free-space guard, `docs/operations.md` with pruning and cron/launchd recipes. Closes #40.

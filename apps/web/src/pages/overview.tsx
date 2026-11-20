@@ -8,6 +8,7 @@ import { formatDate, useLocale } from '../lib/i18n'
 import { Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { CashflowChart, SpendingChart } from '../components/charts'
 import { NewAccountsPrompt } from '../components/new-accounts'
+import { HealthPanel } from '../components/health-panel'
 
 export default function OverviewPage() {
   const { t, language } = useLocale()
@@ -55,6 +56,7 @@ export default function OverviewPage() {
       <NewAccountsPrompt />
       <DiskHint language={language} />
       <DataHints warnings={data?.warnings} language={language} />
+      <HealthPanel currency={currency} />
       <div className="charts-grid"><CashflowChart trends={data?.trends} currency={currency} /><SpendingChart categories={data?.categories} currency={currency} /></div>
       <div className="bottom-grid">
         <Panel title={t('liquidity')}><Money value={data?.available_liquidity} currency={currency} /><p className="muted small">{t('allocationNote')}</p></Panel>
