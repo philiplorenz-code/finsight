@@ -65,8 +65,21 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
         <Field label={t('tags')} hint={language === 'de' ? 'Mit Komma trennen.' : 'Separate with commas.'}><input value={tags ?? query.data.tags?.join(', ') ?? ''} onChange={e => setTags(e.target.value)} maxLength={1000} /></Field>
         <Feedback error={mutation.error} success={mutation.isSuccess} /><div className="form-actions"><Button variant="outline" type="button" disabled={mutation.isPending} onClick={() => mutation.mutate(true)}>{t('reset')}</Button><Button busy={mutation.isPending}>{t('save')}</Button></div>
       </form><details className="source-details"><summary>{t('source')}</summary><pre>{JSON.stringify(query.data.source || {}, null, 2)}</pre></details>
+      <RevisionDiffs id={id} />
     </>}</QueryState>
   </Dialog>
+}
+
+type Revision = { id: string; created_at: string; changes: { column: string; was: unknown; now: unknown }[] }
+function RevisionDiffs({ id }: { id: string }) {
+  const { language } = useLocale(); const de = language === 'de'
+  const query = useQuery({ queryKey: ['transaction-revisions', id], queryFn: () => api<Revision[]>(`/transactions/${encodeURIComponent(id)}/revisions`) })
+  if (!Array.isArray(query.data) || !query.data.length) return null
+  const show = (v: unknown) => v == null || v === '' ? '—' : String(v)
+  return <details className="source-details"><summary>{de ? `Frühere Fassungen aus Importen (${query.data.length})` : `Earlier versions from imports (${query.data.length})`}</summary>
+    {query.data.map(r => <div key={r.id}><p className="muted small">{formatDate(r.created_at, language)}</p>
+      <ul>{r.changes.map(c => <li key={c.column}><strong>{c.column}</strong>: {show(c.was)} → {show(c.now)}</li>)}</ul></div>)}
+  </details>
 }
 
 

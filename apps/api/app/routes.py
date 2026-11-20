@@ -17,7 +17,7 @@ from .db import get_db
 from .finance import account_json, allocation_backing, bucket_json, contracts, funding_eligible, latest_balance, local_today, overview, serialize, ZERO
 from .importer import ingest, parse_workbook
 from .locking import lock_owner
-from .models import Account, Allocation, Balance, Bucket, Finding, Import, Obligation, Setting, Transaction, TransactionRevision, User
+from .models import Account, Allocation, AllocationEvent, Balance, Bucket, Finding, Import, Obligation, Setting, Transaction, TransactionRevision, User
 
 router = APIRouter(tags=["finance"])
 
@@ -391,6 +391,10 @@ def put_allocations(ident: str, body: AllocationList, db: Session = Depends(get_
     db.execute(delete(Allocation).where(Allocation.bucket_id == ident))
     for item in body.allocations:
         db.add(Allocation(bucket_id=ident, **item.model_dump()))
+        db.add(AllocationEvent(bucket_id=ident, bucket_name=bucket.name, user_id=user.id, **item.model_dump()))
+    if not body.allocations:
+        # An explicit release is history too: amount zero marks "nothing earmarked any more".
+        db.add(AllocationEvent(bucket_id=ident, bucket_name=bucket.name, user_id=user.id, account_id="", amount=ZERO))
     db.commit()
     return bucket_json(db, bucket)
 
@@ -411,6 +415,53 @@ def add_obligation(ident: str, body: ObligationBody, db: Session = Depends(get_d
     db.add(item)
     db.commit()
     return serialize(item)
+
+
+class ObligationPatch(StrictBody):
+    name: str | None = Field(default=None, min_length=1, max_length=300)
+    amount: Decimal | None = Field(default=None, gt=0, max_digits=24, decimal_places=8)
+    period: Literal["monthly", "quarterly", "yearly", "once"] | None = None
+    due_date: date | None = None
+    scheduled_contributions: Decimal | None = Field(default=None, ge=0, max_digits=24, decimal_places=8)
+
+
+@router.patch("/buckets/{ident}/obligations/{obligation_id}")
+def patch_obligation(ident: str, obligation_id: str, body: ObligationPatch, db: Session = Depends(get_db), user=Depends(current_user)):
+    lock_owner(db, user.id)
+    owned(db, Bucket, ident, user)
+    item = db.scalar(select(Obligation).where(Obligation.id == obligation_id, Obligation.bucket_id == ident))
+    if not item:
+        raise HTTPException(404, "Not found")
+    for key, value in body.model_dump(exclude_unset=True).items():
+        if value is None and key != "due_date":
+            raise HTTPException(422, f"{key} cannot be null")
+        setattr(item, key, value)
+    db.commit()
+    return serialize(item)
+
+
+@router.get("/buckets/{ident}/allocation-history")
+def allocation_history(ident: str, db: Session = Depends(get_db), user=Depends(current_user)):
+    events = db.scalars(select(AllocationEvent).where(AllocationEvent.bucket_id == ident, AllocationEvent.user_id == user.id)
+                        .order_by(AllocationEvent.recorded_at.desc()).limit(500))
+    names = {a.id: a.name for a in db.scalars(select(Account).where(Account.user_id == user.id))}
+    return [{**serialize(e), "account_name": names.get(e.account_id)} for e in events]
+
+
+@router.get("/transactions/{ident}/revisions")
+def transaction_revisions(ident: str, db: Session = Depends(get_db), user=Depends(current_user)):
+    """Source revisions newest first, each with the columns that differ from the next newer version."""
+    tx = owned(db, Transaction, ident, user)
+    revisions = list(db.scalars(select(TransactionRevision).where(TransactionRevision.transaction_id == ident)
+                                .order_by(TransactionRevision.created_at.desc())))
+    newer = (tx.source or {}).get("columns", {})
+    out = []
+    for rev in revisions:
+        older = (rev.source or {}).get("columns", {})
+        diff = [{"column": k, "was": older.get(k), "now": newer.get(k)} for k in sorted(set(older) | set(newer)) if older.get(k) != newer.get(k)]
+        out.append({"id": rev.id, "import_id": rev.import_id, "created_at": rev.created_at, "changes": diff})
+        newer = older
+    return serialize(out)
 
 
 @router.delete("/buckets/{ident}/obligations/{obligation_id}")
