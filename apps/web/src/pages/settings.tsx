@@ -21,6 +21,7 @@ const defaultNotifications: Notifications = { enabled: false, server: '', topic:
 const toTime = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 const toMinutes = (time: string) => { const [h, m] = time.split(':').map(Number); return h * 60 + m }
 
+const EVENT_DE: Record<string, string> = { weekly: 'Wöchentlich', monthly: 'Monatlich', report_ready: 'Bericht fertig', anomaly: 'Auffälligkeit', import_changed: 'Import geändert', plan_exceeded: 'Soll überschritten' }
 export default function SettingsPage() {
   const { t, language, setLanguage } = useLocale(); const { dark, toggle } = useTheme()
   const query = useQuery({ queryKey: ['settings'], queryFn: () => api<SettingsData>('/settings') })
@@ -100,7 +101,7 @@ function IntegrationSettings({ initial }: { initial: SettingsData }) {
           <Field label={t('quietEnd')}><input type="time" required value={toTime(notifications.quiet_end)} onChange={e => setNotifications({ ...notifications, quiet_end: toMinutes(e.target.value) })} /></Field>
           <Field label={language === 'de' ? 'Import maximal alt (Stunden)' : 'Maximum import age (hours)'}><input type="number" min={1} max={8760} required value={notifications.stale_after_hours} onChange={e => setNotifications({ ...notifications, stale_after_hours: Number(e.target.value) })} /></Field>
         </div>
-        <div className="badge-row">{['weekly', 'monthly', 'report_ready', 'anomaly', 'import_changed'].map(event => <label className="checkbox" key={event}><input type="checkbox" checked={notifications.events.includes(event)} onChange={e => setNotifications({ ...notifications, events: e.target.checked ? [...notifications.events, event] : notifications.events.filter(v => v !== event) })} />{event}</label>)}</div>
+        <div className="badge-row">{['weekly', 'monthly', 'report_ready', 'anomaly', 'import_changed', 'plan_exceeded'].map(event => <label className="checkbox" key={event}><input type="checkbox" checked={notifications.events.includes(event)} onChange={e => setNotifications({ ...notifications, events: e.target.checked ? [...notifications.events, event] : notifications.events.filter(v => v !== event) })} />{(language === 'de' ? EVENT_DE[event] : undefined) ?? event}</label>)}</div>
         <p className="muted small">{language === 'de' ? 'Zugriffstoken ausschließlich als Server-Secret konfigurieren, nicht im Browser speichern. Vor einem Test Änderungen speichern.' : 'Configure access tokens only as server secrets, not in the browser. Save changes before testing.'}</p>
         <div><Button type="button" variant="outline" onClick={() => notification.mutate()} busy={notification.isPending} disabled={mutation.isPending}>{t('testNotification')}</Button></div>
         <Feedback error={notification.error} />

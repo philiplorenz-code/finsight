@@ -382,6 +382,8 @@ def default_worker_factory():
                                      latest_import_summary=latest.summary)
                 if preferences and preferences.enabled and "import_changed" in preferences.events and import_has_changes(latest.summary):
                     queue_notification(session, owner_id, "import_changed", "import:" + latest.id, now)
+                from .plan import queue_plan_alerts
+                queue_plan_alerts(session, owner_id, now)
             schedule_reminders(session, owner_id, now)
             if watcher and owner_id == watch_owner:
                 watcher.poll(session, owner_id, now=now)

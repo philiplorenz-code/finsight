@@ -138,3 +138,10 @@ Errors use `{detail:string|validation-array}` with safe generic import failures.
 - Import summaries carry `new_accounts` (accounts created by that import).
 - `GET /api/accounts/unclassified` lists accounts with unknown ownership: `name`, `balance`, `bookings`, `last_booking` and a `suggestion` (`ownership`, `purpose`, `reason`: keywords in the name, a negative balance, or mostly-transfer usage). Suggestions are hints only.
 - `POST /api/accounts/classify` `{items: [{id, ownership: owned|external, purpose, included}]}` classifies up to 200 accounts at once. Until decided, an unclassified account counts nowhere; the overview, accounts and imports pages show a reminder.
+
+## Plan vs. actual (SOLL/IST)
+
+- `GET /api/plan?month=YYYY-MM&history=1..12` returns the owner's plan items for the month with `amount` (target), `actual`, `from_pot`, `elsewhere`, `remaining`, `projected` (running month only, linear to month end), `status` (`ok`, `warning` at ≥ 90 % or projected over, `over`) and a per-month `history`. Actual = net non-transfer outflow leaving the item's pot account plus bookings of the item's category on other included owned accounts, each booking counted once per item and weighted by the account's owner share.
+- `POST /api/plan-items` `{name, amount, category?, account_id?, position?}` (category or pot required), `PATCH /api/plan-items/{id}`, `DELETE /api/plan-items/{id}`.
+- `GET /api/standing-orders` returns regular transfers into own accounts (same target and amount in at least two of the last three months) and active recurring debits.
+- Notification event `plan_exceeded`: one generic message per item and month when an item is over target, checked after imports.

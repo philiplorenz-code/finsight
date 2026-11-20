@@ -10,6 +10,7 @@ import { Field, Money, Notice, PageHeader, Panel, QueryState } from '../componen
 import { CashflowChart, SpendingChart } from '../components/charts'
 import { NewAccountsPrompt } from '../components/new-accounts'
 import { HealthPanel } from '../components/health-panel'
+import { PlanPanel } from '../components/plan-panel'
 
 export default function OverviewPage() {
   const { t, language } = useLocale()
@@ -57,6 +58,7 @@ export default function OverviewPage() {
       <NewAccountsPrompt />
       <DiskHint language={language} />
       <DataHints warnings={data?.warnings} language={language} />
+      <PlanPanel />
       <HealthPanel currency={currency} />
       <div className="charts-grid"><CashflowChart trends={data?.trends} currency={currency} /><SpendingChart categories={data?.categories} currency={currency} /></div>
       <div className="bottom-grid">

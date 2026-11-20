@@ -50,7 +50,7 @@ class Notification(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0)
 
 
-EVENTS = {"weekly", "monthly", "report_ready", "anomaly", "import_changed", "test"}
+EVENTS = {"weekly", "monthly", "report_ready", "anomaly", "import_changed", "plan_exceeded", "test"}
 MESSAGE = "FinSight: An update is available. Open your private dashboard to review it."
 
 
@@ -66,7 +66,7 @@ def dashboard_headers(event: str) -> dict[str, str]:
         _ = parsed.port  # Reject malformed/out-of-range authorities.
     except ValueError:
         return {}
-    path = "/insights" if event in {"report_ready", "anomaly"} else "/imports"
+    path = "/insights" if event in {"report_ready", "anomaly"} else ("/plan" if event == "plan_exceeded" else "/imports")
     url = origin + path
     return {"Click": url, "Actions": "view, Open FinSight, " + url}
 
@@ -224,7 +224,7 @@ class DeliveryRetryable(RuntimeError):
 class NotificationConsent(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     enabled: bool
-    events: list[Literal["weekly", "monthly", "report_ready", "anomaly", "import_changed"]] = Field(max_length=5)
+    events: list[Literal["weekly", "monthly", "report_ready", "anomaly", "import_changed", "plan_exceeded"]] = Field(max_length=6)
     timezone: str = Field(default="Europe/Berlin", max_length=80)
     quiet_start: int = Field(default=1320, ge=0, lt=1440)
     quiet_end: int = Field(default=480, ge=0, lt=1440)

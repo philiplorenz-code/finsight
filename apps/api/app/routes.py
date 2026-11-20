@@ -71,7 +71,7 @@ class NotificationBody(StrictBody):
     quiet_start: int = Field(default=1320, ge=0, lt=1440)
     quiet_end: int = Field(default=480, ge=0, lt=1440)
     stale_after_hours: int = Field(default=168, ge=1, le=8760)
-    events: list[Literal["weekly", "monthly", "report_ready", "anomaly", "import_changed"]] = Field(default_factory=list)
+    events: list[Literal["weekly", "monthly", "report_ready", "anomaly", "import_changed", "plan_exceeded"]] = Field(default_factory=list)
     reminder_hour: int = Field(default=9, ge=0, le=23)
     reminder_minute: int = Field(default=0, ge=0, le=59)
     weekly_day: int = Field(default=0, ge=0, le=6)
@@ -351,6 +351,8 @@ async def upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)
             preferences.last_import_at = now()
             if preferences.enabled and "import_changed" in preferences.events:
                 queue_notification(db, user.id, "import_changed", "import:" + record.id)
+            from .plan import queue_plan_alerts
+            queue_plan_alerts(db, user.id)
             db.commit()
     return {**serialize(record), "duplicate": duplicate}
 
