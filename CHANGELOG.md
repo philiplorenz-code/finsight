@@ -12,6 +12,17 @@
 ## Unreleased
 
 - Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
+- Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
+- Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).
+- Net worth page lists money held in trust for others (accounts with a share below 100 %, e.g. tax pots or family money) with balance and monthly inflow.
+
+- Side business page: income per client (business income rules) and business expenses per month, months without payments, reserve suggestion and an EÜR-style CSV preview (`GET /api/business/overview`, `GET /api/business/euer.csv`).
+- Merchant profile: click a merchant in the transaction list for monthly spending (zoomable), categories, accounts, contract match and recent bookings (`GET /api/merchants/profile`).
+- Savings goals: buckets with target and due date get a traffic light comparing the needed monthly rate with standing orders into the backing accounts, plus the projected amount at the due date.
+- Anomaly watch: possible double debits, unusually high amounts, new recurring payments and price increases (`GET /api/anomalies`), on the overview and insights page; `anomaly` notification after imports.
+- What-if simulator on the wishlist page: salary, side business, rent and extra savings sliders update surplus, cash in 12 months and wish timing instantly.
+- Sankey diagram of regular monthly flows (income sources → your money → categories, tax reserve, surplus) on the analysis page (`GET /api/flows`).
+- Transaction list shows account names instead of IDs.
 
 - Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
 - Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.
@@ -29,6 +40,7 @@
 - Overview and its cash-flow trend place month-end pay in the following month when the income rule sets `shift_from_day` (e.g. salary on the 29th counts for next month).
 - Overview balance tile shows your share (`observed_mine`) and lists money held for others (`held_for_others`) instead of the gross sum; available liquidity uses the owner share.
 - Dev: Vite proxy target configurable via `FINSIGHT_API_PROXY`.
+- Bank/provider per account: detected from the IBAN's bank code (e.g. DKB, N26, ING, Sparkasse, Volksbank, bunq, Revolut) or the name (PayPal), only the provider name is stored. Set or clear it manually; filter accounts and transactions by bank (`provider` query parameter, `GET /api/account-providers`). Migration 0016.
 
 - Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
 - New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.

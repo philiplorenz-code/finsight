@@ -29,7 +29,7 @@ export default function BucketsPage() {
           <div className="bucket-money"><Money value={funded} currency={b.currency} /><span>/ <Money value={b.target_amount} currency={b.currency} /></span></div>
           <div className="progress-track" role="progressbar" aria-label={b.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><span style={{ width: `${percent || 0}%` }} /></div>
           {b.warnings?.map((w, i) => <Notice warning key={i}>{localizeWarning(w, language)}</Notice>)}
-          <div className="bucket-meta"><span>{t('required')}</span><Money value={b.required_monthly} currency={b.currency} /></div>
+          <div className="bucket-meta"><span>{t('required')}</span><Money value={b.required_monthly} currency={b.currency} /></div>{b.goal && <GoalLine goal={b.goal} currency={b.currency} de={language === 'de'} />}
           <div className="bucket-meta muted"><span><CalendarDays size={14} />{t('due')}</span><span>{formatDate(b.due_date, language)}</span></div>
           {!!b.obligations?.length && <ul className="obligation-list">{b.obligations.map(o => <li key={o.id}><span>{o.name}</span><Money value={o.amount} currency={b.currency} /></li>)}</ul>}
           <div className="bucket-actions"><Button variant="outline" onClick={() => setSelected({ bucket: b, mode: 'fund' })}>{t('fund')}<ArrowUpRight size={15} /></Button><Button variant="ghost" onClick={() => setSelected({ bucket: b, mode: 'obligation' })} aria-label={`${t('addObligation')}: ${b.name}`}><Plus size={17} /></Button><Button variant="ghost" onClick={() => setManaging(b)} aria-label={`${language === 'de' ? 'Verwalten' : 'Manage'}: ${b.name}`}><Settings2 size={17} /></Button></div>
@@ -106,4 +106,17 @@ function BucketAction({ bucket, mode, onClose }: { bucket: RawBucket; mode: 'fun
       <Feedback error={mutation.error} /><Button busy={mutation.isPending} disabled={mode === 'fund' && (accounts.isPending || !!accounts.error)}>{t('save')}</Button>
     </form>
   </Dialog>
+}
+
+type Goal = { status: string; required_monthly: string; planned_monthly: string; months_left?: number | null; projected_at_due?: string | null; target: string }
+const GOAL_TEXT: Record<string, [string, string, string]> = {
+  done: ['Ziel erreicht', 'Goal reached', 'ok'], on_track: ['Im Plan', 'On track', 'ok'], tight: ['Knapp', 'Tight', 'warning'],
+  behind: ['Hinkt hinterher', 'Behind', 'over'], overdue: ['Fälligkeit verpasst', 'Past due', 'over'], no_deadline: ['Ohne Datum', 'No deadline', 'none'],
+}
+function GoalLine({ goal, currency, de }: { goal: Goal; currency: string; de: boolean }) {
+  const [deText, enText, tone] = GOAL_TEXT[goal.status] ?? [goal.status, goal.status, 'none']
+  return <div className="goal-line">
+    <span className={`plan-dot ${tone}`} aria-hidden="true" /><strong>{de ? deText : enText}</strong>
+    {goal.months_left != null && goal.status !== 'done' && <span className="muted small">{de ? 'Dauerauftrag' : 'Standing order'} <Money value={goal.planned_monthly} currency={currency} /> {de ? 'von nötigen' : 'of needed'} <Money value={goal.required_monthly} currency={currency} />/{de ? 'Monat' : 'month'} · {de ? 'bis Fälligkeit' : 'by due date'} <Money value={goal.projected_at_due} currency={currency} /></span>}
+  </div>
 }

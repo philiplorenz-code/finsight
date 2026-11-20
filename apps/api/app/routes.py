@@ -86,6 +86,9 @@ def get_overview(start: date | None = None, end: date | None = None, db: Session
 
 @router.get("/accounts")
 def accounts(db: Session = Depends(get_db), user=Depends(current_user)):
+    from .providers import detect_missing
+    if detect_missing(db, user.id) or db.dirty:
+        db.commit()
     return [account_json(db, a) for a in db.scalars(select(Account).where(Account.user_id == user.id).order_by(Account.name))]
 
 
@@ -96,6 +99,14 @@ class AccountPatch(StrictBody):
     purpose: Literal["checking", "savings", "investment", "credit", "cash", "other", "mirror"] | None = None
     inactive: bool | None = None
     owner_share: Decimal | None = Field(default=None, ge=0, le=100)
+    provider: str | None = Field(default=None, max_length=80)
+
+
+@router.get("/account-providers")
+def account_providers(db: Session = Depends(get_db), user=Depends(current_user)):
+    from .providers import KNOWN
+    used = {p for p in db.scalars(select(Account.provider).where(Account.user_id == user.id)) if p}
+    return {"known": KNOWN, "used": sorted(used, key=str.casefold)}
 
 
 @router.patch("/accounts/{ident}")
@@ -103,8 +114,14 @@ def update_account(ident: str, body: AccountPatch, db: Session = Depends(get_db)
     lock_owner(db, user.id)
     account = owned(db, Account, ident, user)
     before = snapshot(account)
-    for key, value in body.model_dump(exclude_unset=True, exclude_none=True).items():
-        setattr(account, key, value)
+    changes = body.model_dump(exclude_unset=True)
+    if "provider" in changes:
+        # Empty value clears a manual choice and lets detection run again on the next listing.
+        value = (changes.pop("provider") or "").strip()
+        account.provider, account.provider_source = (value, "manual") if value else (None, None)
+    for key, value in changes.items():
+        if value is not None:
+            setattr(account, key, value)
     record_account_change(db, account, before)
     db.commit()
     return account_json(db, account)
@@ -122,7 +139,7 @@ def transactions(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le
                  account_id: str | None = None, category: str | None = None, currency: str | None = None,
                  min_amount: Decimal | None = None, max_amount: Decimal | None = None,
                  merchant: str | None = None, is_transfer: bool | None = None, contract: str | None = None,
-                 tag: str | None = None,
+                 tag: str | None = None, provider: str | None = Query(None, max_length=80),
                  view: Literal["included_spending", "all_transactions", "owned_liquid"] | None = None,
                  db: Session = Depends(get_db), user=Depends(current_user)):
     query = select(Transaction).where(Transaction.user_id == user.id)
@@ -137,6 +154,8 @@ def transactions(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le
                                 Transaction.is_transfer.is_(False), Transaction.split_role.notin_(["parent", "excluded"]))
         if view == "owned_liquid":
             query = query.where(Account.ownership == "owned", Account.purpose != "investment")
+    if provider:
+        query = query.where(Transaction.account_id.in_(select(Account.id).where(Account.user_id == user.id, Account.provider == provider)))
     if search:
         query = query.where(or_(Transaction.merchant.icontains(search, autoescape=True), Transaction.description.icontains(search, autoescape=True)))
     for value, predicate in [(start, Transaction.booking_date >= start if start else None),
@@ -373,6 +392,8 @@ async def upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)
                 queue_notification(db, user.id, "import_changed", "import:" + record.id)
             from .plan import queue_plan_alerts
             queue_plan_alerts(db, user.id)
+            from .insights_extra import queue_anomaly_alerts
+            queue_anomaly_alerts(db, user.id)
             db.commit()
     return {**serialize(record), "duplicate": duplicate}
 

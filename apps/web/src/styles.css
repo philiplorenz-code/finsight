@@ -345,6 +345,15 @@
 .plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .plan-list li { display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; }
 .negative { color: #e76f51; }
+.link-button { background: none; border: 0; padding: 0; color: inherit; cursor: pointer; text-align: left; font: inherit; }
+.link-button:hover strong, .link-button:focus-visible strong { text-decoration: underline; }
+.table-scroll { overflow-x: auto; }
+.goal-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; }
+.upcoming-icon.anomaly-high { color: #e76f51; }
+.upcoming-icon.anomaly-medium { color: #d4ab70; }
+.sankey-container { width: 100%; min-width: 0; overflow: hidden; }
+.provider-line { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; font-size: 12px; }
+.account-filter { margin-bottom: 16px; align-items: end; }
 .upcoming-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .upcoming-list li { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; }
 .upcoming-list li > span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
@@ -379,3 +388,4 @@
 .contract-card-top { display: flex; justify-content: space-between; gap: 8px; }
 .contract-card-cost { display: flex; align-items: baseline; gap: 4px; font-size: 20px; font-weight: 650; }
 @media (max-width: 760px) { .contract-summary { grid-template-columns: 1fr; } .kind-bar { grid-template-columns: 110px 1fr auto; } }
+.learn-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--border); margin: 10px 0; }
