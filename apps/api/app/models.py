@@ -315,3 +315,16 @@ class TransferRejection(Base):
     booking_date: Mapped[date] = mapped_column(Date)
     label: Mapped[str] = mapped_column(String(300), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PlanItem(Base):
+    """A monthly target (SOLL) the owner maintains, compared against actual spending from a pot and/or a category."""
+    __tablename__ = "plan_items"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)

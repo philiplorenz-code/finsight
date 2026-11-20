@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Plan vs. actual (Soll/Ist): monthly targets per item (pot and/or category), actuals from the pot plus the same category on other accounts, traffic light on the overview, six-month history, projection for the running month, `plan_exceeded` notification, and an overview of standing orders into pots and recurring debits.
+
 - Cash on hand, reserve and usable cash now count only the owner's share of each account, so money held for others (tax pots, family) no longer inflates free money.
 
 - German texts for all backend warning notices on imports, transactions, buckets, contracts, net worth and wishlist via one shared table (`lib/warnings.ts`); unknown messages fall back to English.
