@@ -20,6 +20,7 @@ type WishItem = { id: string; name: string; price: string; currency: string; pri
 type Wishlist = {
   baseline: { business?: Record<'income_monthly' | 'income_weak_quarter' | 'expenses_monthly' | 'profit_monthly' | 'tax_reserve_suggestion' | 'tax_reserve_rate', string>; currency: string; months_used: number; data_through?: string | null; monthly_income: string; income_sources: Record<string, { monthly_average: string; monthly_lower_quartile: string; months_with_income: number; share: string }>; unassigned_income: { merchant: string; total: string }[]; monthly_consumption: string; monthly_tax: string; expected_surplus: string; conservative_surplus: string; cash_on_hand: string; reserve: string; usable_cash: string; confidence: string; assumptions: string[]; warnings: string[] }
   prefs: { self_names: string[]; reserve_months: number; monthly_tax_reserve: string }
+  payoff_scenarios?: { holding_id: string; name: string; months_left: number; payoff_date: string; freed_monthly: string; expected_surplus_after: string; conservative_surplus_after: string }[]
   wishes: WishItem[]; disclaimer: string
 }
 const DE_MESSAGES: Record<string, string> = {
@@ -86,6 +87,10 @@ export default function WishlistPage() {
         <Panel title={t('incomeSources')}>
           <div className="stat-grid">{(['employment', 'business', 'other'] as const).map(k => { const s = data.baseline.income_sources?.[k]; return s && <div className="detail-stat" key={k}><span>{t(`src_${k}` as never)} · {Math.round(Number(s.share) * 100)} %</span><Money value={s.monthly_average} currency={data.baseline.currency} /><span className="muted">{t('srcWorst')}: <Money value={s.monthly_lower_quartile} currency={data.baseline.currency} /> · {t('srcMonths')}: {s.months_with_income}/{data.baseline.months_used}</span></div> })}</div>
         </Panel>
+        {!!data.payoff_scenarios?.length && <Panel title={language === 'de' ? 'Wenn Schulden abbezahlt sind' : 'Once debts are repaid'} description={language === 'de' ? 'Die frei werdende Rate (dein Anteil) erhöht den monatlichen Überschuss.' : 'The freed payment (your share) raises the monthly surplus.'}>
+          <table className="data-table"><thead><tr><th>{language === 'de' ? 'Schuld' : 'Debt'}</th><th>{language === 'de' ? 'Abbezahlt' : 'Paid off'}</th><th>{language === 'de' ? 'Frei pro Monat' : 'Freed / month'}</th><th>{language === 'de' ? 'Überschuss danach' : 'Surplus after'}</th><th>{language === 'de' ? 'Vorsichtig danach' : 'Cautious after'}</th></tr></thead>
+            <tbody>{data.payoff_scenarios.map(p => <tr key={p.holding_id}><td>{p.name}</td><td>{p.payoff_date.slice(0, 7)} ({p.months_left} {language === 'de' ? 'Mon.' : 'mo.'})</td><td><Money value={p.freed_monthly} currency={data.baseline.currency} /></td><td><Money value={p.expected_surplus_after} currency={data.baseline.currency} /></td><td><Money value={p.conservative_surplus_after} currency={data.baseline.currency} /></td></tr>)}</tbody></table>
+        </Panel>}
         {data.baseline.business && <BusinessPanel business={data.baseline.business} prefs={data.prefs} currency={data.baseline.currency} de={language === 'de'} onDone={refresh} />}
         {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
         {!open.length && <Panel><p className="muted"><Gift size={16} /> {t('wishEmpty')}</p></Panel>}

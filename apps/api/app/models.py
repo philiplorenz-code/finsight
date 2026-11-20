@@ -228,6 +228,16 @@ class Holding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class HoldingSnapshot(Base):
+    """Value of a holding on a day; one row per day, written whenever the value is set or changed."""
+    __tablename__ = "holding_snapshots"
+    __table_args__ = (UniqueConstraint("holding_id", "observed_on", name="uq_holding_snapshot_day"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    holding_id: Mapped[str] = mapped_column(ForeignKey("holdings.id", ondelete="CASCADE"), index=True)
+    observed_on: Mapped[date] = mapped_column(Date)
+    value: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+
+
 class BusinessRule(Base):
     """Marks matching spending as business expense so it is reported apart from private consumption."""
     __tablename__ = "business_rules"

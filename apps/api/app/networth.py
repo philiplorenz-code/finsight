@@ -8,7 +8,7 @@ from __future__ import annotations
 import calendar
 import math
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,7 +20,7 @@ from .auth import current_user
 from .db import get_db
 from .finance import ZERO, balance_is_stale, latest_balance, local_today, serialize
 from .locking import lock_owner
-from .models import Account, Holding
+from .models import Account, Holding, HoldingSnapshot
 
 router = APIRouter(tags=["net-worth"])
 
@@ -51,6 +51,37 @@ def payoff(balance: Decimal, payment: Decimal | None, rate_percent: Decimal | No
     index = today.year * 12 + today.month - 1 + months
     year, month = divmod(index, 12)
     return {"months_left": months, "payoff_date": date(year, month + 1, 1).isoformat()}
+
+
+def amortisation(balance: Decimal, payment: Decimal | None, rate_percent: Decimal | None, today: date, limit: int = 600) -> list[dict]:
+    """Month-by-month remaining balance: interest accrues monthly (rate/12), the payment is applied afterwards.
+
+    Empty when there is no payment or the payment does not cover the interest. Cent-rounded, half-up.
+    """
+    if balance <= 0 or not payment or payment <= 0:
+        return []
+    monthly_rate = (rate_percent or ZERO) / HUNDRED / 12
+    cent = Decimal("0.01")
+    schedule, remaining = [], balance
+    index = today.year * 12 + today.month - 1
+    for step in range(1, limit + 1):
+        interest = (remaining * monthly_rate).quantize(cent, rounding=ROUND_HALF_UP)
+        if payment <= interest:
+            return []
+        remaining = max(ZERO, remaining + interest - payment)
+        year, month = divmod(index + step, 12)
+        schedule.append({"month": f"{year}-{month + 1:02d}", "balance": remaining})
+        if remaining == 0:
+            return schedule
+    return schedule
+
+
+def record_snapshot(db: Session, holding: Holding, day: date) -> None:
+    snap = db.scalar(select(HoldingSnapshot).where(HoldingSnapshot.holding_id == holding.id, HoldingSnapshot.observed_on == day))
+    if snap:
+        snap.value = holding.value
+    else:
+        db.add(HoldingSnapshot(holding_id=holding.id, observed_on=day, value=holding.value))
 
 
 def split(value: Decimal, share: Decimal) -> tuple[Decimal, Decimal]:
@@ -89,6 +120,7 @@ def net_worth(db: Session, user_id: str, currency: str = "EUR") -> dict:
                 "interest_rate": h.interest_rate, "note": h.note, "valued_on": h.valued_on}
         if h.kind == "liability":
             item.update(payoff(h.value, h.monthly_payment, h.interest_rate, today))
+            item["schedule"] = amortisation(h.value, h.monthly_payment, h.interest_rate, today)
             monthly_debt_service += (h.monthly_payment or ZERO) * h.share / HUNDRED
             liabilities.append((mine, others))
         else:
@@ -104,6 +136,11 @@ def net_worth(db: Session, user_id: str, currency: str = "EUR") -> dict:
               "net_worth_gross": a_mine + a_oth - l_mine - l_oth, "monthly_debt_service": monthly_debt_service}
 
     history = []
+    holding_rows = [h for h in db.scalars(select(Holding).where(Holding.user_id == user_id)) if h.currency == currency]
+    snapshots: dict[str, list] = {}
+    if holding_rows:
+        for snap in db.scalars(select(HoldingSnapshot).where(HoldingSnapshot.holding_id.in_([h.id for h in holding_rows]))):
+            snapshots.setdefault(snap.holding_id, []).append(snap)
     index = today.year * 12 + today.month - 1
     for back in range(HISTORY_MONTHS - 1, -1, -1):
         year, month = divmod(index - back, 12)
@@ -114,8 +151,16 @@ def net_worth(db: Session, user_id: str, currency: str = "EUR") -> dict:
             if obs:
                 total += obs.amount * account.owner_share / HUNDRED
                 seen += 1
+        holdings_net, known = ZERO, 0
+        for h in holding_rows:
+            snap = max((x for x in snapshots.get(h.id, []) if x.observed_on <= end), key=lambda x: x.observed_on, default=None)
+            if snap:
+                known += 1
+                value = snap.value * h.share / HUNDRED
+                holdings_net += value if h.kind == "asset" else -value
         if seen:
-            history.append({"month": f"{year}-{month + 1:02d}", "accounts_mine": total, "accounts_counted": seen})
+            history.append({"month": f"{year}-{month + 1:02d}", "accounts_mine": total, "accounts_counted": seen,
+                            "holdings_mine": holdings_net, "holdings_counted": known, "net_worth_mine": total + holdings_net})
     return serialize({"currency": currency, "accounts": rows, "holdings": holdings, "totals": totals, "history": history,
                       "accounts_without_balance": missing, "stale_balances": stale, "other_currency_holdings": ignored})
 
@@ -164,6 +209,8 @@ def create_holding(body: HoldingBody, db: Session = Depends(get_db), user=Depend
     lock_owner(db, user.id)
     holding = Holding(user_id=user.id, valued_on=local_today(db, user.id), **body.model_dump())
     db.add(holding)
+    db.flush()
+    record_snapshot(db, holding, holding.valued_on)
     db.commit()
     return serialize(holding)
 
@@ -180,6 +227,7 @@ def patch_holding(ident: str, body: HoldingPatch, db: Session = Depends(get_db),
         setattr(holding, key, value)
     if "value" in changes:
         holding.valued_on = local_today(db, user.id)
+        record_snapshot(db, holding, holding.valued_on)
     db.commit()
     return serialize(holding)
 
@@ -187,6 +235,9 @@ def patch_holding(ident: str, body: HoldingPatch, db: Session = Depends(get_db),
 @router.delete("/holdings/{ident}")
 def delete_holding(ident: str, db: Session = Depends(get_db), user=Depends(current_user)):
     lock_owner(db, user.id)
-    db.delete(owned_holding(db, ident, user))
+    holding = owned_holding(db, ident, user)
+    for snap in db.scalars(select(HoldingSnapshot).where(HoldingSnapshot.holding_id == holding.id)):
+        db.delete(snap)
+    db.delete(holding)
     db.commit()
     return {"ok": True}

@@ -313,6 +313,25 @@ def owned_wish(db, ident, user) -> Wish:
     return wish
 
 
+def payoff_scenarios(db: Session, user_id: str, base: dict, currency: str) -> list[dict]:
+    """What the monthly surplus looks like once a tracked debt is repaid: the freed payment (user's share) is added."""
+    from .models import Holding
+    from .networth import payoff
+    today = local_today(db, user_id)
+    out = []
+    for h in db.scalars(select(Holding).where(Holding.user_id == user_id, Holding.kind == "liability").order_by(Holding.name)):
+        if h.currency != currency or not h.monthly_payment or h.monthly_payment <= 0:
+            continue
+        result = payoff(h.value, h.monthly_payment, h.interest_rate, today)
+        if result["months_left"] is None:
+            continue
+        freed = h.monthly_payment * h.share / 100
+        out.append({"holding_id": h.id, "name": h.name, "months_left": result["months_left"], "payoff_date": result["payoff_date"],
+                    "freed_monthly": freed, "expected_surplus_after": base["expected_surplus"] + freed,
+                    "conservative_surplus_after": base["conservative_surplus"] + freed})
+    return out
+
+
 def overview_payload(db, user, currency="EUR"):
     today = local_today(db, user.id)
     base = baseline(db, user.id, currency, today)
@@ -320,6 +339,7 @@ def overview_payload(db, user, currency="EUR"):
     assessments = {a["id"]: a for a in assess(base, wishes, today)}
     prefs = get_prefs(db, user.id)
     return serialize({"baseline": {k: v for k, v in base.items() if k not in {"series", "savings"}}, "prefs": prefs,
+                      "payoff_scenarios": payoff_scenarios(db, user.id, base, currency),
                       "wishes": [{**wish_json(w), "assessment": assessments.get(w.id)} for w in wishes],
                       "disclaimer": "Planning aid based on your own data; not financial, tax or investment advice."})
 
