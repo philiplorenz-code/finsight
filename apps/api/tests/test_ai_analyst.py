@@ -127,7 +127,8 @@ def test_plan_selects_sections_by_topic():
     assert general == {"topics": ["general"], "sections": None}
     ctx = {"currency": "EUR", "net_worth": {}, "spending_categories": [], "health": {}}
     assert set(analyst.apply_plan(ctx, debt)) == {"currency", "net_worth", "health"}
-    assert analyst.apply_plan(ctx, general) is ctx
+    assert analyst.apply_plan(ctx, general) == ctx
+    assert "_secret_tool_input" not in analyst.apply_plan({**ctx, "_secret_tool_input": 1}, general)
 
 
 def test_context_endpoint_applies_the_plan_and_includes_health(owner):
@@ -162,7 +163,7 @@ def test_planner_chains_typed_tools_within_the_step_budget():
                                    {"category": "Miete", "monthly_typical_earlier": 800, "monthly_typical_recent": 900, "monthly_average": 850, "fixed": True}]}
     question = "Wo kann ich bei Einkaufen sparen?"
     extra, trace = analyst.run_planner(question, analyst.plan_for(question), ctx)
-    assert [t["tool"] for t in trace] == ["focus_category", "rank_levers", "data_caveats"] and len(trace) <= analyst.MAX_STEPS
+    assert [t["tool"] for t in trace] == ["focus_category", "rank_levers", "contract_focus", "data_caveats"] and len(trace) <= analyst.MAX_STEPS
     assert extra["focus_category"]["category"] == "Einkaufen"
     assert extra["ranked_levers"][0] == {"kind": "rising_category", "category": "Einkaufen", "monthly_impact": 60}  # fixed Miete is not a lever
     assert set(extra["caveats"]) == {"low_confidence", "metrics_unavailable:debt_service_ratio", "account_gaps_in_window"}
@@ -181,3 +182,17 @@ def test_ask_reports_the_planner_steps(owner, db):
     enable(db, user_id)
     result = asyncio.run(analyst.execute_ask(db, user_id, analyst.AskRequest(question="Wo kann ich bei Einkaufen sparen?"), provider=Fake()))
     assert [s["tool"] for s in result["steps"]][0] == "focus_category" and "focus_category" in result["sent"]
+
+
+
+def test_contract_and_tax_tools_add_only_their_sections():
+    ctx = {"spending_categories": [], "health": {}, "data_quality": {},
+           "_contract_details": [{"kind": "insurance", "rhythm": "monthly", "monthly": 129, "price_change_per_charge": 0}],
+           "_tax_reserves": {"year": 2026, "vat_contained": 190, "vat_moved_to_pot": 150}}
+    q = "Welche Verträge kann ich kündigen?"
+    extra, trace = analyst.run_planner(q, analyst.plan_for(q), ctx)
+    assert extra["top_contracts"][0]["kind"] == "insurance" and "tax_reserves" not in extra
+    q2 = "Wie viel Steuer muss ich fürs Nebengewerbe zurücklegen?"
+    extra2, trace2 = analyst.run_planner(q2, analyst.plan_for(q2), ctx)
+    assert extra2["tax_reserves"]["vat_moved_to_pot"] == 150 and "top_contracts" not in extra2
+    assert all(not k.startswith("_") for k in analyst.apply_plan(ctx, analyst.plan_for(q2)))
