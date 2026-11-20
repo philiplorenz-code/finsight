@@ -10,7 +10,7 @@ import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
-type Extra = { key?: string; kind?: string; status?: string; decision?: string | null; monthly_cost?: string | null; charges?: number }
+type Extra = { key?: string; kind?: string; status?: string; decision?: string | null; monthly_cost?: string | null; charges?: number; price_change?: string | null; last_charge?: string | null }
 type Row = Contract & Extra
 type RawRow = RawContract & Extra
 type Totals = Record<string, { monthly: string; yearly: string; by_kind: Record<string, { monthly: string; yearly: string; count: number }> }>
@@ -35,6 +35,10 @@ export default function ContractsPage() {
     return { items: items(data).map((c, i) => normalizeContract(c as RawRow, i) as Row), dismissed: norm(data.dismissed), totals: data.totals ?? {}, candidates: data.cancellation_candidates ?? [], warnings: data.warnings }
   } })
   const [detail, setDetail] = useState<Row | null>(null)
+  const [search, setSearch] = useState('')
+  const [kind, setKind] = useState<string>('all')
+  const [sort, setSort] = useState<'cost' | 'name' | 'next'>('cost')
+  const [onlyUp, setOnlyUp] = useState(false)
   const data = query.data
   const active = data?.items.filter(c => c.status !== 'stopped') ?? []
   const stopped = data?.items.filter(c => c.status === 'stopped') ?? []
@@ -50,18 +54,44 @@ export default function ContractsPage() {
     <td>{c.status === 'stopped' ? (de ? 'beendet' : 'stopped') : formatDate(c.next_charge, language)}</td><td><Badge>{label('confidence', c.confidence == null ? null : String(c.confidence), language)}</Badge></td>
     <td><Button variant="ghost" onClick={() => setDetail(c)} aria-label={`${t('details')}: ${c.name}`}><ChevronRight size={18} /></Button></td></tr>)}</DataTable>
   return <><PageHeader title={t('contracts')} description={t('contractsIntro')} /><Notice>{t('contractNote')}</Notice>{data?.warnings?.map((w, i) => <Notice key={i} warning>{localizeWarning(w, language)}</Notice>)}
-    {total && currency && <Panel title={de ? 'Feste Kosten im Überblick' : 'Fixed costs at a glance'} description={de ? 'Nur laufende Verträge; beendete und verworfene zählen nicht.' : 'Running contracts only; stopped and dismissed ones are not counted.'}>
-      <div className="stat-grid">
-        <div className="detail-stat"><span>{de ? 'Pro Monat' : 'Per month'}</span><Money value={total.monthly} currency={currency} /></div>
-        <div className="detail-stat"><span>{de ? 'Pro Jahr' : 'Per year'}</span><Money value={total.yearly} currency={currency} /></div>
-        {KINDS.filter(k => total.by_kind?.[k]).map(k => <div className="detail-stat" key={k}><span>{kindName(k)} · {total.by_kind[k].count}</span><Money value={total.by_kind[k].yearly} currency={currency} /><small className="muted">{de ? 'pro Jahr' : 'per year'}</small></div>)}
-      </div>
-    </Panel>}
+    {total && currency && <div className="contract-summary">
+      <div className="contract-total"><span>{de ? 'Laufende Verträge pro Monat' : 'Running contracts per month'}</span><Money value={total.monthly} currency={currency} /><small className="muted">{de ? 'pro Jahr' : 'per year'} <Money value={total.yearly} currency={currency} /> · {active.length} {de ? 'Verträge' : 'contracts'}</small></div>
+      <div className="kind-bars">{KINDS.filter(k => total.by_kind?.[k]).sort((a, b) => Number(total.by_kind[b].monthly) - Number(total.by_kind[a].monthly)).map(k => {
+        const share = Number(total.monthly) ? Number(total.by_kind[k].monthly) / Number(total.monthly) * 100 : 0
+        return <button type="button" key={k} className={`kind-bar ${kind === k ? 'active' : ''}`} onClick={() => setKind(kind === k ? 'all' : k)}>
+          <span className="kind-bar-label">{kindName(k)} <small className="muted">{total.by_kind[k].count}</small></span>
+          <span className="kind-bar-track"><span style={{ width: `${Math.max(2, share)}%` }} /></span>
+          <Money value={total.by_kind[k].monthly} currency={currency} />
+        </button>
+      })}</div>
+    </div>}
     {!!data?.candidates.length && <Panel title={de ? 'Prüfen: kündigen oder neu verhandeln' : 'Review: cancel or renegotiate'} description={de ? 'Versicherungen, Abos und nicht eingeordnete Kosten, nach Jahreskosten sortiert. Eine Empfehlung zum Kündigen ist das nicht, nur eine Prüfliste.' : 'Insurances, subscriptions and unclassified costs by yearly cost. A checklist, not advice to cancel.'}>
       <ul className="obligation-list">{data.candidates.map(c => <li key={c.key}><span>{c.name} · {kindName(c.kind)} · {periodName(c.period)}{c.price_increase && <> · <Badge tone="warning">{de ? 'Preis gestiegen' : 'price up'}</Badge></>}</span><Money value={c.annual_cost} currency={c.currency} /></li>)}</ul>
     </Panel>}
-    <Panel><QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!data?.items.length}>{table(active)}</QueryState></Panel>
-    {!!stopped.length && <Panel title={de ? 'Beendet' : 'Stopped'} description={de ? 'Seit mehr als 1,6 Zahlungsperioden keine Abbuchung mehr.' : 'No charge for more than 1.6 billing periods.'}>{table(stopped)}</Panel>}
+    <div className="contract-toolbar">
+      <input type="search" aria-label={de ? 'Verträge durchsuchen' : 'Search contracts'} placeholder={de ? 'Vertrag suchen …' : 'Search contract…'} value={search} onChange={e => setSearch(e.target.value)} />
+      <select aria-label={de ? 'Art' : 'Kind'} value={kind} onChange={e => setKind(e.target.value)}><option value="all">{de ? 'Alle Arten' : 'All kinds'}</option>{KINDS.map(k => <option key={k} value={k}>{kindName(k)}</option>)}</select>
+      <select aria-label={de ? 'Sortierung' : 'Sort'} value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="cost">{de ? 'Teuerste zuerst' : 'Most expensive'}</option><option value="next">{de ? 'Nächste Abbuchung' : 'Next charge'}</option><option value="name">{de ? 'Name' : 'Name'}</option></select>
+      <label className="checkbox"><input type="checkbox" checked={onlyUp} onChange={e => setOnlyUp(e.target.checked)} />{de ? 'Nur Preiserhöhungen' : 'Price increases only'}</label>
+    </div>
+    <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!data?.items.length}>{(() => {
+      const needle = search.trim().toLowerCase()
+      const rows = active.filter(c => (kind === 'all' || (c.kind ?? 'other') === kind) && (!needle || c.name.toLowerCase().includes(needle)) && (!onlyUp || Number(c.price_change ?? 0) > 0))
+      const sorted = [...rows].sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'next' ? String(a.next_charge ?? '9').localeCompare(String(b.next_charge ?? '9')) : Number(b.monthly_cost ?? 0) - Number(a.monthly_cost ?? 0))
+      const groups = KINDS.map(k => ({ k, rows: sorted.filter(c => (c.kind ?? 'other') === k) })).filter(g => g.rows.length)
+      if (!groups.length) return <p className="muted">{de ? 'Keine Verträge für diesen Filter.' : 'No contracts for this filter.'}</p>
+      return groups.map(g => <section key={g.k} className="contract-group">
+        <h3>{kindName(g.k)} <small className="muted">{g.rows.length} · <Money value={String(g.rows.reduce((s2, c) => s2 + Number(c.monthly_cost ?? 0), 0))} currency={g.rows[0].currency} /> {de ? 'pro Monat' : 'per month'}</small></h3>
+        <div className="contract-cards">{g.rows.map(c => <button type="button" key={c.id} className="contract-card" onClick={() => setDetail(c)} aria-label={`${t('details')}: ${c.name}`}>
+          <span className="contract-card-top"><strong>{c.name}</strong>{c.decision === 'confirmed' && <Check size={14} aria-label={de ? 'bestätigt' : 'confirmed'} />}</span>
+          <span className="contract-card-cost"><Money value={c.monthly_cost} currency={c.currency} /><small className="muted">/{de ? 'Monat' : 'month'}</small></span>
+          <span className="contract-card-meta muted small">{periodName(c.frequency)} · <Money value={c.annualized_cost} currency={c.currency} /> {de ? 'im Jahr' : 'a year'}</span>
+          <span className="contract-card-meta small">{de ? 'Nächste' : 'Next'}: {formatDate(c.next_charge, language)}</span>
+          <span className="badge-row">{Number(c.price_change ?? 0) > 0 && <Badge tone="warning">{de ? 'Preis +' : 'Price +'}{Number(c.price_change).toLocaleString(de ? 'de-DE' : 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</Badge>}{c.confidence && String(c.confidence) !== 'high' && <Badge>{de ? 'Sicherheit' : 'Confidence'}: {label('confidence', String(c.confidence), language)}</Badge>}</span>
+        </button>)}</div>
+      </section>)
+    })()}</QueryState>
+    {!!stopped.length && <Panel><details><summary>{de ? `Beendet (${stopped.length}) – seit mehr als 1,6 Zahlungsperioden keine Abbuchung` : `Stopped (${stopped.length}) – no charge for more than 1.6 billing periods`}</summary>{table(stopped)}</details></Panel>}
     {!!data?.dismissed.length && <Panel><details><summary>{de ? `Verworfen (${data.dismissed.length})` : `Dismissed (${data.dismissed.length})`}</summary><ul className="obligation-list">{data.dismissed.map(c => <li key={c.id}><span>{c.name}</span><Button variant="ghost" onClick={() => c.key && decide.mutate({ key: c.key, decision: 'reset' })}><RotateCcw size={14} />{de ? 'Wiederherstellen' : 'Restore'}</Button></li>)}</ul></details></Panel>}
     <Feedback error={decide.error} />
     {detail && <ContractDetail detail={detail} de={de} kindName={kindName} busy={decide.isPending} onClose={() => setDetail(null)} onDecide={decide.mutate} />}</>
