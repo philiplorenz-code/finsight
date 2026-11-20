@@ -5,6 +5,7 @@ import { api, send } from '../lib/api'
 import type { Account } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
 import { AccountSelect } from '../components/account-select'
+import { UpcomingList } from '../components/upcoming'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 export type PlanStatus = 'ok' | 'warning' | 'over'
@@ -67,6 +68,7 @@ export default function PlanPage() {
         <Feedback error={remove.error} />
       </QueryState>
     </Panel>
+    <UpcomingList days={30} />
     <Panel title={de ? 'Daueraufträge in deine Töpfe' : 'Standing orders into your pots'} description={de ? 'Erkannt aus gleich hohen Umbuchungen in mindestens zwei der letzten drei Monate.' : 'Detected from equal transfers in at least two of the last three months.'}>
       <QueryState pending={orders.isPending} error={orders.error} retry={orders.refetch} empty={!orders.data?.transfers.length}>
         <DataTable headers={[de ? 'Ziel' : 'Target', de ? 'Betrag' : 'Amount', de ? 'Tag' : 'Day', de ? 'Monate' : 'Months', de ? 'Status' : 'Status']}>

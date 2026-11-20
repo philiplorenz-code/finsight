@@ -11,6 +11,7 @@ import { CashflowChart, SpendingChart } from '../components/charts'
 import { NewAccountsPrompt } from '../components/new-accounts'
 import { HealthPanel } from '../components/health-panel'
 import { PlanPanel } from '../components/plan-panel'
+import { UpcomingList } from '../components/upcoming'
 
 export default function OverviewPage() {
   const { t, language } = useLocale()
@@ -59,6 +60,7 @@ export default function OverviewPage() {
       <DiskHint language={language} />
       <DataHints warnings={data?.warnings} language={language} />
       <PlanPanel />
+      <UpcomingList days={14} compact />
       <HealthPanel currency={currency} />
       <div className="charts-grid"><CashflowChart trends={data?.trends} currency={currency} /><SpendingChart categories={data?.categories} currency={currency} /></div>
       <div className="bottom-grid">
