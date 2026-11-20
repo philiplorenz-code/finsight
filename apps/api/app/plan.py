@@ -2,7 +2,7 @@
 
 An item's actual (IST) is the net outflow of non-transfer bookings that either leave the item's pot account
 or carry the item's category on any other included, owned account (e.g. fuel paid with the main card instead
-of the fuel pot). Each booking counts once per item, weighted by the account's owner share. Refunds reduce it.
+of the fuel pot). Each booking counts once per item, weighted by the owner share that applied on its booking day. Refunds reduce it.
 Status: "over" when the actual exceeds the target; for the running month also "warning" when the linear
 projection to month end exceeds it or 90 % is used. No booking data is changed here.
 """
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from .auth import current_user
 from .db import get_db
 from .finance import eligible, local_today
-from .models import Account, PlanItem, Transaction
+from .models import Account, AccountChange, PlanItem, Transaction
 from .wishlist import add_months, month_start
 
 router = APIRouter(tags=["plan"])
@@ -67,6 +67,21 @@ def actuals(db: Session, user_id: str, items: list[PlanItem], first: date, last:
     """Per (item, month start): total, part from the pot and part from the category elsewhere."""
     accounts = {a.id: a for a in db.scalars(select(Account).where(Account.user_id == user_id))}
     counted = {a.id for a in accounts.values() if a.included and a.ownership == "owned"}
+    history = defaultdict(list)
+    if counted:
+        for change in db.scalars(select(AccountChange).where(AccountChange.account_id.in_(counted))):
+            history[change.account_id].append(change)
+    shares: dict[tuple[str, date], Decimal] = {}
+
+    def share_on(account, day):
+        # The owner share that applied on the booking day (e.g. 50 % while a flat was shared).
+        if not history.get(account.id):
+            return account.owner_share
+        key = (account.id, day)
+        if key not in shares:
+            from .asof import settings_on
+            shares[key] = Decimal(str(settings_on(account, history[account.id], day)[0]["owner_share"]))
+        return shares[key]
     by_category = defaultdict(list)
     by_pot = defaultdict(list)
     for item in items:
@@ -81,7 +96,7 @@ def actuals(db: Session, user_id: str, items: list[PlanItem], first: date, last:
         if tx.account_id not in counted or not eligible(tx):
             continue
         account = accounts[tx.account_id]
-        value = -tx.amount * account.owner_share / HUNDRED
+        value = -tx.amount * share_on(account, tx.booking_date) / HUNDRED
         key_month = month_start(tx.booking_date)
         matched: dict[str, str] = {}
         for item in by_pot.get(tx.account_id, []):
