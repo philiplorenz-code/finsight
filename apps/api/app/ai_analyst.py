@@ -45,6 +45,37 @@ SYSTEM_PROMPT = (
 )
 
 
+# Intent planning: a deterministic keyword plan decides which optional sections leave the server.
+# Core figures are always sent; unknown questions get everything. Nothing here is model-generated.
+CORE_SECTIONS = {"currency", "data_through", "months_analyzed", "confidence", "monthly_averages", "liquidity", "notes", "data_quality"}
+TOPICS: dict[str, tuple[tuple[str, ...], set[str]]] = {
+    "savings": (("spar", "einspar", "kürz", "sparen", "ausgaben", "kosten senken"),
+                {"spending_categories", "fixed_vs_variable", "recurring_contracts", "named_contracts", "health"}),
+    "wishes": (("wunsch", "kaufen", "leisten", "anschaffung", "auto", "urlaub"), {"open_wishes", "income_sources", "business", "recent_months", "payoff_scenarios", "health"}),
+    "debt": (("schuld", "kredit", "tilg", "abzahl", "darlehen"), {"net_worth", "payoff_scenarios", "health"}),
+    "wealth": (("vermögen", "net worth", "reich", "rücklage", "notfall"), {"net_worth", "health", "payoff_scenarios"}),
+    "income": (("einnahm", "gehalt", "einkommen", "nebengewerbe", "steuer"), {"income_sources", "business", "recent_months", "health"}),
+    "contracts": (("vertrag", "verträge", "versicher", "abo", "kündig"), {"recurring_contracts", "named_contracts", "fixed_vs_variable", "health"}),
+    "forecast": (("prognose", "zukunft", "nächsten monate", "reicht", "forecast"), {"recent_months", "income_sources", "business", "health", "payoff_scenarios"}),
+}
+
+
+def plan_for(question: str) -> dict:
+    text = question.casefold()
+    topics = [name for name, (words, _) in TOPICS.items() if any(w in text for w in words)]
+    if not topics:
+        return {"topics": ["general"], "sections": None}
+    sections = set(CORE_SECTIONS)
+    for name in topics:
+        sections |= TOPICS[name][1]
+    return {"topics": topics, "sections": sections}
+
+
+def apply_plan(ctx: dict, plan: dict) -> dict:
+    keep = plan["sections"]
+    return ctx if keep is None else {k: v for k, v in ctx.items() if k in keep}
+
+
 def euro(value) -> int:
     return int(Decimal(str(value or 0)).quantize(Decimal(1)))
 
@@ -86,6 +117,17 @@ def build_context(db: Session, user_id: str, include_names: bool = False, curren
             item["name"] = clean(w.name)
         wishes.append(item)
     gaps = data_gaps(db, user_id, today)
+    from .health import health as health_report
+    from .wishlist import payoff_scenarios
+    report = health_report(db, user_id, currency)
+    health_block = {"metrics": {k: (None if v is None else round(float(v), 2)) for k, v in report["metrics"].items()
+                                if k in {"savings_rate", "emergency_fund_months", "debt_service_ratio", "spending_volatility"}},
+                    "unavailable": sorted(report["unavailable"]),
+                    "alerts": [{"code": a["code"], "severity": a["severity"]} for a in report["alerts"]],
+                    "forecast_cautious_6m": euro(report["forecast"]["months"][-1]["cautious"]) if report["forecast"]["months"] else None,
+                    "forecast_expected_6m": euro(report["forecast"]["months"][-1]["expected"]) if report["forecast"]["months"] else None}
+    payoffs = [{"months_left": p["months_left"], "freed_monthly": euro(p["freed_monthly"]), "expected_surplus_after": euro(p["expected_surplus_after"])}
+               for p in payoff_scenarios(db, user_id, base, currency)]
     ctx = {
         "currency": currency, "data_through": str(base["data_through"]) if base["data_through"] else None,
         "months_analyzed": base["months_used"], "confidence": base["confidence"],
@@ -104,6 +146,8 @@ def build_context(db: Session, user_id: str, include_names: bool = False, curren
         "liquidity": {"cash_on_hand": euro(base["cash_on_hand"]), "reserve": euro(base["reserve"]), "usable_cash": euro(base["usable_cash"])},
         "net_worth": {k: euro(v) for k, v in worth.items()},
         "open_wishes": wishes,
+        "health": health_block,
+        "payoff_scenarios": payoffs,
         "data_quality": {"accounts_with_gaps_in_window": gaps["window_gap_accounts"]},
         "notes": [clean(w, 160) for w in base["warnings"]][:6],
     }
@@ -129,7 +173,8 @@ async def execute_ask(session: Session, owner_id: str, request: AskRequest, prov
     if provider is litellm_provider and session.bind.dialect.name != "postgresql":
         raise AIBlocked("postgresql_required_for_external_ai")
     operator = operator_environment() if provider is litellm_provider else None
-    ctx = build_context(session, str(owner_id), request.include_names, request.currency)
+    plan = plan_for(request.question)
+    ctx = apply_plan(build_context(session, str(owner_id), request.include_names, request.currency), plan)
     messages = messages_for(request.question, ctx)
     run, config = reserve(session, str(owner_id), "chat", operator=operator)
     run_id, model = run.id, run.model
@@ -154,14 +199,14 @@ async def execute_ask(session: Session, owner_id: str, request: AskRequest, prov
             raise AIBlocked("output_limit")
         valid = settle(session, run_id, str(owner_id), usage, config)
         stored = session.get(AIRun, run_id)
-        stored.evidence = [{"kind": "analyst_context", "sections": sorted(ctx), "include_names": request.include_names}]
+        stored.evidence = [{"kind": "analyst_context", "sections": sorted(ctx), "topics": plan["topics"], "include_names": request.include_names}]
         if valid:
             session.add(Finding(user_id=str(owner_id), title=request.question.strip()[:200], kind="ai", body=answer,
                                 evidence=[{"run_id": run_id, "kind": "analyst_context", "sections": sorted(ctx)}]))
         session.commit()
         if not valid:
             raise AIBlocked("provider_usage_unverified")
-        return {"run_id": run_id, "answer": answer, "sent": ctx, "input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")}
+        return {"run_id": run_id, "answer": answer, "sent": ctx, "topics": plan["topics"], "input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")}
     except BaseException:
         session.rollback()
         session.scalar(select(AIPolicy).where(AIPolicy.owner_id == str(owner_id)).with_for_update())
@@ -180,11 +225,53 @@ async def execute_ask(session: Session, owner_id: str, request: AskRequest, prov
 
 
 @router.get("/ai/context")
-def preview_context(include_names: bool = False, currency: str = "EUR", db: Session = Depends(get_db), user=Depends(current_user)):
+def preview_context(include_names: bool = False, currency: str = "EUR", question: str = "", db: Session = Depends(get_db), user=Depends(current_user)):
     """Exactly the figures `POST /ai/ask` would send (without the question); nothing leaves the server here."""
     if len(currency) != 3 or not currency.isupper():
         raise HTTPException(422, "Invalid currency")
-    return {"context": build_context(db, user.id, include_names, currency), "system_prompt": SYSTEM_PROMPT}
+    plan = plan_for(question)
+    return {"context": apply_plan(build_context(db, user.id, include_names, currency), plan), "topics": plan["topics"], "system_prompt": SYSTEM_PROMPT}
+
+
+FINDING_TEXT = {
+    "cash_underfunded": "Freies Geld reicht im vorsichtigen Fall nicht",
+    "emergency_fund_low": "Notfallreserve unter 3 Monatsausgaben",
+    "negative_surplus": "Ausgaben übersteigen die Einnahmen",
+    "volatile_spending": "Stark schwankende Ausgaben",
+    "category_anomaly": "Auffällig hohe Ausgaben in einer Kategorie",
+    "price_increase": "Preiserhöhung bei einem laufenden Vertrag",
+    "data_quality": "Datenlücken oder veraltete Daten",
+}
+PERIODS = {"monthly": 1, "quarterly": 3, "half_yearly": 6, "yearly": 12}
+
+
+def structured_findings(db: Session, user_id: str, currency: str = "EUR") -> list[dict]:
+    """Deterministic, evidence-carrying findings (severity, confidence, monthly impact). No model involved."""
+    from .health import health as health_report
+    report = health_report(db, user_id, currency)
+    out = []
+    for alert in report["alerts"]:
+        impact = None
+        if alert["code"] == "category_anomaly":
+            impact = Decimal(str(alert["latest"])) - Decimal(str(alert["typical"]))
+        elif alert["code"] == "price_increase":
+            impact = Decimal(str(alert["increase"])) / PERIODS.get(alert.get("period"), 1)
+        elif alert["code"] == "negative_surplus":
+            impact = -Decimal(str(report["metrics"]["expected_surplus"]))
+        title = FINDING_TEXT.get(alert["code"], alert["code"])
+        detail = alert.get("category") or alert.get("name")
+        out.append({"code": alert["code"], "title": f"{title}: {detail}" if detail else title, "severity": alert["severity"],
+                    "confidence": report["confidence"], "impact_monthly": None if impact is None else euro(impact),
+                    "evidence": {"source": "health_metrics", "months_used": report["months_used"]}})
+    rank = {"high": 0, "medium": 1, "low": 2, "info": 3}
+    return sorted(out, key=lambda f: (rank.get(f["severity"], 4), -(f["impact_monthly"] or 0)))
+
+
+@router.get("/ai/findings")
+def findings(currency: str = "EUR", db: Session = Depends(get_db), user=Depends(current_user)):
+    if len(currency) != 3 or not currency.isupper():
+        raise HTTPException(422, "Invalid currency")
+    return structured_findings(db, user.id, currency)
 
 
 @router.post("/ai/ask")

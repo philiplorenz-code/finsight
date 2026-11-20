@@ -116,3 +116,40 @@ def test_endpoint_preview_and_ask_with_fake_provider(owner, db, monkeypatch):
 def test_requires_login(client):
     assert client.get("/api/ai/context").status_code in {401, 403}
     assert client.post("/api/ai/ask", json={"question": "Hallo Welt"}).status_code in {401, 403}
+
+
+def test_plan_selects_sections_by_topic():
+    debt = analyst.plan_for("Wann ist mein Kredit abbezahlt?")
+    assert debt["topics"] == ["debt"] and "net_worth" in debt["sections"] and "spending_categories" not in debt["sections"]
+    mixed = analyst.plan_for("Kann ich mir ein Auto leisten und wo kann ich sparen?")
+    assert {"wishes", "savings"} <= set(mixed["topics"]) and {"open_wishes", "spending_categories"} <= mixed["sections"]
+    general = analyst.plan_for("Was fällt dir auf?")
+    assert general == {"topics": ["general"], "sections": None}
+    ctx = {"currency": "EUR", "net_worth": {}, "spending_categories": [], "health": {}}
+    assert set(analyst.apply_plan(ctx, debt)) == {"currency", "net_worth", "health"}
+    assert analyst.apply_plan(ctx, general) is ctx
+
+
+def test_context_endpoint_applies_the_plan_and_includes_health(owner):
+    workbook(owner)
+    full = owner.get("/api/ai/context").json()
+    assert "health" in full["context"] and "payoff_scenarios" in full["context"] and full["topics"] == ["general"]
+    small = owner.get("/api/ai/context", params={"question": "Wie hoch ist mein Kredit?"}).json()
+    assert small["topics"] == ["debt"] and "spending_categories" not in small["context"] and "net_worth" in small["context"]
+    assert "alerts" in full["context"]["health"] and all(set(a) == {"code", "severity"} for a in full["context"]["health"]["alerts"])
+
+
+def test_structured_findings_are_ranked_and_evidenced(owner):
+    rows = []
+    for month in range(1, 7):
+        rows.append(booking(f"in-{month}", "3000", day=f"2026-{month:02d}-01"))
+        rows.append(booking(f"out-{month}", "-3500", day=f"2026-{month:02d}-15", **({"Kontostand": "1000"} if month == 6 else {})))
+    assert upload(owner, rows).status_code == 200
+    account = owner.get("/api/accounts").json()[0]
+    owner.patch(f"/api/accounts/{account['id']}", json={"ownership": "owned"})
+    found = owner.get("/api/ai/findings").json()
+    assert found and found[0]["severity"] == "high"
+    negative = next(f for f in found if f["code"] == "negative_surplus")
+    assert negative["impact_monthly"] == 500 and negative["evidence"]["source"] == "health_metrics"
+    assert {"title", "severity", "confidence", "impact_monthly", "evidence"} <= set(negative)
+    assert owner.get("/api/ai/findings", params={"currency": "eur"}).status_code == 422
