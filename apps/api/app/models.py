@@ -53,6 +53,8 @@ class Account(Base):
     purpose: Mapped[str] = mapped_column(String(80), default="checking")
     inactive: Mapped[bool] = mapped_column(Boolean, default=False)
     owner_share: Mapped[Decimal] = mapped_column(Numeric(7, 4), default=Decimal(100))
+    provider: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    provider_source: Mapped[str | None] = mapped_column(String(20), nullable=True)  # detected | manual | unknown
     # Date of the latest explicit full-snapshot import that contained this account: its balance is current as of then.
     confirmed_through: Mapped[date | None] = mapped_column(Date, nullable=True)
 
