@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- AI analyst: bounded adaptive planner (max. 4 typed deterministic tools, 2 s budget; focus category, ranked savings levers, data caveats). The chosen steps are shown with each answer and stored as evidence; no model-chosen tools or SQL.
+
 - As-of views: `GET /api/as-of?date=` reconstructs account balances, the settings that applied then (account change history, migration 0014; an "unknown" ownership is treated as undecided, not as a past fact) and earmarks from the allocation history. Never uses later observations; flags missing opening balances, conflicting same-day observations, old observations and inactive accounts. Panel on the net worth page. Closes #20.
 
 - AI analyst: deterministic intent plan (a question about debt only sends the sections it needs), health metrics and payoff scenarios in the context, and `GET /api/ai/findings` with ranked structured findings (severity, confidence, monthly impact, evidence) computed without a model; shown in the analyst panel. Refs #19.
