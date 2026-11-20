@@ -307,7 +307,7 @@ Watching is **off** unless both `FINSIGHT_WATCH_IMPORTS=true` and
 Two unchanged observations and minimum age precede bounded SHA-256 hashing.
 Symlinks are rejected with `O_NOFOLLOW`; files larger than 32 MiB are ignored.
 The core importer revalidates the digest and XLSX safety limits. Imports serialize
-per owner with a live claim-row lock, use `full_snapshot=False`, and preserve all
+per owner with a live claim-row lock, use a full snapshot for "Alle Buchungen" files (`FINSIGHT_WATCH_FULL_SNAPSHOT`, default `auto`), and preserve all
 source files. Ingestion is synchronous; parser resource limits, not asyncio
 cancellation, bound CPU parsing. The core importer commits internally; a crash
 between import commit and job completion is handled through digest idempotency.

@@ -336,6 +336,12 @@ def ingest(db, user, data, filename, full_snapshot=False):
     added = changed = unchanged = 0
     new_accounts = 0
     touched, seen, balances = set(), set(), {}
+    before = {}
+    for (account_id, _), tx in txs.items():
+        stat = before.setdefault(account_id, [0, tx.booking_date, tx.booking_date])
+        stat[0] += 1
+        stat[1], stat[2] = min(stat[1], tx.booking_date), max(stat[2], tx.booking_date)
+    in_file = {}
     for row in rows:
         account = accounts.get(row["account_key"])
         if account is None:
@@ -345,6 +351,9 @@ def ingest(db, user, data, filename, full_snapshot=False):
             accounts[account.source_key] = account
             new_accounts += 1
         touched.add(account.id)
+        stat = in_file.setdefault(account.id, [0, row["booking_date"], row["booking_date"]])
+        stat[0] += 1
+        stat[1], stat[2] = min(stat[1], row["booking_date"]), max(stat[2], row["booking_date"])
         key = (account.id, row["source_key"])
         seen.add(key)
         tx = txs.get(key)
@@ -371,11 +380,13 @@ def ingest(db, user, data, filename, full_snapshot=False):
                 warnings.append("Multiple same-day balances: final source-row observation used; intraday ordering unverified")
             balances[(account.id, row["balance_date"])] = row["balance"]
     missing = 0
+    missing_by_account = defaultdict(int)
     if full_snapshot:
         for key, tx in txs.items():
             if key[0] in touched and key not in seen:
                 tx.missing_from_latest = True
                 missing += 1
+                missing_by_account[key[0]] += 1
         warnings.append("Missing records flagged only for accounts present in this explicitly declared full snapshot")
         confirmed_on = local_today(db, user.id)
         for account in accounts.values():
@@ -423,8 +434,20 @@ def ingest(db, user, data, filename, full_snapshot=False):
     detect_transfers(db, user.id)
     from .category_rules import apply_category_rules
     apply_category_rules(db, user.id)
+    names = {a.id: a.name for a in accounts.values()}
+    coverage = []
+    for account_id, (count, first, last) in in_file.items():
+        prior = before.get(account_id)
+        lost = missing_by_account.get(account_id, 0)
+        # History shrank when the file starts later than what we already hold,
+        # or (full snapshot) rows we hold are absent from the file.
+        shrunk = bool(prior and (first > prior[1] or lost))
+        coverage.append({"account": names.get(account_id), "rows": count, "first": first.isoformat(), "last": last.isoformat(),
+                         "previous_rows": prior[0] if prior else 0, "previous_first": prior[1].isoformat() if prior else None,
+                         "missing": lost, "shrunk": shrunk})
+    coverage.sort(key=lambda c: (not c["shrunk"], c["account"] or ""))
     record.status = "completed"
-    record.summary = {"added": added, "changed": changed, "unchanged": unchanged, "missing": missing, "new_accounts": new_accounts,
-                      "columns": headers, "unknown_columns": unknown, "warnings": sorted(set(warnings)), "full_snapshot": full_snapshot}
+    record.summary = {"coverage": coverage, "shrunk_accounts": [c["account"] for c in coverage if c["shrunk"]], **{"added": added, "changed": changed, "unchanged": unchanged, "missing": missing, "new_accounts": new_accounts,
+                      "columns": headers, "unknown_columns": unknown, "warnings": sorted(set(warnings)), "full_snapshot": full_snapshot}}
     db.commit()
     return record, False

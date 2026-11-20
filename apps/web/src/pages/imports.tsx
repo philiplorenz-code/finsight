@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CloudUpload, FileSpreadsheet, ShieldCheck, X } from 'lucide-react'
 import { api, items } from '../lib/api'
-import type { Import } from '../lib/types'
+import type { Coverage, Import } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
 import { Badge, Button, DataTable, Feedback, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { NewAccountsPrompt } from '../components/new-accounts'
@@ -43,6 +43,7 @@ export default function ImportsPage() {
     {items(query.data).some(i => i.status === 'processing') && <Notice>{language === 'de' ? 'Ein Import läuft im Hintergrund. Du kannst die Seite verlassen; der Status aktualisiert sich automatisch.' : 'An import is running in the background. You can leave this page; the status updates automatically.'}</Notice>}
     <NewAccountsPrompt />
     <DataQuality />
+    <CoverageReport imports={items(query.data)} />
     <Panel title={t('history')} description={t('reconciliation')}>
       <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!items(query.data).length}>
         <DataTable headers={[t('name'), t('date'), t('status'), t('rows'), t('reconciliation')]}>{items(query.data).map(i => <tr key={i.id}><td><div className="file-name"><FileSpreadsheet size={18} />{i.filename || i.id}</div></td><td className="nowrap muted">{formatDate(i.created_at, language)}</td><td><Badge tone={['failed', 'error'].includes(i.status) ? 'warning' : ''}>{i.status}</Badge></td><td>{i.row_count ?? '—'}</td><td className="small muted">{language === 'de' ? 'Neu / Geändert / Unverändert' : 'New / Updated / Unchanged'}: {i.summary?.inserted ?? i.imported ?? '—'} / {i.summary?.updated ?? i.updated ?? '—'} / {i.summary?.unchanged ?? i.unchanged ?? '—'}{['failed', 'error'].includes(i.status) && <p>{language === 'de' ? 'Bitte Datei erneut auswählen und importieren.' : 'Please select the file again to retry the import.'}</p>}</td></tr>)}</DataTable>
@@ -69,5 +70,19 @@ function DataQuality() {
       {a.low_months.length > 0 && <div>{de ? 'Auffallend wenige Buchungen in:' : 'Unusually few bookings in:'} {a.low_months.join(', ')}</div>}
       {a.ended_early_months > 0 && <div>{de ? `Letzte Buchung ${a.ended_early_months} Monate vor dem Ende der übrigen Daten (${data.last_complete_month}).` : `Last booking ${a.ended_early_months} months before the other data ends (${data.last_complete_month}).`}</div>}
     </li>)}</ul>
+  </Panel>
+}
+
+function CoverageReport({ imports }: { imports: Import[] }) {
+  const { language } = useLocale(); const de = language === 'de'
+  const latest = imports.find(i => i.status === 'completed' && i.summary?.coverage?.length)
+  if (!latest) return null
+  const rows: Coverage[] = latest.summary!.coverage!
+  const shrunk = latest.summary?.shrunk_accounts ?? []
+  return <Panel title={de ? 'Abdeckung je Konto' : 'Coverage per account'} description={latest.filename}>
+    {shrunk.length > 0 && <Notice>{de ? `Die Historie ist bei diesen Konten kleiner geworden: ${shrunk.join(', ')}. Die fehlenden Buchungen bleiben erhalten und zählen weiter mit.` : `History shrank for: ${shrunk.join(', ')}. Missing bookings are kept and still count.`}</Notice>}
+    <DataTable headers={[de ? 'Konto' : 'Account', de ? 'Zeilen' : 'Rows', de ? 'Erste' : 'First', de ? 'Letzte' : 'Last', de ? 'Vorher' : 'Before', de ? 'Fehlend' : 'Missing']}>
+      {rows.map(r => <tr key={r.account}><td>{r.account}{r.shrunk && <> <Badge tone="warning">{de ? 'geschrumpft' : 'shrunk'}</Badge></>}</td><td>{r.rows}</td><td className="nowrap">{r.first}</td><td className="nowrap">{r.last}</td><td>{r.previous_rows}</td><td>{r.missing}</td></tr>)}
+    </DataTable>
   </Panel>
 }
