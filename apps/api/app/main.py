@@ -20,6 +20,7 @@ from .quality import router as quality_router
 from .business import router as business_router
 from .networth import router as networth_router
 from .system_status import router as system_router
+from .health import router as health_router
 from .wishlist import router as wishlist_router
 from .limits import RequestSizeLimit
 from .mcp_server import CanonicalEndpoint, enabled as mcp_enabled, http_app as mcp_http_app, mcp
@@ -51,6 +52,7 @@ app.include_router(recurring_router, prefix="/api", dependencies=[Depends(requir
 app.include_router(quality_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(business_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(networth_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(health_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(system_router, prefix="/api", dependencies=[Depends(require_csrf)])
 
 # OAuth routes have absolute root discovery and /api/mcp paths. Their module
