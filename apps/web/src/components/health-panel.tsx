@@ -46,7 +46,7 @@ export function HealthPanel({ currency }: { currency: string }) {
     </div>
     {chart.length > 0 && <>
       <h3 className="small muted">{de ? 'Prognose freies Geld (6 Monate)' : 'Free cash forecast (6 months)'}</h3>
-      <div className="chart-container" role="img" aria-label="cash forecast"><ResponsiveContainer width="100%" height="100%">
+      <div className="forecast-container" role="img" aria-label="cash forecast"><ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chart} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--muted)', fontSize: 11 }} />
