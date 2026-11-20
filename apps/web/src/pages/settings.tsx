@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, KeyRound, Monitor, ShieldCheck, Sparkles } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import { formatDate, useLocale } from '../lib/i18n'
+import { PhoneImport } from '../components/phone-import'
 import { label } from '../lib/labels'
 import { useTheme } from '../lib/theme'
 import { Badge, Button, DataTable, Feedback, Field, Notice, PageHeader, Panel, QueryState } from '../components/ui'
@@ -36,6 +37,7 @@ export default function SettingsPage() {
       </div>
     </Panel>
     <AccountSecurity />
+    <PhoneImport />
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>{query.data && <IntegrationSettings initial={query.data} />}</QueryState>
     <NotificationHistory />
   </>

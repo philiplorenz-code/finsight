@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- iPhone: installable as a home-screen app (manifest, icons, standalone safe areas, no input zoom), Sankey labels fit small screens.
+- Import from iPhone via the share sheet: import-only device keys (shown once, stored as SHA-256, revocable, 30 uploads/hour) and `POST /api/device/import` (bearer key, no cookies) used by an iOS Shortcut; setup guide under Settings. Migration 0018.
+- Docs: secure phone access via Tailscale HTTPS (`docs/operations.md`).
+
 - Learn from corrections: after changing a booking's category the detail view offers to save it as a merchant rule for all bookings.
 - Forgotten password: `scripts/reset-password.sh` (runs `python -m app.admin reset-password` in the API container, prompts without echo, ends all sessions).
 - Net worth page lists money held in trust for others (accounts with a share below 100 %, e.g. tax pots or family money) with balance and monthly inflow.
