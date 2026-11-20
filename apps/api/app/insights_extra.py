@@ -135,3 +135,67 @@ def merchant_profile(name: str = Query(..., min_length=1, max_length=300), month
             "accounts": sorted(({"name": k, "count": v} for k, v in by_account.items()), key=lambda c: -c["count"]),
             "contract": {"period": contract["period"], "monthly": contract["monthly_cost"], "status": contract["status"], "kind": contract["kind"]} if contract else None,
             "recent": [{"id": tx.id, "date": tx.booking_date.isoformat(), "amount": tx.amount, "category": tx.effective_category} for tx in reversed(rows[-10:])]}
+
+
+def anomalies(db: Session, user_id: str, days: int = 60, today: date | None = None) -> list[dict]:
+    """Possible double debits, new recurring payments, unusually high amounts and price increases."""
+    import statistics
+    today = today or local_today(db, user_id)
+    since = today - timedelta(days=days)
+    accounts = counted_accounts(db, user_id)
+    history = [tx for tx in db.scalars(select(Transaction).where(Transaction.user_id == user_id, Transaction.amount < 0,
+                                                                 Transaction.booking_date >= today - timedelta(days=400)))
+               if tx.account_id in accounts and eligible(tx)]
+    recent = [tx for tx in history if tx.booking_date >= since]
+    out: list[dict] = []
+    # 1) same merchant and amount twice within three days on own accounts
+    seen: dict[tuple, Transaction] = {}
+    for tx in sorted(recent, key=lambda t: t.booking_date):
+        key = ((tx.merchant or "").strip().casefold(), tx.amount)
+        prev = seen.get(key)
+        if prev and key[0] and (tx.booking_date - prev.booking_date).days <= 3 and prev.id != tx.id and -tx.amount >= 5:
+            out.append({"key": f"double:{prev.id}:{tx.id}", "kind": "double_debit", "severity": "high", "date": tx.booking_date.isoformat(),
+                        "merchant": tx.merchant, "amount": tx.amount, "transactions": [prev.id, tx.id]})
+        seen[key] = tx
+    # 2) unusually high amount for this merchant (>= 3x its median, at least 50 EUR more)
+    by_merchant: dict[str, list[Decimal]] = defaultdict(list)
+    for tx in history:
+        if tx.booking_date < since:
+            by_merchant[(tx.merchant or "").strip().casefold()].append(-tx.amount)
+    for tx in recent:
+        past = by_merchant.get((tx.merchant or "").strip().casefold(), [])
+        if len(past) >= 3:
+            median = Decimal(str(statistics.median(past)))
+            if -tx.amount >= median * 3 and -tx.amount - median >= 50:
+                out.append({"key": f"high:{tx.id}", "kind": "unusually_high", "severity": "medium", "date": tx.booking_date.isoformat(),
+                            "merchant": tx.merchant, "amount": tx.amount, "typical": median, "transactions": [tx.id]})
+    # 3) new recurring payments and 4) price increases, from the contract detection
+    for item in contracts(db, user_id)["items"]:
+        if item["status"] != "active":
+            continue
+        evidence = item.get("evidence") or []
+        first = db.get(Transaction, evidence[0]) if evidence else None
+        if first and first.booking_date >= since and item.get("charges", 0) >= 2:
+            out.append({"key": f"new:{item['key']}", "kind": "new_recurring", "severity": "medium", "date": first.booking_date.isoformat(),
+                        "merchant": item["name"], "amount": -Decimal(str(item["monthly_cost"])), "period": item["period"], "transactions": evidence[-3:]})
+        change = Decimal(str(item.get("price_change") or 0))
+        last = db.get(Transaction, evidence[-1]) if evidence else None
+        if change > 0 and last and last.booking_date >= since:
+            out.append({"key": f"price:{item['key']}:{last.id}", "kind": "price_increase", "severity": "medium", "date": last.booking_date.isoformat(),
+                        "merchant": item["name"], "amount": last.amount, "change": change, "transactions": [last.id]})
+    order = {"high": 0, "medium": 1, "low": 2}
+    return sorted(out, key=lambda a: (order[a["severity"]], a["date"]), reverse=False)
+
+
+@router.get("/anomalies")
+def get_anomalies(days: int = Query(60, ge=7, le=365), db: Session = Depends(get_db), user=Depends(current_user)):
+    return {"days": days, "items": anomalies(db, user.id, days)}
+
+
+def queue_anomaly_alerts(session: Session, owner_id: str, now=None) -> list[str]:
+    from .notifications import NotificationSettings, queue_notification
+    settings = session.get(NotificationSettings, str(owner_id))
+    if not settings or not settings.enabled or "anomaly" not in (settings.events or []):
+        return []
+    found = [a for a in anomalies(session, str(owner_id), 14) if a["severity"] == "high" or a["kind"] in {"new_recurring", "price_increase"}]
+    return [queue_notification(session, str(owner_id), "anomaly", "anomaly:" + a["key"][:180], now).id for a in found]

@@ -56,3 +56,36 @@ def test_merchant_profile_case_insensitive_with_refunds(owner):
     assert D(april["net_spent"]) == D(50) and data["months"][0]["month"] == "2025-12"
     assert data["categories"][0]["name"] == "Restaurants" and data["contract"] is None
     assert owner.get("/api/merchants/profile", params={"name": "nobody"}).status_code == 404
+
+
+def test_savings_goal_traffic_light_uses_standing_orders(owner, monkeypatch):
+    import app.finance as fin
+    monkeypatch.setattr(fin, "local_today", lambda db, user_id: date(2026, 5, 20))
+    pot = {"Konto-ID": "synthetic-goal", "Konto": "Synthetic goal pot"}
+    rows = [booking(f"g{m}", "200", day=f"2026-{m:02d}-01", **pot, **{"Umbuchung": "Ja", "Empfänger": "Synthetic me"}) for m in (3, 4, 5)]
+    rows.append(booking("gb", "-0.01", day="2026-05-19", **pot, **{"Kontostand": "1000"}))
+    assert upload(owner, rows).status_code == 200
+    account = owner.get("/api/accounts").json()[0]
+    owner.patch(f"/api/accounts/{account['id']}", json={"ownership": "owned", "purpose": "savings"})
+    bucket = owner.post("/api/buckets", json={"name": "Notgroschen", "kind": "real", "target": "3000", "due_date": "2026-12-31"}).json()
+    assert owner.put(f"/api/buckets/{bucket['id']}/allocations", json={"allocations": [{"account_id": account["id"], "amount": "1000"}]}).status_code == 200
+    goal = next(b for b in owner.get("/api/buckets").json() if b["id"] == bucket["id"])["goal"]
+    # needs 2000 in 7 months (~286/month), standing order brings 200 (70 % rule -> tight)
+    assert goal["months_left"] == 7 and D(goal["planned_monthly"]) == D(200) and goal["status"] == "tight"
+    assert D(goal["projected_at_due"]) == D(2400)
+
+
+def test_anomalies_double_high_and_new_recurring(owner):
+    rows = [booking(f"c{m}", "-20", day=f"2026-0{m}-05", **{"Empfänger": "Synthetic Cafe2", "Kategorie": "Restaurants"}) for m in (1, 2, 3)]
+    rows += [booking("c-high", "-140", day="2026-05-02", **{"Empfänger": "Synthetic Cafe2", "Kategorie": "Restaurants"}),
+             booking("d1", "-49.99", day="2026-05-10", **{"Empfänger": "Synthetic Shop"}),
+             booking("d2", "-49.99", day="2026-05-11", **{"Empfänger": "Synthetic Shop"})]
+    rows += [booking(f"n{m}", "-9.99", day=f"2026-0{m}-15", **{"Empfänger": "Synthetic Stream", "Kategorie": "Abos"}) for m in (4, 5)]
+    assert upload(owner, rows).status_code == 200
+    for a in owner.get("/api/accounts").json():
+        owner.patch(f"/api/accounts/{a['id']}", json={"ownership": "owned"})
+    items = owner.get("/api/anomalies", params={"days": 60}).json()["items"]
+    kinds = {a["kind"]: a for a in items}
+    assert kinds["double_debit"]["merchant"] == "Synthetic Shop" and kinds["double_debit"]["severity"] == "high"
+    assert kinds["unusually_high"]["merchant"] == "Synthetic Cafe2" and D(kinds["unusually_high"]["typical"]) == D(20)
+    assert items[0]["kind"] == "double_debit"

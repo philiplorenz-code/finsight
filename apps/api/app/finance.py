@@ -145,9 +145,31 @@ def bucket_json(db, bucket, today=None, backing=None):
         due = bucket.due_date
         periods = max(1, (due.year - today.year) * 12 + due.month - today.month) if due else 1
         required = max(ZERO, bucket.target - funded) / periods
+    goal = None
+    if bucket.target:
+        # Savings goal traffic light: the needed monthly rate against standing orders into the backing accounts.
+        from .plan import standing_orders
+        backing_ids = {a.account_id for a in allocations}
+        planned = sum((o["amount"] for o in standing_orders(db, bucket.user_id, today) if o["active"] and o["account_id"] in backing_ids), ZERO)
+        months_left = max(1, (bucket.due_date.year - today.year) * 12 + bucket.due_date.month - today.month) if bucket.due_date else None
+        if funded >= bucket.target:
+            status = "done"
+        elif not bucket.due_date:
+            status = "no_deadline"
+        elif bucket.due_date < today:
+            status = "overdue"
+        elif planned >= required:
+            status = "on_track"
+        elif planned >= required * Decimal("0.7"):
+            status = "tight"
+        else:
+            status = "behind"
+        goal = {"target": bucket.target, "funded": funded, "progress": min(Decimal(1), funded / bucket.target) if bucket.target else None,
+                "required_monthly": required, "planned_monthly": planned, "months_left": months_left, "status": status,
+                "projected_at_due": (funded + planned * months_left) if months_left else None}
     return serialize({**serialize(bucket), "allocations": [{**serialize(a), **backing[a.id]} for a in allocations], "obligations": obligations,
                       "nominal_allocated": nominal, "funded": funded, "funding_shortfall": nominal - funded,
-                      "monthly_obligation": monthly, "required_monthly_contribution": required,
+                      "monthly_obligation": monthly, "required_monthly_contribution": required, "goal": goal,
                       "warnings": sorted(set(warnings))})
 
 

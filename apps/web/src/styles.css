@@ -348,3 +348,4 @@
 .link-button { background: none; border: 0; padding: 0; color: inherit; cursor: pointer; text-align: left; font: inherit; }
 .link-button:hover strong, .link-button:focus-visible strong { text-decoration: underline; }
 .table-scroll { overflow-x: auto; }
+.goal-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; }
