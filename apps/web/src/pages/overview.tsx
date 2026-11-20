@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { ArrowDownLeft, ArrowUpRight, ArrowRight, CalendarDays, PiggyBank, Wallet, Sparkles, ShieldCheck } from 'lucide-react'
 import { api, queryString } from '../lib/api'
 import { overviewForCurrency, periodDates, type RawOverview } from '../lib/adapters'
-import { formatDate, useLocale } from '../lib/i18n'
+import { formatDate, formatMoney, useLocale } from '../lib/i18n'
 import { localizeWarning } from '../lib/warnings'
 import { Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { CashflowChart, SpendingChart } from '../components/charts'
@@ -50,7 +50,7 @@ export default function OverviewPage() {
         { label: 'income' as const, value: data?.income, icon: ArrowDownLeft, color: 'green', note: language === 'de' ? 'Externe Geldeingänge' : 'External money received' },
         { label: 'expenses' as const, value: data?.expenses, icon: ArrowUpRight, color: 'sand', note: language === 'de' ? 'Ohne interne Umbuchungen' : 'Excluding internal transfers' },
         { label: 'surplus' as const, value: data?.surplus, icon: PiggyBank, color: 'purple', note: language === 'de' ? 'Einnahmen minus Ausgaben' : 'Income less expenses' },
-        { label: 'netWorth' as const, value: data?.observed_net_worth, icon: Wallet, color: 'blue', note: language === 'de' ? 'Letzte verfügbare Beobachtung' : 'Latest available observation' },
+        { label: 'netWorth' as const, value: data?.observed_net_worth, icon: Wallet, color: 'blue', note: Number(data?.held_for_others ?? 0) > 0.005 ? (language === 'de' ? `Dein Anteil · ${formatMoney(data?.held_for_others ?? '0', currency, language)} gehören anderen (Steuer, Familie)` : `Your share · ${formatMoney(data?.held_for_others ?? '0', currency, language)} belongs to others (tax, family)`) : (language === 'de' ? 'Dein Anteil, letzte Beobachtung' : 'Your share, latest observation') },
       ].map(({ label, value, icon: Icon, color, note }) => <article className="stat-card" key={label}>
         <div className="stat-top"><span>{t(label)}</span><span className={`stat-icon ${color}`}><Icon size={18} /></span></div>
         <Money value={value} currency={currency} /><p><span className={`tiny-dot ${color}`} />{note}</p>

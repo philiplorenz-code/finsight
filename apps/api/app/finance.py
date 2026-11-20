@@ -157,13 +157,23 @@ def overview(db, user_id, start=None, end=None):
     start = start or today.replace(day=1)
     accounts = list(db.scalars(select(Account).where(Account.user_id == user_id)))
     included = {a.id: a for a in accounts if a.included and a.ownership != "external"}
+    # Pay booked at month end can belong to the next month (income rule `shift_from_day`), so look one
+    # month back and place every booking on its effective day before filtering by the period.
+    from .income import load_rules, match_rule, shifts_to_next_month
+    rules = load_rules(db, user_id)
     txs = list(db.scalars(select(Transaction).where(Transaction.user_id == user_id,
-                      Transaction.booking_date >= start, Transaction.booking_date <= min(end, today))))
+                      Transaction.booking_date >= start - timedelta(days=31), Transaction.booking_date <= min(end, today))))
+
+    def effective_day(tx):
+        if tx.amount > 0 and rules and shifts_to_next_month(tx, match_rule(tx, rules)):
+            d = tx.booking_date
+            return date(d.year + d.month // 12, d.month % 12 + 1, 1)
+        return tx.booking_date
     currencies, categories, trends = {}, defaultdict(lambda: ZERO), {}
 
     def totals(currency):
         return currencies.setdefault(currency, {"currency": currency, "income": ZERO, "expenses": ZERO,
-                  "observed_balance": ZERO, "liquid_balance": ZERO, "allocated": ZERO,
+                  "observed_balance": ZERO, "observed_mine": ZERO, "held_for_others": ZERO, "liquid_balance": ZERO, "allocated": ZERO,
                   "nominal_allocated": ZERO, "funding_shortfall": ZERO, "monthly_obligations": ZERO})
 
     warnings = {"Observed balances may have incomplete coverage; not a complete net worth", "Debt-service and full asset coverage unavailable"}
@@ -174,6 +184,9 @@ def overview(db, user_id, start=None, end=None):
     for tx in txs:
         if tx.account_id not in included:
             continue
+        day = effective_day(tx)
+        if day < start or day > end:
+            continue
         if tx.transfer_uncertain:
             warnings.add("One-sided transfers excluded; ownership uncertain")
         if tx.split_role in {"uncertain", "excluded", "orphan"}:
@@ -183,8 +196,8 @@ def overview(db, user_id, start=None, end=None):
         if not eligible(tx) or included[tx.account_id].purpose == "mirror":
             continue  # mirror accounts (e.g. PayPal) repeat payments already booked on the bank account
         item = totals(tx.currency)
-        trend = trends.setdefault((tx.booking_date.strftime("%Y-%m"), tx.currency),
-                                   {"month": tx.booking_date.strftime("%Y-%m"), "currency": tx.currency, "income": ZERO, "expenses": ZERO})
+        trend = trends.setdefault((day.strftime("%Y-%m"), tx.currency),
+                                   {"month": day.strftime("%Y-%m"), "currency": tx.currency, "income": ZERO, "expenses": ZERO})
         key = "income" if tx.amount >= 0 else "expenses"
         item[key] += abs(tx.amount)
         trend[key] += abs(tx.amount)
@@ -198,8 +211,11 @@ def overview(db, user_id, start=None, end=None):
             warnings.add("Unverified account balances are excluded from available liquidity")
         if observation:
             item["observed_balance"] += observation.amount
+            mine = observation.amount * account.owner_share / Decimal(100)
+            item["observed_mine"] += mine
+            item["held_for_others"] += observation.amount - mine  # e.g. tax pots or money kept for family
             if funding_eligible(account):
-                item["liquid_balance"] += observation.amount
+                item["liquid_balance"] += mine
             if balance_is_stale(account, observation, min(end, today)):
                 warnings.add("Some observed balances are stale")
         else:
