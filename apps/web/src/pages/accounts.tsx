@@ -4,6 +4,7 @@ import { Wallet, Pencil } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import type { Account } from '../lib/types'
 import { formatDate, useLocale } from '../lib/i18n'
+import { ZoomChart } from '../components/zoom-chart'
 import { label } from '../lib/labels'
 import { PURPOSE_DE, PURPOSE_EN } from '../components/new-accounts'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
@@ -35,5 +36,5 @@ function AccountEditor({ account, onClose }: { account: Account; onClose: () => 
 function AccountHistory({ account, onClose }: { account: Account; onClose: () => void }) {
   const { t, language } = useLocale()
   const query = useQuery({ queryKey: ['account', account.id], queryFn: async () => ({ balance_history: (await api<{ observed_date: string; amount: string }[]>(`/accounts/${encodeURIComponent(account.id)}/balances`)).map(b => ({ date: b.observed_date, balance: b.amount })) }) })
-  return <Dialog title={`${account.name} · ${t('balanceHistory')}`} onClose={onClose}><Notice>{t('balanceWarning')}</Notice><QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!query.data?.balance_history?.length}><DataTable headers={[t('date'), t('amount')]}>{query.data?.balance_history?.map((p, i) => <tr key={i}><td>{formatDate(p.date, language)}</td><td><Money value={p.balance} currency={account.currency} /></td></tr>)}</DataTable></QueryState></Dialog>
+  return <Dialog title={`${account.name} · ${t('balanceHistory')}`} onClose={onClose}><Notice>{t('balanceWarning')}</Notice><QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={!query.data?.balance_history?.length}>{(query.data?.balance_history?.length ?? 0) > 1 && <ZoomChart step label={t('balanceHistory')} currency={account.currency} series={[{ key: 'balance', name: t('amount'), color: '#2d8b72' }]} data={[...(query.data?.balance_history ?? [])].sort((a, b) => a.date.localeCompare(b.date)).map(p => ({ x: p.date, balance: Number(p.balance) }))} />}<details className="chart-accessible"><summary>{t('details')}</summary><DataTable headers={[t('date'), t('amount')]}>{query.data?.balance_history?.map((p, i) => <tr key={i}><td>{formatDate(p.date, language)}</td><td><Money value={p.balance} currency={account.currency} /></td></tr>)}</DataTable></details></QueryState></Dialog>
 }
