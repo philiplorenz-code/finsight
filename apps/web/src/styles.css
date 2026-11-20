@@ -353,3 +353,8 @@
 .upcoming-icon.transfer { color: #5b8fd1; }
 .positive { color: #2d8b72; }
 .forecast-stats { margin-top: 12px; }
+.flow-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2, rgba(127,127,127,.08)); margin: 8px 0 12px; }
+.flow-line > span { display: flex; flex-direction: column; min-width: 0; }
+.flow-line small { opacity: .7; font-size: 11px; }
+.flow-line strong { overflow-wrap: anywhere; }
+.flow-line em { font-style: normal; opacity: .7; font-size: 12px; }
