@@ -367,6 +367,20 @@
 .flow-line small { opacity: .7; font-size: 11px; }
 .flow-line strong { overflow-wrap: anywhere; }
 .flow-line em { font-style: normal; opacity: .7; font-size: 12px; }
+/* Receipts */
+.receipt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.receipt-card { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.receipt-card img { width: 84px; height: 112px; object-fit: cover; border-radius: 8px; background: var(--surface-2, rgba(127,127,127,.1)); }
+.receipt-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.receipt-editor-top { display: grid; grid-template-columns: 160px 1fr; gap: 14px; }
+.receipt-editor-top img { width: 160px; max-height: 260px; object-fit: contain; border-radius: 8px; }
+.receipt-items input, .receipt-items select { min-width: 70px; }
+.receipt-items td:first-child input { min-width: 160px; }
+@media (max-width: 640px) { .receipt-editor-top { grid-template-columns: 1fr; } .receipt-editor-top img { width: 100%; } }
+.item-bars { display: grid; gap: 6px; margin-bottom: 14px; }
+.item-bar { display: grid; grid-template-columns: minmax(140px, 200px) 1fr auto; gap: 10px; align-items: center; }
+.item-bar-track { height: 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); overflow: hidden; }
+.item-bar-track span { display: block; height: 100%; background: var(--accent, #2d8b72); border-radius: 999px; }
 .pnl-steps { display: grid; gap: 4px; margin-bottom: 14px; }
 .pnl-step { display: grid; grid-template-columns: minmax(220px, 340px) 1fr 120px; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 8px; }
 .pnl-step.sum { font-weight: 600; background: var(--surface-2, rgba(127,127,127,.06)); }
