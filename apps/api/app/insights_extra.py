@@ -76,12 +76,79 @@ def business_overview(db: Session, user_id: str, year: int) -> dict:
             "totals": {"income": sum(income_m, ZERO), "expenses": sum(expense_m, ZERO), "profit": profit,
                        "tax_reserve_suggestion": max(ZERO, profit) * TAX_RESERVE_RATE, "tax_reserve_rate": TAX_RESERVE_RATE},
             "months_without_income": [f"{year}-{i + 1:02d}" for i in range(last_month) if income_m[i] == 0],
-            "has_rules": bool([r for r in load_rules(db, user_id) if r.source == "business"])}
+            "has_rules": bool([r for r in load_rules(db, user_id) if r.source == "business"]),
+            "pnl": business_pnl(db, user_id, year, income_m, expense_m)}
+
+
+POT_KINDS = (("vat", ("umsatzsteuer", "ust")), ("income_tax", ("einkommensteuer", "einkommenssteuer", "est ", "taxes")),
+             ("adviser", ("steuerberater",)))
+
+
+def pot_kind(name: str) -> str | None:
+    text = f"{name.casefold()} "
+    for kind, words in POT_KINDS:
+        if any(w in text for w in words):
+            return kind
+    return None
+
+
+def business_pnl(db: Session, user_id: str, year: int, income_m: list[Decimal], expense_m: list[Decimal], vat_rate: Decimal | None = None) -> dict:
+    """Gross to net for the side business, month by month.
+
+    Gross income (paid by clients incl. VAT) -> minus contained VAT = net revenue -> minus business expenses
+    = EBITDA (no depreciation or interest is tracked, so EBIT equals EBITDA) -> minus tax adviser costs
+    = profit before income tax -> minus the income-tax reserve = what is left. Reserves are shown twice:
+    what the rate requires and what you actually moved into your tax pots (transfers into pots whose name
+    contains Umsatzsteuer/USt, Einkommensteuer or Steuerberater), plus payments made from those pots.
+    """
+    from .business import TAX_RESERVE_RATE
+    from .models import Setting
+    rate = vat_rate
+    if rate is None:
+        row = db.get(Setting, user_id)
+        stored = (row.data or {}).get("business_vat_rate") if row else None
+        rate = Decimal(str(stored)) if stored not in (None, "") else Decimal("0.19")
+    pots = {a.id: pot_kind(a.name) for a in db.scalars(select(Account).where(Account.user_id == user_id))}
+    moved = {k: [ZERO] * 12 for k, _ in POT_KINDS}
+    paid = {k: [ZERO] * 12 for k, _ in POT_KINDS}
+    for tx in db.scalars(select(Transaction).where(Transaction.user_id == user_id, Transaction.booking_date >= date(year, 1, 1),
+                                                   Transaction.booking_date <= date(year, 12, 31))):
+        kind = pots.get(tx.account_id)
+        if not kind:
+            continue
+        m = tx.booking_date.month - 1
+        if tx.amount > 0 and tx.is_transfer:
+            moved[kind][m] += tx.amount
+        elif tx.amount < 0 and not tx.is_transfer:
+            paid[kind][m] += -tx.amount
+    rows = []
+    for i in range(12):
+        gross = income_m[i]
+        vat = (gross * rate / (1 + rate)).quantize(Decimal("0.01")) if rate else ZERO
+        net = gross - vat
+        ebitda = net - expense_m[i]
+        adviser = paid["adviser"][i]
+        before_tax = ebitda - adviser
+        tax_needed = max(ZERO, before_tax) * TAX_RESERVE_RATE
+        rows.append({"month": f"{year}-{i + 1:02d}", "gross": gross, "vat": vat, "net_revenue": net, "expenses": expense_m[i],
+                     "ebitda": ebitda, "tax_adviser": adviser, "profit_before_tax": before_tax, "income_tax_reserve": tax_needed,
+                     "left": before_tax - tax_needed, "moved_vat": moved["vat"][i], "moved_income_tax": moved["income_tax"][i],
+                     "moved_adviser": moved["adviser"][i], "paid_vat": paid["vat"][i], "paid_income_tax": paid["income_tax"][i]})
+    keys = [k for k in rows[0] if k != "month"]
+    total = {k: sum((r[k] for r in rows), ZERO) for k in keys}
+    margin = (total["left"] / total["gross"]) if total["gross"] else None
+    return {"vat_rate": rate, "income_tax_rate": TAX_RESERVE_RATE, "months": rows, "total": total, "net_margin": margin,
+            "reserve_gap": {"vat": total["vat"] - total["moved_vat"], "income_tax": total["income_tax_reserve"] - total["moved_income_tax"]},
+            "pots_found": sorted({k for k in pots.values() if k})}
 
 
 @router.get("/business/overview")
-def get_business_overview(year: int | None = Query(None, ge=2000, le=2100), db: Session = Depends(get_db), user=Depends(current_user)):
-    return business_overview(db, user.id, year or local_today(db, user.id).year)
+def get_business_overview(year: int | None = Query(None, ge=2000, le=2100), vat_rate: Decimal | None = Query(None, ge=0, le=Decimal("0.3")),
+                          db: Session = Depends(get_db), user=Depends(current_user)):
+    data = business_overview(db, user.id, year or local_today(db, user.id).year)
+    if vat_rate is not None:
+        data["pnl"] = business_pnl(db, user.id, data["year"], [Decimal(v) for v in data["income_monthly"]], [Decimal(v) for v in data["expense_monthly"]], vat_rate)
+    return data
 
 
 @router.get("/business/euer.csv")

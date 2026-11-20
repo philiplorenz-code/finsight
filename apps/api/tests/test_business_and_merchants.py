@@ -99,3 +99,28 @@ def test_flows_balance_in_and_out(owner):
     inflow = sum(D(str(l["value"])) for l in data["links"] if l["target"] == hub)
     outflow = sum(D(str(l["value"])) for l in data["links"] if l["source"] == hub)
     assert inflow == outflow and inflow > 0
+
+
+def test_business_pnl_gross_to_net_with_pots(owner):
+    vat_pot = {"Konto-ID": "synthetic-vat", "Konto": "2026 Umsatzsteuer"}
+    est_pot = {"Konto-ID": "synthetic-est", "Konto": "2026 Einkommenssteuer"}
+    adv_pot = {"Konto-ID": "synthetic-adv", "Konto": "2026 Steuerberater"}
+    rows = [booking("g1", "1190", day="2026-03-10", **{"Empfänger": "Synthetic Verlag A"}),
+            booking("e1", "-100", day="2026-03-12", **{"Empfänger": "Synthetic Hosting"}),
+            booking("v1", "190", day="2026-03-11", **vat_pot, **{"Umbuchung": "Ja"}),
+            booking("i1", "200", day="2026-03-11", **est_pot, **{"Umbuchung": "Ja"}),
+            booking("a0", "150", day="2026-03-11", **adv_pot, **{"Umbuchung": "Ja"}),
+            booking("a1", "-150", day="2026-03-20", **adv_pot, **{"Empfänger": "Synthetic Steuerberater"})]
+    assert upload(owner, rows).status_code == 200
+    for a in owner.get("/api/accounts").json():
+        owner.patch(f"/api/accounts/{a['id']}", json={"ownership": "owned"})
+    assert owner.post("/api/income-rules", json={"name": "Verlag A", "source": "business", "pattern": "Synthetic Verlag A"}).status_code == 201
+    assert owner.post("/api/business-rules", json={"name": "Hosting", "pattern": "Synthetic Hosting"}).status_code == 201
+    pnl = owner.get("/api/business/overview", params={"year": 2026}).json()["pnl"]
+    march = pnl["months"][2]
+    assert D(march["gross"]) == D(1190) and D(march["vat"]) == D(190) and D(march["net_revenue"]) == D(1000)
+    assert D(march["ebitda"]) == D(900) and D(march["tax_adviser"]) == D(150) and D(march["profit_before_tax"]) == D(750)
+    assert D(march["income_tax_reserve"]) == D(225) and D(march["left"]) == D(525)
+    assert D(march["moved_vat"]) == D(190) and D(pnl["reserve_gap"]["income_tax"]) == D(25)
+    small = owner.get("/api/business/overview", params={"year": 2026, "vat_rate": "0"}).json()["pnl"]
+    assert D(small["months"][2]["vat"]) == 0 and D(small["months"][2]["net_revenue"]) == D(1190)
