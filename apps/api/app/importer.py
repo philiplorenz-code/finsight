@@ -256,6 +256,7 @@ def parse_workbook(data):
                 result.append({
                     "account_key": digest([account_identity, currency]),
                     "account_name": str(values.get("account") or "Imported account"),
+                    "account_identity_raw": str(values.get("account_id") or ""),
                     "source_key": key, "booking_date": booking_date,
                     "value_date": parse_date(values.get("value_date"), workbook.epoch),
                     "amount": amount, "currency": currency, "merchant": merchant,
@@ -345,7 +346,11 @@ def ingest(db, user, data, filename, full_snapshot=False):
     for row in rows:
         account = accounts.get(row["account_key"])
         if account is None:
-            account = Account(user_id=user.id, source_key=row["account_key"], name=row["account_name"], currency=row["currency"])
+            from .providers import from_iban, from_name, iban_from_source
+            provider = (from_iban(iban_from_source(row["source"])) or from_iban(row.get("account_identity_raw"))
+                        or from_name(row["account_name"]))
+            account = Account(user_id=user.id, source_key=row["account_key"], name=row["account_name"], currency=row["currency"],
+                              provider=provider, provider_source="detected" if provider else "unknown")
             db.add(account)
             db.flush()
             accounts[account.source_key] = account
