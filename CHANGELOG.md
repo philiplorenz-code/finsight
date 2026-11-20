@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Bank/provider per account: detected from the IBAN's bank code (e.g. DKB, N26, ING, Sparkasse, Volksbank, bunq, Revolut) or the name (PayPal), only the provider name is stored. Set or clear it manually; filter accounts and transactions by bank (`provider` query parameter, `GET /api/account-providers`). Migration 0016.
+
 - Spending paid straight from savings pots (e.g. groceries, fuel, holiday pots) now counts in the baseline used by wishlist, health check and analyst; pot interest and refills are not income.
 - New account purpose `mirror` (e.g. PayPal): its balance counts, its bookings are excluded from spending, overview and plan actuals because the bank account already shows them. Suggested automatically for PayPal-like account names.
 
