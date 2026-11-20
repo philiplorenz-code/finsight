@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Operations: disk-space warning on the overview (`GET /api/system/disk`), `scripts/scheduled-backup.sh` with retention and a free-space guard, `docs/operations.md` with pruning and cron/launchd recipes. Closes #40.
+
 - CI: Playwright browsers are cached and the install retries when apt mirrors are unreachable (shared composite action). Closes #39.
 
 - Searchable account picker (transaction filter and income rules); accounts with the same name get a short id suffix. Closes #38.

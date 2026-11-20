@@ -87,7 +87,7 @@ Read [architecture](docs/architecture/overview.md), [financial semantics](docs/f
 | Actual implementation status | [Release status](docs/release-status.md) |
 | Import behavior and reconciliation | [Finanzguru import](docs/finanzguru-import.md) |
 | Configuration and troubleshooting | [Configuration](docs/deployment/configuration.md) |
-| Backup and recovery | [Backup/restore](docs/deployment/backup-restore.md) |
+| Backup and recovery | [Backup/restore](docs/deployment/backup-restore.md), [disk space and scheduled backups](docs/operations.md) |
 | Privacy | [Privacy](docs/privacy.md), [security policy](SECURITY.md) |
 | External assistants and reusable workflows | [MCP](docs/mcp.md), [tool reference](docs/mcp-tools.md), [authorization](docs/mcp-auth.md) |
 | Development and tests | [Development](docs/development.md) |
