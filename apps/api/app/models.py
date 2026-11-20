@@ -144,6 +144,18 @@ class Allocation(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 8))
 
 
+class AllocationEvent(Base):
+    """Append-only history of what was earmarked for a bucket; allocations themselves are replaced on each save."""
+    __tablename__ = "allocation_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    bucket_id: Mapped[str] = mapped_column(String(36), index=True)
+    bucket_name: Mapped[str] = mapped_column(String(300))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    account_id: Mapped[str] = mapped_column(String(36))
+    amount: Mapped[Decimal] = mapped_column(Numeric(24, 8))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class Obligation(Base):
     __tablename__ = "obligations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)

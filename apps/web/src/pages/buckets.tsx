@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Plus, PiggyBank, ArrowUpRight } from 'lucide-react'
+import { CalendarDays, Plus, PiggyBank, ArrowUpRight, Settings2 } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import type { Account } from '../lib/types'
+import { BucketManage } from '../components/bucket-manage'
 import { normalizeBucket, type RawBucket } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
 import { Badge, Button, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
@@ -12,6 +13,7 @@ export default function BucketsPage() {
   const query = useQuery({ queryKey: ['buckets'], queryFn: async () => items(await api<RawBucket[]>('/buckets')).map(normalizeBucket) })
   const [create, setCreate] = useState(false)
   const [selected, setSelected] = useState<{ bucket: RawBucket; mode: 'fund' | 'obligation' } | null>(null)
+  const [managing, setManaging] = useState<RawBucket | null>(null)
   return <>
     <PageHeader title={t('buckets')} description={t('bucketsIntro')} action={<Button onClick={() => setCreate(true)}><Plus size={17} />{t('createBucket')}</Button>} />
     <Notice>{t('allocationNote')}</Notice>
@@ -28,11 +30,12 @@ export default function BucketsPage() {
           <div className="bucket-meta"><span>{t('required')}</span><Money value={b.required_monthly} currency={b.currency} /></div>
           <div className="bucket-meta muted"><span><CalendarDays size={14} />{t('due')}</span><span>{formatDate(b.due_date, language)}</span></div>
           {!!b.obligations?.length && <ul className="obligation-list">{b.obligations.map(o => <li key={o.id}><span>{o.name}</span><Money value={o.amount} currency={b.currency} /></li>)}</ul>}
-          <div className="bucket-actions"><Button variant="outline" onClick={() => setSelected({ bucket: b, mode: 'fund' })}>{t('fund')}<ArrowUpRight size={15} /></Button><Button variant="ghost" onClick={() => setSelected({ bucket: b, mode: 'obligation' })} aria-label={`${t('addObligation')}: ${b.name}`}><Plus size={17} /></Button></div>
+          <div className="bucket-actions"><Button variant="outline" onClick={() => setSelected({ bucket: b, mode: 'fund' })}>{t('fund')}<ArrowUpRight size={15} /></Button><Button variant="ghost" onClick={() => setSelected({ bucket: b, mode: 'obligation' })} aria-label={`${t('addObligation')}: ${b.name}`}><Plus size={17} /></Button><Button variant="ghost" onClick={() => setManaging(b)} aria-label={`${language === 'de' ? 'Verwalten' : 'Manage'}: ${b.name}`}><Settings2 size={17} /></Button></div>
         </Panel>
       })}</div>
     </QueryState>
     {create && <BucketCreate onClose={() => setCreate(false)} />}
+    {managing && <BucketManage bucket={managing} onClose={() => setManaging(null)} />}
     {selected && <BucketAction bucket={selected.bucket} mode={selected.mode} onClose={() => setSelected(null)} />}
   </>
 }
