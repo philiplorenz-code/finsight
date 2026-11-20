@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- CI: Playwright browsers are cached and the install retries when apt mirrors are unreachable (shared composite action). Closes #39.
+
 - Searchable account picker (transaction filter and income rules); accounts with the same name get a short id suffix. Closes #38.
 
 - Import coverage: each import summary lists per account the rows, first/last booking and previous row count, and names accounts whose history shrank (file starts later or rows are missing). The watched folder imports files named like "Alle Buchungen" as full snapshots (`FINSIGHT_WATCH_FULL_SNAPSHOT=auto|true|false`). Closes #48.
