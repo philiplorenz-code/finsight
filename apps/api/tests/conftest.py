@@ -87,3 +87,9 @@ def owner(client):
 
 def upload(client, rows, **kwargs):
     return client.post("/api/imports", files={"file": ("synthetic.xlsx", xlsx(rows))}, **kwargs)
+
+
+@pytest.fixture(autouse=True)
+def upload_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("FINSIGHT_UPLOAD_DIR", str(tmp_path / "uploads"))
+    return tmp_path / "uploads"

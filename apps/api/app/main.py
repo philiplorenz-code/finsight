@@ -29,6 +29,16 @@ from .mcp_auth import router as mcp_auth_router
 
 @asynccontextmanager
 async def lifespan(app):
+    import threading
+    from .db import engine
+    from .routes import resume_interrupted_imports
+    # Imports a previous process left half-way continue from their retained upload, off the request path.
+    def resume():
+        try:
+            resume_interrupted_imports(engine)
+        except Exception:  # best effort: a missing schema or database must not stop the API from starting
+            pass
+    threading.Thread(target=resume, daemon=True, name="resume-imports").start()
     if mcp_enabled():
         async with mcp.session_manager.run():
             yield
