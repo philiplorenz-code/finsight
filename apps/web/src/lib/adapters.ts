@@ -22,7 +22,7 @@ export function periodDates(period: string, from: string, to: string, now = new 
   const end = period === 'lastmonth' ? new Date(Date.UTC(year, month - 1, 0)).toISOString().slice(0, 10) : `${year}-${String(month).padStart(2, '0')}-${String(get('day')).padStart(2, '0')}`
   return { start: start.toISOString().slice(0, 10), end }
 }
-export type RawBucket = Bucket & { target?: string; funded?: string; required_monthly_contribution?: string; warnings?: string[]; allocations?: { account_id: string; amount: string }[] }
+export type RawBucket = Bucket & { target?: string; funded?: string; required_monthly_contribution?: string; goal?: { status: string; required_monthly: string; planned_monthly: string; months_left?: number | null; projected_at_due?: string | null; target: string } | null; warnings?: string[]; allocations?: { account_id: string; amount: string }[] }
 export function normalizeBucket(b: RawBucket): RawBucket { return { ...b, target_amount: b.target, funded_amount: b.funded, required_monthly: b.required_monthly_contribution } }
 export type RawContract = Omit<Contract, 'id' | 'evidence'> & { id?: string; period?: string; annual_cost?: string; evidence?: (string | { transaction_id?: string; description?: string })[] }
 export function normalizeContract(c: RawContract, i: number): Contract { return { ...c, id: c.id || `${c.name}-${c.currency}-${i}`, frequency: c.period, annualized_cost: c.annual_cost, evidence: c.evidence?.map(e => typeof e === 'string' ? { transaction_id: e } : e) } }
