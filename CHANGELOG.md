@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Contracts page redesign: monthly/yearly total, clickable cost bars per kind, search, kind filter, sort (cost, next charge, name), price-increase filter and contracts as cards grouped by kind; stopped contracts folded away.
+
 - Coming up: `GET /api/upcoming?days=` lists expected contract debits (with account), standing orders into pots and expected pay for the next days; shown on the overview (14 days) and the plan page (30 days).
 - Forecast: `GET /api/forecast?months=` projects cash and net worth (expected and cautious) month by month from the baseline surplus, loan amortisation (principal repaid, payment freed after payoff) and flat assets; chart with zoom on the net-worth page.
 
