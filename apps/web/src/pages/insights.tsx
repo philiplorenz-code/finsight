@@ -97,7 +97,7 @@ function Analyst({ enabled }: { enabled: boolean }) {
   const client = useQueryClient()
   const [question, setQuestion] = useState('')
   const [names, setNames] = useState(false)
-  const preview = useMutation({ mutationFn: () => api<Preview>(`/ai/context?include_names=${names}`) })
+  const preview = useMutation({ mutationFn: () => api<Preview>(`/ai/context?include_names=${names}&question=${encodeURIComponent(question)}`) })
   const ask = useMutation({
     mutationFn: () => send<AskResult>('/ai/ask', { question, include_names: names }),
     onSettled: () => { client.invalidateQueries({ queryKey: ['ai-usage'] }); client.invalidateQueries({ queryKey: ['findings'] }) },
@@ -105,6 +105,7 @@ function Analyst({ enabled }: { enabled: boolean }) {
   return <Panel title={de ? 'KI-Analyst' : 'AI analyst'} action={<MessageCircleQuestion size={20} />} description={de
     ? 'Stell eine beliebige Frage zu deinen Finanzen. Die KI sieht nie einzelne Buchungen, nur gerundete Kennzahlen aus deinen Auswertungen (Durchschnitte, Kategorien, Vertragsklassen, Vermögen, Wunsch-Bewertung).'
     : 'Ask anything about your finances. The AI never sees single bookings, only rounded figures from your analysis.'}>
+    <AutoFindings de={de} />
     <div className="chip-row">{(de ? QUESTIONS_DE : QUESTIONS_EN).map(q => <Button key={q} variant="outline" type="button" onClick={() => setQuestion(q)}>{q}</Button>)}</div>
     <form className="form-stack" onSubmit={e => { e.preventDefault(); ask.mutate() }}>
       <Field label={de ? 'Deine Frage' : 'Your question'} hint={de ? 'Bitte keine Namen, Kontonummern oder Adressen eintippen: Der Text geht an den KI-Anbieter.' : 'Please do not type names, account numbers or addresses: the text goes to the AI provider.'}>
@@ -123,4 +124,13 @@ function Analyst({ enabled }: { enabled: boolean }) {
       <p className="muted small">{ask.data.input_tokens ?? '—'} / {ask.data.output_tokens ?? '—'} tokens · {de ? 'Planungshilfe, keine Anlage-, Steuer- oder Rechtsberatung.' : 'Planning aid, not investment, tax or legal advice.'}</p>
       <details><summary>{de ? 'Gesendete Daten dieser Antwort' : 'Data sent for this answer'}</summary><pre className="json-preview">{JSON.stringify(ask.data.sent, null, 1)}</pre></details></div>}
   </Panel>
+}
+
+type AutoFinding = { code: string; title: string; severity: string; confidence: string; impact_monthly: number | null }
+function AutoFindings({ de }: { de: boolean }) {
+  const query = useQuery({ queryKey: ['ai-findings'], queryFn: () => api<AutoFinding[]>('/ai/findings') })
+  if (!Array.isArray(query.data) || !query.data.length) return null
+  return <details open><summary>{de ? `Automatische Auffälligkeiten (${query.data.length}, ohne KI berechnet)` : `Automatic findings (${query.data.length}, computed without AI)`}</summary>
+    <ul>{query.data.map((f, i) => <li key={`${f.code}-${i}`}><Badge tone={f.severity === 'high' ? 'warning' : ''}>{f.severity}</Badge> {f.title}{f.impact_monthly != null && <span className="muted"> · {de ? 'Wirkung' : 'impact'} ≈ {f.impact_monthly} €/{de ? 'Mon.' : 'mo.'}</span>} <span className="muted small">({de ? 'Konfidenz' : 'confidence'}: {f.confidence})</span></li>)}</ul>
+  </details>
 }
