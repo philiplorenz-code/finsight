@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import calendar
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_CEILING, Decimal
 from typing import Literal
 
@@ -106,6 +106,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         first_booking = min(tx.booking_date for tx in in_cashflow)
         months = [m for m in months if add_months(m, 1) > first_booking]
         window = set(months)
+        from .cashbook import entries as cash_entries, is_withdrawal, since as cash_book_since
+        cash_since = cash_book_since(db, user_id)
         for tx in rows:
             key = month_start(tx.booking_date)
             rule = match_rule(tx, rules) if tx.amount >= 0 else None
@@ -129,6 +131,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 income_by_source[source][key] += tx.amount
                 if source == "other":
                     unassigned[(tx.merchant or "").strip() or "?"] += tx.amount
+            elif is_withdrawal(tx, cash_since):
+                continue  # cash book active: counted through the logged cash entries instead
             elif is_business_expense(tx, business_rules):
                 business_expenses[key] += -tx.amount
             else:
@@ -136,6 +140,13 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 label = (tx.effective_category or "").strip() or "Uncategorized"
                 expense_by_category[key][label] += -tx.amount
                 expense_by_merchant[(tx.merchant or "").strip() or "?"] += -tx.amount
+        if months:
+            for entry in cash_entries(db, user_id, months[0], add_months(months[-1], 1) - timedelta(days=1)):
+                key = month_start(entry.day)
+                if key in window:
+                    expenses[key] += entry.amount
+                    expense_by_category[key][entry.category] += entry.amount
+                    expense_by_merchant[entry.merchant or "Bargeld"] += entry.amount
         if any(tx.transfer_uncertain for tx in in_cashflow if month_start(tx.booking_date) in window):
             warnings.append("Some transfers are uncertain; the consumption figure may be slightly off")
     count = len(months)

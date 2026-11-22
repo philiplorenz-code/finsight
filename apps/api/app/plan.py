@@ -92,8 +92,16 @@ def actuals(db: Session, user_id: str, items: list[PlanItem], first: date, last:
     out: dict[tuple[str, date], dict] = defaultdict(lambda: {"actual": ZERO, "from_pot": ZERO, "elsewhere": ZERO, "count": 0})
     rows = db.scalars(select(Transaction).where(Transaction.user_id == user_id, Transaction.booking_date >= first,
                                                 Transaction.booking_date <= last))
+    from .cashbook import entries as cash_entries, is_withdrawal, since as cash_book_since
+    cash_since = cash_book_since(db, user_id)
+    for entry in cash_entries(db, user_id, first, last):
+        for item in by_category.get(entry.category.strip().casefold(), []):
+            bucket = out[(item.id, month_start(entry.day))]
+            bucket["actual"] += entry.amount
+            bucket["elsewhere"] += entry.amount
+            bucket["count"] += 1
     for tx in rows:
-        if tx.account_id not in counted or not eligible(tx):
+        if tx.account_id not in counted or not eligible(tx) or is_withdrawal(tx, cash_since):
             continue
         account = accounts[tx.account_id]
         value = -tx.amount * share_on(account, tx.booking_date) / HUNDRED
