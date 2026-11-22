@@ -1,10 +1,12 @@
 import { AccountSelect } from '../components/account-select'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Gift, Plus, Settings2, Trash2, Check } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDate, formatMoney, useLocale } from '../lib/i18n'
+import { MonthTable, type Series } from '../components/month-table'
 import { Simulator } from '../components/simulator'
 import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
@@ -25,6 +27,7 @@ type Wishlist = {
   prefs: { self_names: string[]; reserve_months: number; monthly_tax_reserve: string }
   payoff_scenarios?: { holding_id: string; name: string; months_left: number; payoff_date: string; freed_monthly: string; expected_surplus_after: string; conservative_surplus_after: string }[]
   wishes: WishItem[]; disclaimer: string
+  series?: Series
 }
 const DE_MESSAGES: Record<string, string> = {
   'No account is marked as owned; classify accounts before relying on this assessment': 'Kein Konto ist als eigenes Konto markiert; ordne die Konten zu, bevor du dich auf diese Einschätzung verlässt.',
@@ -102,21 +105,24 @@ export default function WishlistPage() {
         </Panel>)}</div>
         {open.some(w => w.assessment && w.assessment.verdict !== 'unsupported_currency') && <PlanChart baseline={data.baseline} wishes={open} />}
         <Simulator />
-        <details className="wish-basis"><summary>{language === 'de' ? 'Rechengrundlage, Einkommen und Gewerbe' : 'Basis, income and business'}</summary>
+        <details className="wish-basis" open><summary>{language === 'de' ? 'Deine Zahlen, Einkommen und Gewerbe' : 'Your figures, income and business'}</summary>
         <Panel title={t('wishBasis')} description={`${t('wishMonths')}: ${data.baseline.months_used} · ${t('wishConfidence')}: ${language === 'de' ? DE_CONFIDENCE[data.baseline.confidence] ?? data.baseline.confidence : data.baseline.confidence}`}>
-          <div className="stat-grid">
-            <div className="detail-stat"><span>{t('wishIncome')}</span><Money value={data.baseline.monthly_income} currency={data.baseline.currency} /></div>
-            <div className="detail-stat"><span>{t('wishConsumption')}</span><Money value={data.baseline.monthly_consumption} currency={data.baseline.currency} /></div>
-            <div className="detail-stat"><span>{t('wishTax')}</span><Money value={data.baseline.monthly_tax} currency={data.baseline.currency} /></div>
-            <div className="detail-stat"><span>{t('wishSurplusExpected')}</span><Money value={data.baseline.expected_surplus} currency={data.baseline.currency} /></div>
-            <div className="detail-stat"><span>{t('wishSurplusConservative')}</span><Money value={data.baseline.conservative_surplus} currency={data.baseline.currency} /></div>
-            <div className="detail-stat"><span>{t('wishUsableCash')}</span><Money value={data.baseline.usable_cash} currency={data.baseline.currency} /></div>
-          </div>
+          {(() => { const ser = data.series; const i = (ser?.months.length ?? 0) - 1; if (!ser || i < 0) return null
+            const v = (arr?: (string | number)[]) => String(arr?.[i] ?? 0)
+            const month = new Intl.DateTimeFormat(language === 'de' ? 'de-DE' : 'en-GB', { month: 'long', year: 'numeric' }).format(new Date(`${ser.months[i].slice(0, 7)}-01T00:00:00`))
+            return <><p className="muted small">{language === 'de' ? `Letzter vollständiger Monat: ${month}` : `Last complete month: ${month}`}</p><div className="stat-grid">
+              <div className="detail-stat"><span>{language === 'de' ? 'Gehalt' : 'Salary'}</span><Money value={v(ser.income.employment)} currency={data.baseline.currency} /></div>
+              <div className="detail-stat"><span>{language === 'de' ? 'Nebengewerbe' : 'Business'}</span><Money value={v(ser.income.business)} currency={data.baseline.currency} /></div>
+              <div className="detail-stat"><span>{language === 'de' ? 'Ausgaben' : 'Spent'}</span><Money value={v(ser.expenses)} currency={data.baseline.currency} /></div>
+              <div className="detail-stat"><span>{language === 'de' ? 'Überschuss' : 'Surplus'}</span><Money value={v(ser.surplus)} currency={data.baseline.currency} /></div>
+              <div className="detail-stat"><span>{t('wishUsableCash')}</span><Money value={data.baseline.usable_cash} currency={data.baseline.currency} /></div>
+            </div></> })()}
+          <p className="small"><Link to="/averages">{language === 'de' ? 'Planwerte und Durchschnitte ansehen →' : 'See planning values and averages →'}</Link></p>
           {data.baseline.warnings.map((w, i) => <Notice warning key={i}>{localize(w, language)}</Notice>)}
           <details><summary>{t('wishAssumptions')}</summary><ul>{data.baseline.assumptions.map((a, i) => <li key={i}>{localize(a, language)}</li>)}</ul></details>
         </Panel>
-        <Panel title={t('incomeSources')}>
-          <div className="stat-grid">{(['employment', 'business', 'other'] as const).map(k => { const s = data.baseline.income_sources?.[k]; return s && <div className="detail-stat" key={k}><span>{t(`src_${k}` as never)} · {Math.round(Number(s.share) * 100)} %</span><Money value={s.monthly_average} currency={data.baseline.currency} /><span className="muted">{t('srcWorst')}: <Money value={s.monthly_lower_quartile} currency={data.baseline.currency} /> · {t('srcMonths')}: {s.months_with_income}/{data.baseline.months_used}</span></div> })}</div>
+        <Panel title={language === 'de' ? 'Monat für Monat' : 'Month by month'} description={language === 'de' ? 'Was wirklich reinkam und rausging, neuester Monat oben.' : 'What actually came in and went out, newest first.'}>
+          <MonthTable series={data.series} currency={data.baseline.currency} />
         </Panel>
         {!!data.payoff_scenarios?.length && <Panel title={language === 'de' ? 'Wenn Schulden abbezahlt sind' : 'Once debts are repaid'} description={language === 'de' ? 'Die frei werdende Rate (dein Anteil) erhöht den monatlichen Überschuss.' : 'The freed payment (your share) raises the monthly surplus.'}>
           <table className="data-table"><thead><tr><th>{language === 'de' ? 'Schuld' : 'Debt'}</th><th>{language === 'de' ? 'Abbezahlt' : 'Paid off'}</th><th>{language === 'de' ? 'Frei pro Monat' : 'Freed / month'}</th><th>{language === 'de' ? 'Überschuss danach' : 'Surplus after'}</th><th>{language === 'de' ? 'Vorsichtig danach' : 'Cautious after'}</th></tr></thead>

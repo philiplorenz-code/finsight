@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- Concrete instead of averaged: planning uses the latest month's salary when pay changed; the wishlist shows the last complete month (salary, side business, spending, surplus) and a month-by-month table instead of averages. All averages moved to a new page **Durchschnitte** (`/averages`).
+- Bank detection knows bunq (German IBANs, BLZ 37019000), Trade Republic and Solaris; accounts with an unknown bank are checked again on the next listing.
+- Phones: transactions, coming up and plan items become compact cards below 640 px, the period picker scrolls sideways, header buttons wrap in a row, the AI banner stacks, tap targets at least 32-36 px.
+
 - Accounts show their IBAN (from the export's Referenzkonto, filled for existing accounts on the next account listing) with a copy button. Migration 0020.
 - Current salary: when pay changed in the last three months, wishlist, forecast, health check and analyst use the median of those months instead of the twelve-month average (with a notice).
 - Dependency updates (bundles the open Dependabot PRs): Node 26 and nginx-unprivileged 1.31 images (Python stays 3.12: no 3.15 wheels for zstandard yet); actions/checkout, setup-python, setup-node v7, gitleaks-action v3; lucide-react 1.75, jsdom 31, vitest 5.1.1, user-event 14.6.12, @types/node 26; minimum versions alembic 1.20.1, argon2-cffi 25.1, python-multipart 0.0.33, uvicorn 0.54, SQLAlchemy 2.1.8.

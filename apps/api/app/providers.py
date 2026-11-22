@@ -16,6 +16,7 @@ EXACT_BLZ = {
     "10010010": "Postbank", "10070000": "Deutsche Bank", "10070024": "Deutsche Bank",
     "50070010": "Deutsche Bank", "50070024": "Deutsche Bank", "60050101": "BW-Bank",
     "70150000": "Stadtsparkasse München", "43060967": "GLS Bank", "30020900": "TARGOBANK",
+    "37019000": "bunq", "10012345": "Trade Republic", "11010100": "Solaris",
 }
 BLZ_GROUP = {"5": "Sparkasse", "9": "Volksbank / Raiffeisenbank", "4": "Commerzbank"}
 FOREIGN = (("NL", "BUNQ", "bunq"), ("NL", "INGB", "ING"), ("LT", "3250", "Revolut"), ("GB", "REVO", "Revolut"),
@@ -78,9 +79,10 @@ def detect_missing(db, user_id: str) -> int:
     """Fill the provider of accounts never checked before from one of their bookings. Returns how many were set."""
     from .models import Account, Transaction
     found = 0
-    for account in db.scalars(select(Account).where(Account.user_id == user_id, Account.provider_source.is_(None))):
+    # "unknown" is checked again, so new entries in the bank list reach accounts imported earlier.
+    for account in db.scalars(select(Account).where(Account.user_id == user_id, (Account.provider_source.is_(None)) | (Account.provider_source == "unknown"))):
         tx = db.scalar(select(Transaction).where(Transaction.account_id == account.id).limit(1))
-        provider = from_iban(iban_from_source(tx.source if tx else None)) or from_name(account.name)
+        provider = from_iban(account.iban or iban_from_source(tx.source if tx else None)) or from_name(account.name)
         account.provider, account.provider_source = provider, ("detected" if provider else "unknown")
         found += bool(provider)
     return found
