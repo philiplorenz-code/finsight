@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Dependency updates (bundles the open Dependabot PRs): Node 26 and nginx-unprivileged 1.31 images (Python stays 3.12: no 3.15 wheels for zstandard yet); actions/checkout, setup-python, setup-node v7, gitleaks-action v3; lucide-react 1.75, jsdom 31, vitest 5.1.1, user-event 14.6.12, @types/node 26; minimum versions alembic 1.20.1, argon2-cffi 25.1, python-multipart 0.0.33, uvicorn 0.54, SQLAlchemy 2.1.8.
+
 - Cancellation deadlines: store term end, notice period and renewal per contract (contract detail); the contracts page lists the next last day to cancel with a countdown, and deadlines appear under coming up (`/api/contract-terms`). Migration 0019.
 
 - Monthly close page (`/report`, `GET /api/reports/monthly?month=`): income, expenses, surplus and savings rate against last month and the six-month average, money at month end, categories with change vs. average, biggest expenses, plan vs. actual, anomalies and highlights; print-friendly for PDF.
