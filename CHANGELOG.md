@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Open items (`/open-items`): money someone owes you or you owe, with due date and note; a matching payment after the start date is suggested for one-click settlement. Migration 0021.
+- Side business on phones: clients as cards with month chips instead of a 13-column table. Footer in German.
+
 - Concrete instead of averaged: planning uses the latest month's salary when pay changed; the wishlist shows the last complete month (salary, side business, spending, surplus) and a month-by-month table instead of averages. All averages moved to a new page **Durchschnitte** (`/averages`).
 - Bank detection knows bunq (German IBANs, BLZ 37019000), Trade Republic and Solaris; accounts with an unknown bank are checked again on the next listing.
 - Phones: transactions, coming up and plan items become compact cards below 640 px, the period picker scrolls sideways, header buttons wrap in a row, the AI banner stacks, tap targets at least 32-36 px.

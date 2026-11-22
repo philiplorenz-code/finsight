@@ -21,6 +21,7 @@ from .business import router as business_router
 from .networth import router as networth_router
 from .system_status import router as system_router
 from .plan import router as plan_router
+from .receivables import router as receivables_router
 from .contract_terms import router as contract_terms_router
 from .report import router as report_router
 from .receipts import router as receipts_router
@@ -74,6 +75,7 @@ app.include_router(asof_router, prefix="/api", dependencies=[Depends(require_csr
 app.include_router(health_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(system_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(plan_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(receivables_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(contract_terms_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(report_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(receipts_router, prefix="/api", dependencies=[Depends(require_csrf)])
