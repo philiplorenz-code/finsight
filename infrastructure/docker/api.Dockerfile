@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS build
+FROM python:3.15-slim AS build
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -9,7 +9,7 @@ COPY apps/api/pyproject.toml ./
 COPY apps/api/app ./app
 RUN pip install --no-deps .
 
-FROM python:3.12-slim AS runtime
+FROM python:3.15-slim AS runtime
 ENV PATH="/opt/venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     LITELLM_TELEMETRY=False LITELLM_LOCAL_MODEL_COST_MAP=True \
     LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false DO_NOT_TRACK=true
