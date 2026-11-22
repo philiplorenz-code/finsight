@@ -433,3 +433,11 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
 .contract-card-cost { display: flex; align-items: baseline; gap: 4px; font-size: 20px; font-weight: 650; }
 @media (max-width: 760px) { .contract-summary { grid-template-columns: 1fr; } .kind-bar { grid-template-columns: 110px 1fr auto; } }
 .learn-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--border); margin: 10px 0; }
+/* Monthly close */
+.report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.report-highlights { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+@media print {
+  .sidebar, .topbar, .no-print, .sidebar-backdrop { display: none !important; }
+  .report-page .panel, .report-page .detail-stat { break-inside: avoid; }
+  body { background: #fff; color: #111; }
+}
