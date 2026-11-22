@@ -16,6 +16,8 @@ def test_from_iban_and_name():
     assert from_iban(iban("DE", "00", "67050000" + "0" * 10)) == "Sparkasse"
     assert from_iban(iban("DE", "00", "66090000" + "0" * 10)) == "Volksbank / Raiffeisenbank"
     assert from_iban(iban("NL", "00", "BUNQ" + "0" * 10)) == "bunq"
+    assert from_iban(iban("DE", "00", "37019000" + "0" * 10)) == "bunq"
+    assert from_iban(iban("DE", "00", "10012345" + "0" * 10)) == "Trade Republic"
     assert from_iban("synthetic-account") is None and from_iban(None) is None
     assert from_name("someone@example.test") == "PayPal" and from_name("Girokonto") is None
 

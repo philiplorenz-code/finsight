@@ -27,7 +27,7 @@ export function UpcomingList({ days = 30, compact = false }: { days?: number; co
   }
   return <Panel title={de ? 'Demnächst fällig' : 'Coming up'} description={de ? `Erwartete Abbuchungen, Daueraufträge und Gehalt der nächsten ${days} Tage, abgeleitet aus deinen Buchungen.` : `Expected debits, standing orders and pay for the next ${days} days, derived from your bookings.`}>
     {!items.length ? <p className="muted">{de ? 'Nichts erkannt.' : 'Nothing detected.'}</p> :
-      <DataTable headers={[de ? 'Datum' : 'Date', de ? 'Was' : 'What', de ? 'Art' : 'Type', de ? 'Konto' : 'Account', de ? 'Betrag' : 'Amount']}>
+      <DataTable variant="up" headers={[de ? 'Datum' : 'Date', de ? 'Was' : 'What', de ? 'Art' : 'Type', de ? 'Konto' : 'Account', de ? 'Betrag' : 'Amount']}>
         {items.map((u, i) => <tr key={i}><td className="nowrap">{formatDate(u.date, language)}</td><td>{u.name}</td><td className="small">{kindText(u)}</td><td className="small muted">{u.account ?? '—'}</td><td className="nowrap">{u.kind === 'deadline' ? '—' : <Money value={u.amount} currency={u.currency} />}</td></tr>)}
         <tr><td colSpan={4}><strong>{de ? 'Saldo der erwarteten Buchungen' : 'Net of expected bookings'}</strong></td><td><Money value={String(items.filter(u => u.kind !== 'transfer').reduce((s, u) => s + Number(u.amount), 0))} /></td></tr>
       </DataTable>}

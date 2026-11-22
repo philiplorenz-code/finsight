@@ -167,19 +167,19 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     monthly_income = sum((income[m] for m in months), ZERO) / count if count else ZERO
 
     sources = source_stats({s: [income_by_source[s][m] for m in months] for s in SOURCES})
-    # Salary changes (a raise, a new job) should count from now on: when the last three months all had pay,
-    # use their median instead of the twelve-month average for income and both surpluses.
+    # Concrete, not averaged: when the last three months all had pay, plan with the latest month's salary
+    # instead of the twelve-month average (a raise or new job counts from now on).
     salary = [income_by_source["employment"][m] for m in months]
     sources["employment"]["monthly_current"] = sources["employment"]["monthly_average"]
     if len(salary) >= 3 and all(v > ZERO for v in salary[-3:]):
-        current = sorted(salary[-3:])[1]
+        current = salary[-1]
         shift = current - sources["employment"]["monthly_average"]
         if abs(shift) >= Decimal("25"):
             sources["employment"]["monthly_current"] = current
             monthly_income += shift
             expected += shift
             conservative += shift
-            warnings.append("Salary changed recently: the current salary (median of the last three months) is used instead of the average")
+            warnings.append("Salary changed: the latest month's salary is used instead of the average")
     top_unassigned = [{"merchant": m, "total": v} for m, v in sorted(unassigned.items(), key=lambda kv: -kv[1])[:10]]
 
     category_totals: dict[str, Decimal] = defaultdict(lambda: ZERO)
@@ -355,7 +355,8 @@ def overview_payload(db, user, currency="EUR"):
     wishes = list(db.scalars(select(Wish).where(Wish.user_id == user.id).order_by(Wish.created_at)))
     assessments = {a["id"]: a for a in assess(base, wishes, today)}
     prefs = get_prefs(db, user.id)
-    return serialize({"baseline": {k: v for k, v in base.items() if k not in {"series", "savings"}}, "prefs": prefs,
+    series = {k: base["series"][k] for k in ("months", "income", "expenses", "surplus")}
+    return serialize({"baseline": {k: v for k, v in base.items() if k not in {"series", "savings"}}, "prefs": prefs, "series": series,
                       "payoff_scenarios": payoff_scenarios(db, user.id, base, currency),
                       "wishes": [{**wish_json(w), "assessment": assessments.get(w.id)} for w in wishes],
                       "disclaimer": "Planning aid based on your own data; not financial, tax or investment advice."})

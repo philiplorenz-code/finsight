@@ -378,4 +378,4 @@ def test_recent_raise_counts_as_current_salary(owner, db):
     base = baseline(db, user_id(db), today=date(2026, 7, 5))
     emp = base["income_sources"]["employment"]
     assert emp["monthly_average"] == D(3300) and emp["monthly_current"] == D(3600)
-    assert any("Salary changed recently" in w for w in base["warnings"])
+    assert any("Salary changed" in w for w in base["warnings"])
