@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3, Landmark, Target, Briefcase, Receipt, FileBarChart, Sigma, Handshake, Coins } from 'lucide-react'
+import { Eraser, ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3, Landmark, Target, Briefcase, Receipt, FileBarChart, Sigma, Handshake, Coins } from 'lucide-react'
 import { send } from '../lib/api'
 import { useLocale, type TranslationKey } from '../lib/i18n'
 import { Brand } from './auth'
+import { GlobalSearch } from './global-search'
 import { Button, Feedback } from './ui'
 import { useTheme } from '../lib/theme'
 
 const navigation = [
   { key: 'overview', path: '/', icon: LayoutDashboard }, { key: 'accounts', path: '/accounts', icon: Wallet },
-  { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank }, { key: 'plan', path: '/plan', icon: Target }, { key: 'receipts', path: '/receipts', icon: Receipt }, { key: 'cash', path: '/cash', icon: Coins },
+  { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank }, { key: 'plan', path: '/plan', icon: Target }, { key: 'receipts', path: '/receipts', icon: Receipt }, { key: 'cash', path: '/cash', icon: Coins }, { key: 'tidy', path: '/tidy', icon: Eraser },
   { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'analysis', path: '/analysis', icon: BarChart3 }, { key: 'averages', path: '/averages', icon: Sigma }, { key: 'report', path: '/report', icon: FileBarChart }, { key: 'networth', path: '/net-worth', icon: Landmark }, { key: 'openItems', path: '/open-items', icon: Handshake }, { key: 'wishlist', path: '/wishlist', icon: Gift }, { key: 'business', path: '/business', icon: Briefcase }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
 ] as const
 export function Layout() {
@@ -64,6 +65,7 @@ export function Layout() {
       <header className="topbar">
         <div className="breadcrumb"><Button className="mobile-only" variant="ghost" onClick={() => setOpen(true)} aria-label={t('openMenu')} aria-expanded={open} aria-controls="navigation-sidebar"><Menu size={22} /></Button><span className="desktop-only">Workspace</span><ChevronRight size={14} className="desktop-only" /><strong>{t(title as TranslationKey)}</strong></div>
         <div className="topbar-actions">
+          <GlobalSearch />
           <span className="local-indicator"><span /> {language === 'de' ? 'Lokal & privat' : 'Local & private'}</span>
           <button className="locale-button" onClick={() => setLanguage(language === 'de' ? 'en' : 'de')} aria-label={t('language')}>{language.toUpperCase()}</button>
           <Button variant="ghost" onClick={toggle} aria-label={dark ? t('light') : t('dark')}>{dark ? <Sun size={18} /> : <Moon size={18} />}</Button>
