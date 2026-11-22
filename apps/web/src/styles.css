@@ -493,3 +493,20 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
   table.stack.plan td:nth-child(7) { grid-column: 1 / -1; grid-row: 4; }
   table.stack.plan td:nth-child(8) { grid-column: 1 / -1; grid-row: 5; text-align: right; }
 }
+/* Open items */
+.open-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.open-total .money { font-size: 26px; font-weight: 700; }
+.open-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.open-list li { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.open-list li:last-child { border-bottom: 0; }
+.open-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.open-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, rgba(127,127,127,.08)); font-size: 13px; }
+.open-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.only-phone { display: none; }
+@media (max-width: 640px) {
+  .only-phone { display: block; }
+  .only-wide { display: none; }
+}
+.client-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); font-variant-numeric: tabular-nums; }

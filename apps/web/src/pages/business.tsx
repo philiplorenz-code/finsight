@@ -44,7 +44,11 @@ export default function BusinessPage() {
       <PnlPanel pnl={d.pnl} de={de} names={names} vat={vat} onVat={chooseVat} />
       {!!d.months_without_income.length && <Notice>{de ? 'Monate ohne Zahlungseingang' : 'Months without payments'}: {d.months_without_income.map(m => names[Number(m.slice(5)) - 1]).join(', ')}</Notice>}
       <Panel title={de ? 'Einnahmen je Auftraggeber' : 'Income per client'}>
-        <div className="table-scroll"><DataTable headers={[de ? 'Auftraggeber' : 'Client', ...names, de ? 'Summe' : 'Total']}>
+        <ul className="client-cards only-phone">{d.clients.map(c => <li key={c.name}>
+          <div className="open-head"><strong>{c.name}</strong><Money value={c.total} /></div>
+          <div className="chip-row">{c.monthly.map((v, i) => Number(v) ? <span key={i} className="chip">{names[i]} {short(v)}</span> : null)}</div>
+        </li>)}</ul>
+        <div className="table-scroll only-wide"><DataTable headers={[de ? 'Auftraggeber' : 'Client', ...names, de ? 'Summe' : 'Total']}>
           {d.clients.map(c => <tr key={c.name}><td><strong>{c.name}</strong><div className="small muted">{c.months_paid} {de ? 'Monate mit Zahlung' : 'months paid'}</div></td>{c.monthly.map((v, i) => <td key={i} className={`nowrap small ${Number(v) ? '' : 'muted'}`}>{short(v)}</td>)}<td className="nowrap"><Money value={c.total} /></td></tr>)}
           <tr><td><strong>{de ? 'Summe' : 'Total'}</strong></td>{d.income_monthly.map((v, i) => <td key={i} className="nowrap small"><strong>{short(v)}</strong></td>)}<td className="nowrap"><Money value={d.totals.income} /></td></tr>
         </DataTable></div>
