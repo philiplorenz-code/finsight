@@ -19,7 +19,7 @@ export function Money({ value, currency = 'EUR', className = '' }: { value?: str
 }
 import { formatMoney as format } from '../lib/i18n'
 export function PageHeader({ title, description, action, eyebrow }: { title: string; description?: string; action?: ReactNode; eyebrow?: string }) {
-  return <header className="page-header"><div>{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h1>{title}</h1>{description && <p>{description}</p>}</div>{action}</header>
+  return <header className="page-header"><div>{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h1>{title}</h1>{description && <p>{description}</p>}</div>{action && <div className="header-actions">{action}</div>}</header>
 }
 export function Panel({ title, description, action, children, className = '' }: { title?: string; description?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return <section className={`panel ${className}`}>{title && <div className="panel-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{action}</div>}{children}</section>
@@ -47,6 +47,6 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
   return <dialog ref={ref} className="dialog" aria-labelledby={titleId} onCancel={onClose} onClick={e => { if (e.target === ref.current) onClose() }}><div className="dialog-content"><div className="dialog-heading"><h2 id={titleId}>{title}</h2><Close onClick={onClose} /></div>{children}</div></dialog>
 }
 function Close({ onClick }: { onClick: () => void }) { const { t } = useLocale(); return <Button variant="ghost" onClick={onClick} aria-label={t('close')}><X size={20} /></Button> }
-export function DataTable({ headers, children }: { headers: string[]; children: ReactNode }) {
-  return <div className="table-scroll" tabIndex={0}><table><thead><tr>{headers.map((h, i) => <th key={`${h}-${i}`} scope="col" aria-label={h || 'Aktionen / Actions'}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>
+export function DataTable({ headers, children, variant }: { headers: string[]; children: ReactNode; variant?: string }) {
+  return <div className="table-scroll" tabIndex={0}><table className={variant ? `stack ${variant}` : undefined}><thead><tr>{headers.map((h, i) => <th key={`${h}-${i}`} scope="col" aria-label={h || 'Aktionen / Actions'}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table></div>
 }

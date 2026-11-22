@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import calendar
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_CEILING, Decimal
 from typing import Literal
 
@@ -106,6 +106,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
         first_booking = min(tx.booking_date for tx in in_cashflow)
         months = [m for m in months if add_months(m, 1) > first_booking]
         window = set(months)
+        from .cashbook import entries as cash_entries, is_withdrawal, since as cash_book_since
+        cash_since = cash_book_since(db, user_id)
         for tx in rows:
             key = month_start(tx.booking_date)
             rule = match_rule(tx, rules) if tx.amount >= 0 else None
@@ -129,6 +131,8 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 income_by_source[source][key] += tx.amount
                 if source == "other":
                     unassigned[(tx.merchant or "").strip() or "?"] += tx.amount
+            elif is_withdrawal(tx, cash_since):
+                continue  # cash book active: counted through the logged cash entries instead
             elif is_business_expense(tx, business_rules):
                 business_expenses[key] += -tx.amount
             else:
@@ -136,6 +140,13 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
                 label = (tx.effective_category or "").strip() or "Uncategorized"
                 expense_by_category[key][label] += -tx.amount
                 expense_by_merchant[(tx.merchant or "").strip() or "?"] += -tx.amount
+        if months:
+            for entry in cash_entries(db, user_id, months[0], add_months(months[-1], 1) - timedelta(days=1)):
+                key = month_start(entry.day)
+                if key in window:
+                    expenses[key] += entry.amount
+                    expense_by_category[key][entry.category] += entry.amount
+                    expense_by_merchant[entry.merchant or "Bargeld"] += entry.amount
         if any(tx.transfer_uncertain for tx in in_cashflow if month_start(tx.booking_date) in window):
             warnings.append("Some transfers are uncertain; the consumption figure may be slightly off")
     count = len(months)
@@ -167,6 +178,19 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     monthly_income = sum((income[m] for m in months), ZERO) / count if count else ZERO
 
     sources = source_stats({s: [income_by_source[s][m] for m in months] for s in SOURCES})
+    # Concrete, not averaged: when the last three months all had pay, plan with the latest month's salary
+    # instead of the twelve-month average (a raise or new job counts from now on).
+    salary = [income_by_source["employment"][m] for m in months]
+    sources["employment"]["monthly_current"] = sources["employment"]["monthly_average"]
+    if len(salary) >= 3 and all(v > ZERO for v in salary[-3:]):
+        current = salary[-1]
+        shift = current - sources["employment"]["monthly_average"]
+        if abs(shift) >= Decimal("25"):
+            sources["employment"]["monthly_current"] = current
+            monthly_income += shift
+            expected += shift
+            conservative += shift
+            warnings.append("Salary changed: the latest month's salary is used instead of the average")
     top_unassigned = [{"merchant": m, "total": v} for m, v in sorted(unassigned.items(), key=lambda kv: -kv[1])[:10]]
 
     category_totals: dict[str, Decimal] = defaultdict(lambda: ZERO)
@@ -342,7 +366,8 @@ def overview_payload(db, user, currency="EUR"):
     wishes = list(db.scalars(select(Wish).where(Wish.user_id == user.id).order_by(Wish.created_at)))
     assessments = {a["id"]: a for a in assess(base, wishes, today)}
     prefs = get_prefs(db, user.id)
-    return serialize({"baseline": {k: v for k, v in base.items() if k not in {"series", "savings"}}, "prefs": prefs,
+    series = {k: base["series"][k] for k in ("months", "income", "expenses", "surplus")}
+    return serialize({"baseline": {k: v for k, v in base.items() if k not in {"series", "savings"}}, "prefs": prefs, "series": series,
                       "payoff_scenarios": payoff_scenarios(db, user.id, base, currency),
                       "wishes": [{**wish_json(w), "assessment": assessments.get(w.id)} for w in wishes],
                       "disclaimer": "Planning aid based on your own data; not financial, tax or investment advice."})

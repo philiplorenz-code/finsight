@@ -442,3 +442,76 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
   .report-page .panel, .report-page .detail-stat { break-inside: avoid; }
   body { background: #fff; color: #111; }
 }
+.iban-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 0; font-size: 12px; }
+.iban-line code { font-size: 12px; letter-spacing: .02em; overflow-wrap: anywhere; }
+.iban-line .link-button { color: var(--accent, #2d8b72); }
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+/* Phones: transaction rows become compact cards (name + amount on top, date, category, account below) */
+@media (max-width: 640px) {
+  table.stack thead { display: none; }
+  table.stack, table.stack tbody { display: block; width: 100%; }
+  table.stack tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 12px 4px; border-bottom: 1px solid var(--border); }
+  table.stack td { display: block; padding: 0; border: 0; min-width: 0; }
+  table.stack.tx td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  table.stack.tx td:nth-child(5) { grid-column: 2; grid-row: 1; text-align: right; font-weight: 600; }
+  table.stack.tx td:nth-child(2) { grid-column: 1; grid-row: 2; font-size: 12px; }
+  table.stack.tx td:nth-child(3) { grid-column: 2; grid-row: 2; text-align: right; font-size: 12px; }
+  table.stack.tx td:nth-child(4) { grid-column: 1; grid-row: 3; font-size: 12px; overflow-wrap: anywhere; }
+  table.stack.tx td:nth-child(6) { grid-column: 2; grid-row: 3; text-align: right; }
+  .link-button { min-height: 32px; display: inline-flex; align-items: center; }
+  /* period picker scrolls sideways instead of stacking eight buttons */
+  .toolbar .segmented, .overview-toolbar .segmented, main .segmented[role="group"] { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  main .segmented[role="group"] button { flex: 0 0 auto; min-height: 36px; }
+  .insight-banner { display: grid !important; grid-template-columns: auto 1fr; gap: 10px 12px; }
+  .insight-banner > :last-child { grid-column: 1 / -1; justify-self: start; }
+  .settings-appearance .segmented button { min-height: 36px; }
+}
+@media (max-width: 640px) {
+  .page-header .header-actions { justify-content: flex-start; }
+  .page-header .header-actions > * { flex: 0 1 auto; }
+  .page-header .header-actions .button { min-height: 38px; padding-inline: 12px; }
+}
+@media (max-width: 640px) {
+  /* coming up: what + amount, then date + type, then account */
+  table.stack.up td:nth-child(2) { grid-column: 1; grid-row: 1; font-weight: 600; }
+  table.stack.up td:nth-child(5) { grid-column: 2; grid-row: 1; text-align: right; font-weight: 600; }
+  table.stack.up td:nth-child(1) { grid-column: 1; grid-row: 2; font-size: 12px; }
+  table.stack.up td:nth-child(3) { grid-column: 2; grid-row: 2; text-align: right; font-size: 12px; }
+  table.stack.up td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; font-size: 12px; }
+  table.stack.up tr:last-child td:first-child { grid-column: 1; grid-row: 1; }
+  /* plan vs actual: status + item + actual, then plan + left, history, actions */
+  table.stack.plan tr { grid-template-columns: 16px minmax(0, 1fr) auto; }
+  table.stack.plan td:nth-child(1) { grid-column: 1; grid-row: 1; padding-top: 4px; }
+  table.stack.plan td:nth-child(2) { grid-column: 2; grid-row: 1; }
+  table.stack.plan td:nth-child(4) { grid-column: 3; grid-row: 1; text-align: right; font-weight: 600; }
+  table.stack.plan td:nth-child(3) { grid-column: 2; grid-row: 2; font-size: 12px; }
+  table.stack.plan td:nth-child(3)::before { content: "Soll "; color: var(--muted); }
+  table.stack.plan td:nth-child(5) { grid-column: 3; grid-row: 2; text-align: right; font-size: 12px; }
+  table.stack.plan td:nth-child(5)::before { content: "Rest "; color: var(--muted); }
+  table.stack.plan td:nth-child(6) { grid-column: 2 / -1; grid-row: 3; font-size: 12px; }
+  table.stack.plan td:nth-child(6):not(:empty)::before { content: "Hochrechnung "; color: var(--muted); }
+  table.stack.plan td:nth-child(7) { grid-column: 1 / -1; grid-row: 4; }
+  table.stack.plan td:nth-child(8) { grid-column: 1 / -1; grid-row: 5; text-align: right; }
+}
+/* Open items */
+.open-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.open-total .money { font-size: 26px; font-weight: 700; }
+.open-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.open-list li { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.open-list li:last-child { border-bottom: 0; }
+.open-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.open-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, rgba(127,127,127,.08)); font-size: 13px; }
+.open-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.only-phone { display: none; }
+@media (max-width: 640px) {
+  .only-phone { display: block; }
+  .only-wide { display: none; }
+}
+.client-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); font-variant-numeric: tabular-nums; }
+/* Cash book */
+.cash-form { display: grid; gap: 12px; }
+.cash-amount { font-size: 28px !important; font-weight: 700; font-variant-numeric: tabular-nums; max-width: 220px; }
+.chip-button { border: 1px solid var(--border); background: transparent; color: inherit; cursor: pointer; min-height: 34px; padding: 4px 12px; }
+.chip-button.active { background: var(--accent, #2d8b72); color: #fff; border-color: transparent; }

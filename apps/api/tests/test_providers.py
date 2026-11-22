@@ -16,6 +16,8 @@ def test_from_iban_and_name():
     assert from_iban(iban("DE", "00", "67050000" + "0" * 10)) == "Sparkasse"
     assert from_iban(iban("DE", "00", "66090000" + "0" * 10)) == "Volksbank / Raiffeisenbank"
     assert from_iban(iban("NL", "00", "BUNQ" + "0" * 10)) == "bunq"
+    assert from_iban(iban("DE", "00", "37019000" + "0" * 10)) == "bunq"
+    assert from_iban(iban("DE", "00", "10012345" + "0" * 10)) == "Trade Republic"
     assert from_iban("synthetic-account") is None and from_iban(None) is None
     assert from_name("someone@example.test") == "PayPal" and from_name("Girokonto") is None
 
@@ -35,3 +37,13 @@ def test_detected_on_import_manual_override_and_filter(owner):
     assert [float(t["amount"]) for t in listed] == [-20.0]
     cleared = owner.patch(f"/api/accounts/{other['id']}", json={"provider": ""}).json()
     assert cleared["provider"] is None
+
+
+
+def test_iban_is_stored_and_shown(owner):
+    value = iban("DE", "00", "12030000" + "0" * 9 + "7")
+    assert upload(owner, [booking("i", "-1", **{"Konto-ID": value, "Konto": "Synthetic IBAN"})]).status_code == 200
+    account = next(a for a in owner.get("/api/accounts").json() if a["name"] == "Synthetic IBAN")
+    assert account["iban"] == value
+    other = next(a for a in owner.get("/api/accounts").json() if a["name"] != "Synthetic IBAN") if len(owner.get("/api/accounts").json()) > 1 else None
+    assert other is None or other["iban"] in ("", None)

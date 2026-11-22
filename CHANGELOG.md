@@ -11,6 +11,17 @@
 
 ## Unreleased
 
+- Cash book (`/cash`): from a chosen start date, ATM withdrawals (category Bargeld) count as moving money into the wallet and logged cash spending counts instead, with its own category, in overview, baseline and plan vs. actual; calculated wallet balance; quick entry made for phones. Migration 0022.
+
+- Open items (`/open-items`): money someone owes you or you owe, with due date and note; a matching payment after the start date is suggested for one-click settlement. Migration 0021.
+- Side business on phones: clients as cards with month chips instead of a 13-column table. Footer in German.
+
+- Concrete instead of averaged: planning uses the latest month's salary when pay changed; the wishlist shows the last complete month (salary, side business, spending, surplus) and a month-by-month table instead of averages. All averages moved to a new page **Durchschnitte** (`/averages`).
+- Bank detection knows bunq (German IBANs, BLZ 37019000), Trade Republic and Solaris; accounts with an unknown bank are checked again on the next listing.
+- Phones: transactions, coming up and plan items become compact cards below 640 px, the period picker scrolls sideways, header buttons wrap in a row, the AI banner stacks, tap targets at least 32-36 px.
+
+- Accounts show their IBAN (from the export's Referenzkonto, filled for existing accounts on the next account listing) with a copy button. Migration 0020.
+- Current salary: when pay changed in the last three months, wishlist, forecast, health check and analyst use the median of those months instead of the twelve-month average (with a notice).
 - Dependency updates (bundles the open Dependabot PRs): Node 26 and nginx-unprivileged 1.31 images (Python stays 3.12: no 3.15 wheels for zstandard yet); actions/checkout, setup-python, setup-node v7, gitleaks-action v3; lucide-react 1.75, jsdom 31, vitest 5.1.1, user-event 14.6.12, @types/node 26; minimum versions alembic 1.20.1, argon2-cffi 25.1, python-multipart 0.0.33, uvicorn 0.54, SQLAlchemy 2.1.8.
 
 - Cancellation deadlines: store term end, notice period and renewal per contract (contract detail); the contracts page lists the next last day to cancel with a countdown, and deadlines appear under coming up (`/api/contract-terms`). Migration 0019.
