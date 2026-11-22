@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Aufräumen: bookings without a useful category, grouped by merchant with a suggested category (same merchant's usual category or keyword hint); one click creates a category rule for past and future bookings.
+- Global search in the top bar (Cmd/Ctrl+K): merchants, bookings, contracts and accounts incl. IBAN, full-screen on phones.
 - Needs attention: one list on the overview for cancellation deadlines within 30 days, overdue open items, payments that could settle an open item and plan items over target (`GET /api/attention`).
 - Reminder notifications (`reminder` event): 14, 7 and 2 days before a cancellation deadline and when an open item falls due; generic text, deduplicated, checked at most hourly.
 
