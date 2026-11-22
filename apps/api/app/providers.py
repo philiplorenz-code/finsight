@@ -1,4 +1,4 @@
-"""Bank/provider of an account, derived from its IBAN or name. Only the provider name is stored, never the IBAN.
+"""Bank/provider of an account, derived from its IBAN or name. The account IBAN itself is stored for display (owner request).
 
 German IBANs carry the bank code (BLZ) in positions 5-12; a few direct banks are matched exactly, the
 large groups by the BLZ's fourth digit (5 = Sparkassen, 9 = Volks- und Raiffeisenbanken, 4 = Commerzbank).
@@ -56,6 +56,22 @@ def iban_from_source(source) -> str | None:
         if columns.get(key):
             return str(columns[key])
     return None
+
+
+def clean_iban(value: str | None) -> str | None:
+    iban = re.sub(r"\s", "", str(value or "")).upper()
+    return iban if re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", iban) else None
+
+
+def backfill_ibans(db, user_id: str) -> int:
+    """IBAN of accounts never checked, taken from one of their bookings (the export's Referenzkonto)."""
+    from .models import Account, Transaction
+    found = 0
+    for account in db.scalars(select(Account).where(Account.user_id == user_id, Account.iban.is_(None))):
+        tx = db.scalar(select(Transaction).where(Transaction.account_id == account.id).limit(1))
+        account.iban = clean_iban(iban_from_source(tx.source if tx else None)) or ""
+        found += bool(account.iban)
+    return found
 
 
 def detect_missing(db, user_id: str) -> int:

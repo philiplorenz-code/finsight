@@ -368,3 +368,14 @@ def test_cash_on_hand_counts_only_the_owners_share(owner, db):
     assert baseline(db, user_id(db), today=date(2026, 7, 5))["cash_on_hand"] == D(0)
     assert owner.patch(f"/api/accounts/{account['id']}", json={"owner_share": 50}).status_code == 200
     assert baseline(db, user_id(db), today=date(2026, 7, 5))["cash_on_hand"] == full / 2
+
+
+def test_recent_raise_counts_as_current_salary(owner, db):
+    rows = [booking(f"pay{m}", "3000" if m <= 3 else "3600", day=f"2026-{m:02d}-01", **{"Empfänger": "Synthetic Employer"}) for m in range(1, 7)]
+    rows += [booking(f"out{m}", "-2000", day=f"2026-{m:02d}-15") for m in range(1, 7)]
+    workbook(owner, rows)
+    assert owner.post("/api/income-rules", json={"name": "Job", "source": "employment", "pattern": "Synthetic Employer"}).status_code == 201
+    base = baseline(db, user_id(db), today=date(2026, 7, 5))
+    emp = base["income_sources"]["employment"]
+    assert emp["monthly_average"] == D(3300) and emp["monthly_current"] == D(3600)
+    assert any("Salary changed recently" in w for w in base["warnings"])

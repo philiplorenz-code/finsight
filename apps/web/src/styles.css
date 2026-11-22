@@ -442,3 +442,6 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
   .report-page .panel, .report-page .detail-stat { break-inside: avoid; }
   body { background: #fff; color: #111; }
 }
+.iban-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 0; font-size: 12px; }
+.iban-line code { font-size: 12px; letter-spacing: .02em; overflow-wrap: anywhere; }
+.iban-line .link-button { color: var(--accent, #2d8b72); }
