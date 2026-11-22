@@ -73,12 +73,13 @@ def plan_for(question: str) -> dict:
 
 def apply_plan(ctx: dict, plan: dict) -> dict:
     keep = plan["sections"]
-    return ctx if keep is None else {k: v for k, v in ctx.items() if k in keep}
+    visible = {k: v for k, v in ctx.items() if not k.startswith("_")}
+    return visible if keep is None else {k: v for k, v in visible.items() if k in keep}
 
 
 # Adaptive, bounded planner: a fixed registry of typed, deterministic tools runs over the already-minimised
 # context. Which tool runs next depends on earlier results. No model chooses tools, no SQL, no unbounded loop.
-MAX_STEPS = 4
+MAX_STEPS = 5
 MAX_PLAN_SECONDS = 2.0
 
 
@@ -122,7 +123,19 @@ def tool_data_caveats(ctx: dict, args: NoArgs) -> dict | None:
     return {"caveats": caveats} if caveats else None
 
 
+def tool_contract_focus(ctx: dict, args: NoArgs) -> dict | None:
+    rows = ctx.get("_contract_details") or []
+    return {"top_contracts": rows[:6]} if rows else None
+
+
+def tool_tax_check(ctx: dict, args: NoArgs) -> dict | None:
+    reserves = ctx.get("_tax_reserves")
+    return {"tax_reserves": reserves} if reserves else None
+
+
 TOOLS = {
+    "contract_focus": (NoArgs, tool_contract_focus),
+    "tax_check": (NoArgs, tool_tax_check),
     "focus_category": (FocusArgs, tool_focus_category),
     "rank_levers": (NoArgs, tool_rank_levers),
     "data_caveats": (NoArgs, tool_data_caveats),
@@ -136,6 +149,10 @@ def next_step(question: str, plan: dict, done: dict[str, dict | None]) -> tuple[
         return "focus_category", {"question": question}
     if "rank_levers" not in done and (topics & {"savings", "contracts"} or done["focus_category"]):
         return "rank_levers", {}
+    if "contract_focus" not in done and topics & {"contracts", "savings"}:
+        return "contract_focus", {}
+    if "tax_check" not in done and topics & {"income", "forecast"}:
+        return "tax_check", {}
     if "data_caveats" not in done:
         return "data_caveats", {}
     return None
@@ -233,6 +250,20 @@ def build_context(db: Session, user_id: str, include_names: bool = False, curren
         "data_quality": {"accounts_with_gaps_in_window": gaps["window_gap_accounts"]},
         "notes": [clean(w, 160) for w in base["warnings"]][:6],
     }
+    # Inputs for planner tools only; keys starting with "_" never leave the server unless a tool selects them.
+    running = sorted((i for i in live if i["status"] == "active"), key=lambda i: -Decimal(str(i["monthly_cost"])))
+    ctx["_contract_details"] = [{**({"name": clean(i["name"])} if include_names else {}), "kind": i["kind"], "rhythm": i["period"],
+                                 "monthly": euro(i["monthly_cost"]), "price_change_per_charge": euro(i.get("price_change") or 0)} for i in running[:10]]
+    try:
+        from .insights_extra import business_overview
+        pnl = business_overview(db, user_id, today.year)["pnl"]
+        t = pnl["total"]
+        if t["gross"]:
+            ctx["_tax_reserves"] = {"year": today.year, "business_gross": euro(t["gross"]), "vat_contained": euro(t["vat"]),
+                                    "vat_moved_to_pot": euro(t["moved_vat"]), "income_tax_reserve_needed": euro(t["income_tax_reserve"]),
+                                    "income_tax_moved_to_pot": euro(t["moved_income_tax"]), "left_after_tax": euro(t["left"])}
+    except Exception:  # the analyst must still work without the business module data
+        pass
     if include_names:
         named = sorted((i for i in live if i["status"] == "active" and i["monthly_cost"]), key=lambda i: -Decimal(str(i["monthly_cost"])))[:MAX_NAMES]
         ctx["named_contracts"] = [{"name": clean(i["name"]), "kind": i["kind"], "monthly": euro(i["monthly_cost"]), "rhythm": i["period"]} for i in named]
