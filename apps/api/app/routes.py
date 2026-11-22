@@ -71,7 +71,7 @@ class NotificationBody(StrictBody):
     quiet_start: int = Field(default=1320, ge=0, lt=1440)
     quiet_end: int = Field(default=480, ge=0, lt=1440)
     stale_after_hours: int = Field(default=168, ge=1, le=8760)
-    events: list[Literal["weekly", "monthly", "report_ready", "anomaly", "import_changed", "plan_exceeded"]] = Field(default_factory=list)
+    events: list[Literal["weekly", "monthly", "report_ready", "anomaly", "import_changed", "plan_exceeded", "reminder"]] = Field(default_factory=list)
     reminder_hour: int = Field(default=9, ge=0, le=23)
     reminder_minute: int = Field(default=0, ge=0, le=59)
     weekly_day: int = Field(default=0, ge=0, le=6)

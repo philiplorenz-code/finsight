@@ -23,6 +23,7 @@ from .system_status import router as system_router
 from .plan import router as plan_router
 from .tidy import router as tidy_router
 from .search import router as search_router
+from .attention import router as attention_router
 from .cashbook import router as cashbook_router
 from .receivables import router as receivables_router
 from .contract_terms import router as contract_terms_router
@@ -80,6 +81,7 @@ app.include_router(system_router, prefix="/api", dependencies=[Depends(require_c
 app.include_router(plan_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(tidy_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(search_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(attention_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(cashbook_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(receivables_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(contract_terms_router, prefix="/api", dependencies=[Depends(require_csrf)])
