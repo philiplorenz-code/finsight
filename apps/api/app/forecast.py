@@ -90,6 +90,11 @@ def upcoming(db: Session, user_id: str, days: int = 30, today: date | None = Non
                 acc = accounts.get(tx.account_id)
                 out.append({"date": due.isoformat(), "kind": "income", "name": names[rule_id], "amount": tx.amount,
                             "currency": tx.currency, "account": acc.name if acc else None, "detail": "expected_pay"})
+    from .contract_terms import deadlines
+    for d in deadlines(db, user_id, today):
+        if d.get("cancel_by") and not d.get("expired") and today.isoformat() <= d["cancel_by"] <= until.isoformat():
+            out.append({"date": d["cancel_by"], "kind": "deadline", "name": d["name"], "amount": 0, "currency": "EUR",
+                        "account": None, "detail": "cancel_by"})
     return sorted(out, key=lambda o: (o["date"], o["kind"]))
 
 

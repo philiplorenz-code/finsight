@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Cancellation deadlines: store term end, notice period and renewal per contract (contract detail); the contracts page lists the next last day to cancel with a countdown, and deadlines appear under coming up (`/api/contract-terms`). Migration 0019.
+
 - Monthly close page (`/report`, `GET /api/reports/monthly?month=`): income, expenses, surplus and savings rate against last month and the six-month average, money at month end, categories with change vs. average, biggest expenses, plan vs. actual, anomalies and highlights; print-friendly for PDF.
 - AI analyst planner: two more typed tools (max. 5 steps): `contract_focus` (top running contracts with rhythm and price change, names only with consent) for contract and savings questions, `tax_check` (side-business VAT and income-tax reserves against tax pots) for income and forecast questions. Tool inputs are kept server-side unless a tool selects them.
 - Wishlist redesign: "What works when" timeline on top (priority order, traffic light, expected and cautious date, how far free cash already reaches), compact wish cards with details folded, simulator and plan chart below, calculation basis, income and business folded away.

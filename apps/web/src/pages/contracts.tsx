@@ -6,6 +6,7 @@ import { api, items, send } from '../lib/api'
 import type { Contract } from '../lib/types'
 import { normalizeContract, type RawContract } from '../lib/adapters'
 import { formatDate, useLocale } from '../lib/i18n'
+import { DeadlinePanel, TermForm } from '../components/contract-terms'
 import { label } from '../lib/labels'
 import { localizeWarning } from '../lib/warnings'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
@@ -68,6 +69,7 @@ export default function ContractsPage() {
     {!!data?.candidates.length && <Panel title={de ? 'Prüfen: kündigen oder neu verhandeln' : 'Review: cancel or renegotiate'} description={de ? 'Versicherungen, Abos und nicht eingeordnete Kosten, nach Jahreskosten sortiert. Eine Empfehlung zum Kündigen ist das nicht, nur eine Prüfliste.' : 'Insurances, subscriptions and unclassified costs by yearly cost. A checklist, not advice to cancel.'}>
       <ul className="obligation-list">{data.candidates.map(c => <li key={c.key}><span>{c.name} · {kindName(c.kind)} · {periodName(c.period)}{c.price_increase && <> · <Badge tone="warning">{de ? 'Preis gestiegen' : 'price up'}</Badge></>}</span><Money value={c.annual_cost} currency={c.currency} /></li>)}</ul>
     </Panel>}
+    <DeadlinePanel />
     <div className="contract-toolbar">
       <input type="search" aria-label={de ? 'Verträge durchsuchen' : 'Search contracts'} placeholder={de ? 'Vertrag suchen …' : 'Search contract…'} value={search} onChange={e => setSearch(e.target.value)} />
       <select aria-label={de ? 'Art' : 'Kind'} value={kind} onChange={e => setKind(e.target.value)}><option value="all">{de ? 'Alle Arten' : 'All kinds'}</option>{KINDS.map(k => <option key={k} value={k}>{kindName(k)}</option>)}</select>
@@ -116,5 +118,6 @@ function ContractDetail({ detail, de, kindName, busy, onClose, onDecide }: { det
       </div>
     </>}
     <h3>{t('evidence')}</h3><ul className="evidence-list">{detail.evidence?.map((e, i) => <li key={i}>{e.description}{e.transaction_id && <Link to={`/transactions?detail=${encodeURIComponent(e.transaction_id)}`}>{t('transactions')} →</Link>}</li>)}</ul>{!detail.evidence?.length && <p className="muted">{t('noValue')}</p>}
+    {detail.key && <TermForm contractKey={detail.key} />}
   </Dialog>
 }
