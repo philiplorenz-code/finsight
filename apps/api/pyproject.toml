@@ -7,7 +7,7 @@ name = "finsight-api"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115,<1", "uvicorn[standard]>=0.54.0,<1", "sqlalchemy>=2.1.8,<3",
+  "fastapi>=0.115,<1", "uvicorn[standard]>=0.54.0,<1", "sqlalchemy>=2.1.9,<3",
   "alembic>=1.20.1,<2", "psycopg[binary]>=3.2,<4", "argon2-cffi>=25.1.0",
   "python-multipart>=0.0.34", "openpyxl>=3.1.5,<4", "defusedxml>=0.7.1",
   "pydantic-settings>=2.6,<3", "langgraph>=0.2,<2", "litellm>=1.55,<2",
