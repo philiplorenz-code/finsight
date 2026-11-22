@@ -11,7 +11,7 @@ const LABELS: Record<string, Record<string, Pair>> = {
   wishStatus: { open: ['offen', 'open'], bought: ['gekauft', 'bought'], dropped: ['verworfen', 'dropped'] },
   source: { employment: ['Gehalt', 'Employment'], business: ['Nebengewerbe', 'Business'], other: ['Sonstiges', 'Other'] },
   view: { all_transactions: ['Alle Buchungen', 'All transactions'], included_spending: ['Einbezogene Ausgaben', 'Included spending'], owned_liquid: ['Eigene liquide Konten', 'Owned liquid accounts'] },
-  event: { weekly: ['Wöchentlich', 'Weekly'], monthly: ['Monatlich', 'Monthly'], report_ready: ['Bericht fertig', 'Report ready'], anomaly: ['Auffälligkeit', 'Anomaly'], import_changed: ['Import geändert', 'Import changed'], plan_exceeded: ['Soll überschritten', 'Plan exceeded'], test: ['Test', 'Test'] },
+  event: { weekly: ['Wöchentlich', 'Weekly'], monthly: ['Monatlich', 'Monthly'], report_ready: ['Bericht fertig', 'Report ready'], anomaly: ['Auffälligkeit', 'Anomaly'], import_changed: ['Import geändert', 'Import changed'], plan_exceeded: ['Soll überschritten', 'Plan exceeded'], reminder: ['Fristen & fällige Posten', 'Deadlines & due items'], test: ['Test', 'Test'] },
   kind: { subscription: ['Abo', 'Subscription'], insurance: ['Versicherung', 'Insurance'], utility: ['Versorger', 'Utility'], housing: ['Wohnen', 'Housing'], loan: ['Kredit', 'Loan'], savings: ['Sparplan', 'Savings plan'], other: ['Sonstiges', 'Other'], real: ['Kontogebunden', 'Account-backed'], virtual: ['Virtuell', 'Virtual'] },
 }
 
