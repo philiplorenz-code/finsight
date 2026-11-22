@@ -182,6 +182,8 @@ def overview(db, user_id, start=None, end=None):
     # Pay booked at month end can belong to the next month (income rule `shift_from_day`), so look one
     # month back and place every booking on its effective day before filtering by the period.
     from .income import load_rules, match_rule, shifts_to_next_month
+    from .cashbook import entries as cash_entries, is_withdrawal, since as cash_book_since
+    cash_since = cash_book_since(db, user_id)
     rules = load_rules(db, user_id)
     txs = list(db.scalars(select(Transaction).where(Transaction.user_id == user_id,
                       Transaction.booking_date >= start - timedelta(days=31), Transaction.booking_date <= min(end, today))))
@@ -217,6 +219,8 @@ def overview(db, user_id, start=None, end=None):
             warnings.add("Records missing from a later full snapshot retained")
         if not eligible(tx) or included[tx.account_id].purpose == "mirror":
             continue  # mirror accounts (e.g. PayPal) repeat payments already booked on the bank account
+        if is_withdrawal(tx, cash_since):
+            continue  # cash book active: the withdrawal only moves money into the wallet
         item = totals(tx.currency)
         trend = trends.setdefault((day.strftime("%Y-%m"), tx.currency),
                                    {"month": day.strftime("%Y-%m"), "currency": tx.currency, "income": ZERO, "expenses": ZERO})
@@ -225,6 +229,12 @@ def overview(db, user_id, start=None, end=None):
         trend[key] += abs(tx.amount)
         if tx.amount < 0:
             categories[(tx.currency, tx.effective_category)] += -tx.amount
+    for entry in cash_entries(db, user_id, start, min(end, today)):
+        item = totals("EUR")
+        trend = trends.setdefault((entry.day.strftime("%Y-%m"), "EUR"), {"month": entry.day.strftime("%Y-%m"), "currency": "EUR", "income": ZERO, "expenses": ZERO})
+        item["expenses"] += entry.amount
+        trend["expenses"] += entry.amount
+        categories[("EUR", entry.category)] += entry.amount
     for account in included.values():
         item = totals(account.currency)
         observation = latest_balance(db, account.id, min(end, today))

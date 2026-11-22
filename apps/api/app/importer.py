@@ -349,8 +349,10 @@ def ingest(db, user, data, filename, full_snapshot=False):
             from .providers import from_iban, from_name, iban_from_source
             provider = (from_iban(iban_from_source(row["source"])) or from_iban(row.get("account_identity_raw"))
                         or from_name(row["account_name"]))
+            from .providers import clean_iban
             account = Account(user_id=user.id, source_key=row["account_key"], name=row["account_name"], currency=row["currency"],
-                              provider=provider, provider_source="detected" if provider else "unknown")
+                              provider=provider, provider_source="detected" if provider else "unknown",
+                              iban=clean_iban(iban_from_source(row["source"])) or "")
             db.add(account)
             db.flush()
             accounts[account.source_key] = account

@@ -53,7 +53,7 @@ export default function PlanPage() {
       action={current && <div className="badge-row"><Button variant="outline" aria-label={de ? 'Vormonat' : 'Previous month'} onClick={() => setMonth(shift(current, -1))}><ChevronLeft size={16} /></Button><Button variant="outline" aria-label={de ? 'Folgemonat' : 'Next month'} disabled={data?.running} onClick={() => setMonth(shift(current, 1))}><ChevronRight size={16} /></Button></div>}>
       <QueryState pending={query.isPending} error={query.error} retry={query.refetch} empty={false}>
         {data && !data.items.length && <p className="muted">{de ? 'Noch keine Posten. Lege z. B. „Tanken – 180 €“ mit Kategorie Tanken und deinem Tank-Topf an.' : 'No items yet. Add e.g. “Fuel – 180 €” with the fuel category and your fuel pot.'}</p>}
-        {data && !!data.items.length && <DataTable headers={['', de ? 'Posten' : 'Item', de ? 'Soll' : 'Plan', de ? 'Ist' : 'Actual', de ? 'Rest' : 'Left', de ? 'Hochrechnung' : 'Projection', de ? 'Verlauf (6 Monate)' : 'History (6 months)', '']}>
+        {data && !!data.items.length && <DataTable variant="plan" headers={['', de ? 'Posten' : 'Item', de ? 'Soll' : 'Plan', de ? 'Ist' : 'Actual', de ? 'Rest' : 'Left', de ? 'Hochrechnung' : 'Projection', de ? 'Verlauf (6 Monate)' : 'History (6 months)', '']}>
           {data.items.map(i => <tr key={i.id}>
             <td><StatusDot status={i.status} de={de} /></td>
             <td><strong>{i.name}</strong><div className="small muted">{[i.category, i.account_name && `${de ? 'Topf' : 'Pot'}: ${i.account_name}`].filter(Boolean).join(' · ')}</div></td>
