@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Cash book (`/cash`): from a chosen start date, ATM withdrawals (category Bargeld) count as moving money into the wallet and logged cash spending counts instead, with its own category, in overview, baseline and plan vs. actual; calculated wallet balance; quick entry made for phones. Migration 0022.
+
 - Open items (`/open-items`): money someone owes you or you owe, with due date and note; a matching payment after the start date is suggested for one-click settlement. Migration 0021.
 - Side business on phones: clients as cards with month chips instead of a 13-column table. Footer in German.
 

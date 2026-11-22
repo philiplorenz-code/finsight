@@ -510,3 +510,8 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
 .client-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--surface-2, rgba(127,127,127,.12)); font-variant-numeric: tabular-nums; }
+/* Cash book */
+.cash-form { display: grid; gap: 12px; }
+.cash-amount { font-size: 28px !important; font-weight: 700; font-variant-numeric: tabular-nums; max-width: 220px; }
+.chip-button { border: 1px solid var(--border); background: transparent; color: inherit; cursor: pointer; min-height: 34px; padding: 4px 12px; }
+.chip-button.active { background: var(--accent, #2d8b72); color: #fff; border-color: transparent; }
