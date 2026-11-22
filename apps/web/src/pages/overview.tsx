@@ -11,6 +11,7 @@ import { CashflowChart, SpendingChart } from '../components/charts'
 import { NewAccountsPrompt } from '../components/new-accounts'
 import { HealthPanel } from '../components/health-panel'
 import { PlanPanel } from '../components/plan-panel'
+import { AttentionPanel } from '../components/attention'
 import { AnomalyPanel } from '../components/anomalies'
 import { UpcomingList } from '../components/upcoming'
 
@@ -60,6 +61,7 @@ export default function OverviewPage() {
       <NewAccountsPrompt />
       <DiskHint language={language} />
       <DataHints warnings={data?.warnings} language={language} />
+      <AttentionPanel />
       <PlanPanel />
       <AnomalyPanel days={30} limit={4} compact />
       <UpcomingList days={14} compact />

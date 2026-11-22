@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Needs attention: one list on the overview for cancellation deadlines within 30 days, overdue open items, payments that could settle an open item and plan items over target (`GET /api/attention`).
+- Reminder notifications (`reminder` event): 14, 7 and 2 days before a cancellation deadline and when an open item falls due; generic text, deduplicated, checked at most hourly.
+
 - Cash book (`/cash`): from a chosen start date, ATM withdrawals (category Bargeld) count as moving money into the wallet and logged cash spending counts instead, with its own category, in overview, baseline and plan vs. actual; calculated wallet balance; quick entry made for phones. Migration 0022.
 
 - Open items (`/open-items`): money someone owes you or you owe, with due date and note; a matching payment after the start date is suggested for one-click settlement. Migration 0021.
