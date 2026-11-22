@@ -367,6 +367,18 @@
 .flow-line small { opacity: .7; font-size: 11px; }
 .flow-line strong { overflow-wrap: anywhere; }
 .flow-line em { font-style: normal; opacity: .7; font-size: 12px; }
+.learn-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--border); margin: 10px 0; }
+/* Installed as an app on iPhone (standalone): keep content clear of the notch and home indicator */
+@media (display-mode: standalone) {
+  .topbar { padding-top: max(10px, env(safe-area-inset-top)); }
+  .sidebar { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  main { padding-bottom: env(safe-area-inset-bottom); }
+}
+input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs below 16px */
+@media (min-width: 761px) { input, select, textarea { font-size: inherit; } }
+.key-box { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.key-box code { overflow-wrap: anywhere; padding: 4px 8px; border-radius: 6px; background: var(--surface-2, rgba(127,127,127,.12)); font-size: 12px; }
+.setup-steps { display: grid; gap: 8px; padding-left: 20px; margin: 14px 0; }
 /* Receipts */
 .receipt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .receipt-card { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }

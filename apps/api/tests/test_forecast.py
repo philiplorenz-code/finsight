@@ -15,7 +15,11 @@ POT = {"Konto-ID": "synthetic-pot", "Konto": "Synthetic pot"}
 
 @pytest.fixture(autouse=True)
 def today(monkeypatch):
-    monkeypatch.setattr(fc, "local_today", lambda db, user_id: date(2026, 10, 20))
+    fixed = lambda db, user_id: date(2026, 10, 20)  # noqa: E731
+    import app.finance as finance
+    import app.plan as plan
+    for module in (fc, finance, plan):
+        monkeypatch.setattr(module, "local_today", fixed)
 
 
 def seed(owner):
