@@ -1,0 +1,19 @@
+{
+  "name": "FinSight",
+  "short_name": "FinSight",
+  "description": "Private, selbst gehostete Finanzübersicht",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#182c2a",
+  "theme_color": "#182c2a",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Daten importieren", "url": "/imports" },
+    { "name": "Kassenzettel", "url": "/receipts" },
+    { "name": "Soll / Ist", "url": "/plan" }
+  ]
+}
