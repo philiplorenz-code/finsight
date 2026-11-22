@@ -1,5 +1,6 @@
 // German texts for the backend's English warning strings. Unknown strings fall back to the original.
 const DE: Record<string, string> = {
+  'Salary changed recently: the current salary (median of the last three months) is used instead of the average': 'Dein Gehalt hat sich geändert: Gerechnet wird mit dem aktuellen Gehalt (Median der letzten drei Monate) statt mit dem Jahresdurchschnitt.',
   'Inferred recurrence and next dates are estimates, not contractual commitments.': 'Erkannte Wiederholungen und nächste Termine sind Schätzungen, keine vertraglichen Zusagen.',
   'Inferred recurrence and next dates are estimates, not contractual commitments': 'Erkannte Wiederholungen und nächste Termine sind Schätzungen, keine vertraglichen Zusagen.',
   'Account identity uses source name fallback; renamed exports may require reconciliation': 'Konten werden über den Namen aus der Datei erkannt; umbenannte Konten können einen Abgleich erfordern.',

@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Accounts show their IBAN (from the export's Referenzkonto, filled for existing accounts on the next account listing) with a copy button. Migration 0020.
+- Current salary: when pay changed in the last three months, wishlist, forecast, health check and analyst use the median of those months instead of the twelve-month average (with a notice).
+
 - Cancellation deadlines: store term end, notice period and renewal per contract (contract detail); the contracts page lists the next last day to cancel with a countdown, and deadlines appear under coming up (`/api/contract-terms`). Migration 0019.
 
 - Monthly close page (`/report`, `GET /api/reports/monthly?month=`): income, expenses, surplus and savings rate against last month and the six-month average, money at month end, categories with change vs. average, biggest expenses, plan vs. actual, anomalies and highlights; print-friendly for PDF.

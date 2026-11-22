@@ -86,8 +86,10 @@ def get_overview(start: date | None = None, end: date | None = None, db: Session
 
 @router.get("/accounts")
 def accounts(db: Session = Depends(get_db), user=Depends(current_user)):
-    from .providers import detect_missing
-    if detect_missing(db, user.id) or db.dirty:
+    from .providers import backfill_ibans, detect_missing
+    detect_missing(db, user.id)
+    backfill_ibans(db, user.id)
+    if db.dirty:
         db.commit()
     return [account_json(db, a) for a in db.scalars(select(Account).where(Account.user_id == user.id).order_by(Account.name))]
 

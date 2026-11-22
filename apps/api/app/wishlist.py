@@ -167,6 +167,19 @@ def baseline(db: Session, user_id: str, currency: str = "EUR", today: date | Non
     monthly_income = sum((income[m] for m in months), ZERO) / count if count else ZERO
 
     sources = source_stats({s: [income_by_source[s][m] for m in months] for s in SOURCES})
+    # Salary changes (a raise, a new job) should count from now on: when the last three months all had pay,
+    # use their median instead of the twelve-month average for income and both surpluses.
+    salary = [income_by_source["employment"][m] for m in months]
+    sources["employment"]["monthly_current"] = sources["employment"]["monthly_average"]
+    if len(salary) >= 3 and all(v > ZERO for v in salary[-3:]):
+        current = sorted(salary[-3:])[1]
+        shift = current - sources["employment"]["monthly_average"]
+        if abs(shift) >= Decimal("25"):
+            sources["employment"]["monthly_current"] = current
+            monthly_income += shift
+            expected += shift
+            conservative += shift
+            warnings.append("Salary changed recently: the current salary (median of the last three months) is used instead of the average")
     top_unassigned = [{"merchant": m, "total": v} for m, v in sorted(unassigned.items(), key=lambda kv: -kv[1])[:10]]
 
     category_totals: dict[str, Decimal] = defaultdict(lambda: ZERO)

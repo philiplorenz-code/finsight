@@ -55,6 +55,7 @@ class Account(Base):
     owner_share: Mapped[Decimal] = mapped_column(Numeric(7, 4), default=Decimal(100))
     provider: Mapped[str | None] = mapped_column(String(80), nullable=True)
     provider_source: Mapped[str | None] = mapped_column(String(20), nullable=True)  # detected | manual | unknown
+    iban: Mapped[str | None] = mapped_column(String(34), nullable=True)  # "" = checked, none found
     # Date of the latest explicit full-snapshot import that contained this account: its balance is current as of then.
     confirmed_through: Mapped[date | None] = mapped_column(Date, nullable=True)
 
