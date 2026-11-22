@@ -11,6 +11,7 @@
 
 ## Unreleased
 
+- Wishlist redesign: "What works when" timeline on top (priority order, traffic light, expected and cautious date, how far free cash already reaches), compact wish cards with details folded, simulator and plan chart below, calculation basis, income and business folded away.
 - iPhone: installable as a home-screen app (manifest, icons, standalone safe areas, no input zoom), Sankey labels fit small screens.
 - Import from iPhone via the share sheet: import-only device keys (shown once, stored as SHA-256, revocable, 30 uploads/hour) and `POST /api/device/import` (bearer key, no cookies) used by an iOS Shortcut; setup guide under Settings. Migration 0018.
 - Docs: secure phone access via Tailscale HTTPS (`docs/operations.md`).
