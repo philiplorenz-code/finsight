@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Cancellation deadlines: store term end, notice period and renewal per contract (contract detail); the contracts page lists the next last day to cancel with a countdown, and deadlines appear under coming up (`/api/contract-terms`). Migration 0019.
+
 - iPhone: installable as a home-screen app (manifest, icons, standalone safe areas, no input zoom), Sankey labels fit small screens.
 - Import from iPhone via the share sheet: import-only device keys (shown once, stored as SHA-256, revocable, 30 uploads/hour) and `POST /api/device/import` (bearer key, no cookies) used by an iOS Shortcut; setup guide under Settings. Migration 0018.
 - Docs: secure phone access via Tailscale HTTPS (`docs/operations.md`).
