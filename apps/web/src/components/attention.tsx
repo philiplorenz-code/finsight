@@ -5,9 +5,9 @@ import { api } from '../lib/api'
 import { formatDate, formatMoney, useLocale } from '../lib/i18n'
 import { Panel } from './ui'
 
-type Item = { kind: 'deadline' | 'overdue' | 'settle' | 'plan_over'; severity: 'high' | 'medium' | 'low'; title: string; person?: string
-  amount?: string; target?: string; date?: string; days_left?: number; direction?: string; link: string }
-const ICON = { deadline: AlarmClock, overdue: CircleAlert, settle: HandCoins, plan_over: Target }
+type Item = { kind: 'deadline' | 'overdue' | 'settle' | 'plan_over' | 'plan_warning'; severity: 'high' | 'medium' | 'low'; title: string; person?: string
+  amount?: string; target?: string; projected?: string | null; remaining?: string; date?: string; days_left?: number; direction?: string; link: string }
+const ICON = { deadline: AlarmClock, overdue: CircleAlert, settle: HandCoins, plan_over: Target, plan_warning: Target }
 
 /** Everything that needs a decision soon, in one place on the overview. Hidden when nothing is due. */
 export function AttentionPanel() {
@@ -21,6 +21,7 @@ export function AttentionPanel() {
     overdue: de ? `${i.direction === 'receivable' ? 'Bekommst du' : 'Schuldest du'} ${money(i.amount)} · ${i.person} · fällig seit ${formatDate(i.date, language)}` : `${money(i.amount)} · ${i.person} · due since ${formatDate(i.date, language)}`,
     settle: de ? `Zahlung gefunden: ${money(i.amount)} von ${i.person} – abhaken?` : `Payment found: ${money(i.amount)} from ${i.person} – settle?`,
     plan_over: de ? `${money(i.amount)} von ${money(i.target)} ausgegeben` : `${money(i.amount)} of ${money(i.target)} spent`,
+    plan_warning: de ? `${money(i.amount)} von ${money(i.target)} – noch ${money(i.remaining)} übrig${i.projected ? `, Hochrechnung ${money(i.projected)}` : ''}` : `${money(i.amount)} of ${money(i.target)} – ${money(i.remaining)} left${i.projected ? `, projected ${money(i.projected)}` : ''}`,
   })[i.kind]
   return <Panel title={de ? 'Jetzt wichtig' : 'Needs attention'} className="attention-panel">
     <ul className="upcoming-list">{items.slice(0, 6).map((i, n) => { const Icon = ICON[i.kind]; return <li key={n}>

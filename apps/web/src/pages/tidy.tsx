@@ -15,30 +15,52 @@ export default function TidyPage() {
   const cats = useQuery({ queryKey: ['plan', 'categories'], queryFn: () => api<{ categories: string[] }>('/plan?history=1') })
   const [choice, setChoice] = useState<Record<string, string>>({})
   const [done, setDone] = useState<Record<string, number | string>>({})
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [bulk, setBulk] = useState<{ running: boolean; done: number; total: number; error?: unknown }>({ running: false, done: 0, total: 0 })
   const apply = useMutation({
     mutationFn: ({ merchant, category }: { merchant: string; category: string }) => send<{ reapplied?: number }>('/category-rules', { name: `${merchant} → ${category}`.slice(0, 200), category, pattern: merchant.slice(0, 200), match_field: 'merchant', flow: 'expense' }),
     onSuccess: (r, v) => { setDone(d => ({ ...d, [v.merchant]: r?.reapplied ?? v.category })); client.invalidateQueries({ queryKey: ['transactions'] }); client.invalidateQueries({ queryKey: ['overview'] }) },
   })
   const d = query.data
+  const open = (d?.groups ?? []).filter(g => done[g.merchant] === undefined)
+  const toggle = (m: string) => setPicked(p => { const n = new Set(p); if (n.has(m)) n.delete(m); else n.add(m); return n })
+  const runAll = async (jobs: { merchant: string; category: string }[]) => {
+    setBulk({ running: true, done: 0, total: jobs.length })
+    for (const [n, job] of jobs.entries()) {
+      try { await apply.mutateAsync(job) } catch (error) { setBulk({ running: false, done: n, total: jobs.length, error }); return }
+      setBulk(b => ({ ...b, done: n + 1 }))
+    }
+    setPicked(new Set()); setBulk(b => ({ ...b, running: false }))
+  }
+  const suggested = open.map(g => ({ merchant: g.merchant, category: (choice[g.merchant] ?? g.suggestion ?? '').trim() })).filter(j => j.category)
   const money = (v: string) => formatMoney(v, 'EUR', language)
   return <>
     <PageHeader title={de ? 'Aufräumen' : 'Tidy up'} description={de ? 'Buchungen ohne richtige Kategorie, nach Händler gruppiert. Ein Klick legt eine Regel an, die alle bisherigen und künftigen Buchungen dieses Händlers einordnet.' : 'Bookings without a useful category, grouped by merchant. One click creates a rule for past and future bookings.'}
       action={<Button variant="outline" onClick={() => { setDone({}); query.refetch() }}>{de ? 'Neu laden' : 'Reload'}</Button>} />
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch} >{d && (!d.groups.length ? <Notice>{de ? 'Alles eingeordnet – keine Buchungen ohne Kategorie in den letzten 12 Monaten.' : 'All sorted – no uncategorised bookings in the last 12 months.'}</Notice> : <>
       <Notice>{de ? `${d.group_count} Händler ohne Kategorie, zusammen ${money(d.total)} in ${d.months} Monaten (${money(d.monthly)} pro Monat).` : `${d.group_count} merchants without category, ${money(d.total)} in ${d.months} months.`}</Notice>
+      <div className="tidy-bulk">
+        <label className="checkbox"><input type="checkbox" checked={!!open.length && open.every(g => picked.has(g.merchant))} onChange={e => setPicked(e.target.checked ? new Set(open.map(g => g.merchant)) : new Set())} />{de ? 'Alle auswählen' : 'Select all'}</label>
+        {picked.size > 0 ? <form className="tidy-form" onSubmit={e => { e.preventDefault(); if (bulkCategory.trim()) runAll([...picked].map(merchant => ({ merchant, category: bulkCategory.trim() }))) }}>
+          <input aria-label={de ? 'Kategorie für alle ausgewählten' : 'Category for all selected'} list="tidy-categories" maxLength={120} placeholder={de ? `Kategorie für ${picked.size} Händler …` : `Category for ${picked.size} merchants…`} value={bulkCategory} onChange={e => setBulkCategory(e.target.value)} />
+          <Button busy={bulk.running} disabled={!bulkCategory.trim()}>{de ? `${picked.size} einordnen` : `Sort ${picked.size}`}</Button>
+        </form> : suggested.length > 0 && <Button variant="outline" busy={bulk.running} onClick={() => runAll(suggested)}><Sparkles size={14} />{suggested.length === 1 ? (de ? 'Vorschlag übernehmen' : 'Accept suggestion') : (de ? `Alle ${suggested.length} Vorschläge übernehmen` : `Accept all ${suggested.length} suggestions`)}</Button>}
+        {bulk.running && <span className="small muted" role="status">{bulk.done} / {bulk.total}</span>}
+      </div>
       <Panel>
         <datalist id="tidy-categories">{(cats.data?.categories ?? []).map(c => <option key={c} value={c} />)}</datalist>
         <ul className="tidy-list">{d.groups.map(g => { const value = choice[g.merchant] ?? g.suggestion ?? ''; const finished = done[g.merchant] !== undefined; return <li key={g.merchant} className={finished ? 'finished' : ''}>
-          <div className="open-head"><strong>{g.merchant}</strong><span className="num">{money(g.total)}</span></div>
+          <div className="open-head"><label className="tidy-pick">{!finished && <input type="checkbox" aria-label={`${g.merchant} ${de ? 'auswählen' : 'select'}`} checked={picked.has(g.merchant)} onChange={() => toggle(g.merchant)} />}<strong>{g.merchant}</strong></label><span className="num">{money(g.total)}</span></div>
           <div className="small muted">{g.count} {de ? (g.count === 1 ? 'Buchung' : 'Buchungen') : (g.count === 1 ? 'booking' : 'bookings')} · {de ? 'zuletzt' : 'last'} {formatDate(g.last, language)}{g.sample ? ` · ${g.sample}` : ''}</div>
-          {finished ? <p className="small"><Check size={14} /> {de ? 'Regel angelegt' : 'Rule created'}{typeof done[g.merchant] === 'number' ? ` · ${done[g.merchant]} ${de ? 'Buchungen aktualisiert' : 'bookings updated'}` : ''}</p> :
+          {finished ? <p className="small tidy-done"><Check size={14} /> {de ? 'Regel angelegt' : 'Rule created'}{typeof done[g.merchant] === 'number' ? ` · ${done[g.merchant]} ${de ? (done[g.merchant] === 1 ? 'Buchung aktualisiert' : 'Buchungen aktualisiert') : 'bookings updated'}` : ''}</p> :
             <form className="tidy-form" onSubmit={e => { e.preventDefault(); if (value.trim()) apply.mutate({ merchant: g.merchant, category: value.trim() }) }}>
               <input aria-label={`${de ? 'Kategorie für' : 'Category for'} ${g.merchant}`} list="tidy-categories" maxLength={120} placeholder={de ? 'Kategorie wählen …' : 'Choose category…'} value={value} onChange={e => setChoice(c => ({ ...c, [g.merchant]: e.target.value }))} />
               {g.suggestion && <Badge>{g.suggestion_source === 'same_merchant' ? (de ? 'wie sonst bei diesem Händler' : 'as usual for this merchant') : (de ? 'Vorschlag' : 'suggested')}</Badge>}
               <Button busy={apply.isPending && apply.variables?.merchant === g.merchant} disabled={!value.trim()}><Sparkles size={14} />{de ? 'Regel anlegen' : 'Create rule'}</Button>
             </form>}
         </li> })}</ul>
-        <Feedback error={apply.error} />
+        <Feedback error={bulk.error ?? apply.error} />
       </Panel>
     </>)}</QueryState>
   </>

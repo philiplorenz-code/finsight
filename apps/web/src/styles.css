@@ -537,3 +537,8 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
 .search-results section button { display: flex; width: 100%; justify-content: space-between; gap: 12px; align-items: center; text-align: left; padding: 10px 8px; min-height: 44px; border: 0; background: transparent; color: inherit; border-radius: 10px; cursor: pointer; font: inherit; }
 .search-results section button:hover, .search-results section button:focus-visible { background: var(--soft); }
 @media (max-width: 640px) { .search-overlay { padding: 0; } .search-box { max-height: 100dvh; height: 100dvh; border-radius: 0; width: 100%; } }
+.tidy-bulk { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 4px 0 12px; }
+.tidy-bulk .tidy-form { flex: 1 1 320px; }
+.tidy-pick { display: inline-flex; align-items: center; gap: 10px; min-height: 32px; }
+.tidy-pick input { width: 20px; height: 20px; }
+.tidy-done { display: flex; align-items: center; gap: 6px; margin: 0; }
