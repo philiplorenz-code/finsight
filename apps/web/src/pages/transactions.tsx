@@ -1,3 +1,4 @@
+import { PaperlessMatches } from '../components/paperless'
 import { AccountSelect } from '../components/account-select'
 import { MerchantProfile } from '../components/merchant-profile'
 import { useState } from 'react'
@@ -72,6 +73,7 @@ function TransactionDetail({ id, onClose }: { id: string; onClose: () => void })
         <Feedback error={mutation.error} success={mutation.isSuccess} /><div className="form-actions"><Button variant="outline" type="button" disabled={mutation.isPending} onClick={() => mutation.mutate(true)}>{t('reset')}</Button><Button busy={mutation.isPending}>{t('save')}</Button></div>
       </form><details className="source-details"><summary>{t('source')}</summary><pre>{JSON.stringify(query.data.source || {}, null, 2)}</pre></details>
       {mutation.isSuccess && mutation.variables === false && query.data.merchant && (category ?? '').trim() && <LearnRule merchant={query.data.merchant} category={(category ?? '').trim()} outgoing={Number(query.data.amount) < 0} />}
+      <PaperlessMatches term={query.data.merchant || query.data.counterparty} />
       <RevisionDiffs id={id} />
     </>}</QueryState>
   </Dialog>

@@ -1,12 +1,13 @@
+import { usePaperless } from '../components/paperless'
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { Archive, Camera, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { api, send } from '../lib/api'
 import { formatDate, useLocale } from '../lib/i18n'
 import { Badge, Button, DataTable, Dialog, Feedback, Field, Money, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 
 type Item = { id?: string; name: string; quantity: string; unit_price?: string | null; total: string; category: string }
-type Receipt = { id: string; status: string; merchant?: string | null; receipt_date?: string | null; total?: string | null; transaction_id?: string | null; items: Item[]; items_total: string; difference?: string | null; created_at: string }
+type Receipt = { id: string; status: string; merchant?: string | null; receipt_date?: string | null; total?: string | null; transaction_id?: string | null; paperless_sent_at?: string | null; items: Item[]; items_total: string; difference?: string | null; created_at: string }
 type Stats = { months: string[]; receipts: number; total: string; categories: { category: string; total: string }[]; top_items: { name: string; count: number; total: string; price_first?: string | null; price_last?: string | null }[] }
 
 const STATUS: Record<string, [string, string, string]> = {
@@ -31,13 +32,15 @@ export default function ReceiptsPage() {
   const refresh = () => { client.invalidateQueries({ queryKey: ['receipts'] }); client.invalidateQueries({ queryKey: ['receipt-stats'] }) }
   const upload = useMutation({ mutationFn: uploadFile, onSuccess: r => { refresh(); setEditing(r) } })
   const extract = useMutation({ mutationFn: (id: string) => send<Receipt>(`/receipts/${encodeURIComponent(id)}/extract`), onSuccess: r => { refresh(); setEditing(r) } })
+  const paperless = usePaperless()
+  const archive = useMutation({ mutationFn: (id: string) => send<Receipt>(`/receipts/${encodeURIComponent(id)}/paperless`), onSuccess: refresh })
   const remove = useMutation({ mutationFn: (id: string) => send(`/receipts/${encodeURIComponent(id)}`, undefined, 'DELETE'), onSuccess: refresh })
   const max = Math.max(1, ...(stats.data?.categories ?? []).map(c => Number(c.total)))
   return <>
     <PageHeader title={de ? 'Kassenzettel' : 'Receipts'} description={de ? 'Fotografiere deine Kassenzettel – jede Position landet in der Auswertung, damit du genau siehst, wofür dein Lebensmittel-Geld draufgeht.' : 'Photograph your receipts – every line item is analysed so you see exactly where your grocery money goes.'}
       action={<><input ref={input} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = '' }} />
         <Button busy={upload.isPending} onClick={() => input.current?.click()}><Camera size={17} />{de ? 'Kassenzettel fotografieren' : 'Photograph receipt'}</Button></>} />
-    <Feedback error={upload.error || extract.error || remove.error} />
+    <Feedback error={upload.error || extract.error || remove.error || archive.error} />
     {aiReady ? <Notice>{de ? '„Mit KI auslesen“ sendet das Foto an den in den Einstellungen gewählten KI-Anbieter (Budget und Einwilligung wie beim Analysten). Das Modell muss Bilder verstehen. Ohne KI kannst du die Positionen selbst eintragen.' : '“Read with AI” sends the photo to the AI provider chosen in settings (same budget and consent as the analyst). The model must support images. Without AI you can enter items yourself.'}</Notice> : <Notice>{de ? 'Nach dem Foto öffnet sich der Editor: Händler, Datum, Summe und Positionen eintragen. Die Kategorien landen direkt in der Auswertung. Auslesen per KI lässt sich später in den Einstellungen aktivieren (bildfähiges Modell nötig).' : 'After the photo the editor opens: enter merchant, date, total and items. AI reading can be enabled later in settings (image-capable model required).'}</Notice>}
     {!!stats.data?.categories.length && <Panel title={de ? 'Wofür dein Einkauf draufgeht (6 Monate)' : 'Where your shopping goes (6 months)'} description={`${stats.data.receipts} ${de ? 'Kassenzettel' : 'receipts'} · ${de ? 'zusammen' : 'together'}`} action={<Money value={stats.data.total} />}>
       <div className="item-bars">{stats.data.categories.map(c => <div key={c.category} className="item-bar"><span className="item-bar-label">{c.category}</span><span className="item-bar-track"><span style={{ width: `${Math.max(2, Number(c.total) / max * 100)}%` }} /></span><Money value={c.total} /></div>)}</div>
@@ -57,6 +60,7 @@ export default function ReceiptsPage() {
             <span className="badge-row"><Badge tone={tone}>{de ? sde : sen}</Badge>{r.transaction_id ? <Badge tone="success">{de ? 'Buchung gefunden' : 'Booking matched'}</Badge> : r.total ? <Badge>{de ? 'keine Buchung' : 'no booking'}</Badge> : null}</span>
             <span className="badge-row">
               {aiReady && r.status !== 'reviewed' && <Button variant="outline" busy={extract.isPending && extract.variables === r.id} onClick={() => extract.mutate(r.id)}><Sparkles size={15} />{de ? 'Mit KI auslesen' : 'Read with AI'}</Button>}
+              {paperless.data?.reachable && (r.paperless_sent_at ? <span className="small muted">{de ? 'In Paperless' : 'In Paperless'} ✓</span> : <Button variant="outline" busy={archive.isPending && archive.variables === r.id} onClick={() => archive.mutate(r.id)}><Archive size={15} />{de ? 'In Paperless ablegen' : 'Archive in Paperless'}</Button>)}
               <Button variant="ghost" aria-label={`${de ? 'Bearbeiten' : 'Edit'}: ${r.merchant ?? r.id}`} onClick={() => setEditing(r)}><Pencil size={15} /></Button>
               <Button variant="ghost" aria-label={de ? 'Löschen' : 'Delete'} onClick={() => remove.mutate(r.id)}><Trash2 size={15} /></Button>
             </span>

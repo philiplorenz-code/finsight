@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, KeyRound, Monitor, ShieldCheck, Sparkles } from 'lucide-react'
+import { Archive, Bell, KeyRound, Monitor, ShieldCheck, Sparkles } from 'lucide-react'
 import { api, items, send } from '../lib/api'
 import { formatDate, useLocale } from '../lib/i18n'
 import { PhoneImport } from '../components/phone-import'
@@ -8,6 +8,7 @@ import { label } from '../lib/labels'
 import { useTheme } from '../lib/theme'
 import { Badge, Button, DataTable, Feedback, Field, Notice, PageHeader, Panel, QueryState } from '../components/ui'
 import { McpSettingsLink } from '../components/mcp'
+import { usePaperless } from '../components/paperless'
 
 export type AIPolicy = {
   budget_currency: string | null
@@ -92,6 +93,7 @@ function IntegrationSettings({ initial }: { initial: SettingsData }) {
       <div className="form-actions"><Button type="button" variant="outline" disabled={mutation.isPending} busy={environment.isPending} onClick={() => environment.mutate(true)}>{language === 'de' ? 'KI-Zustimmung widerrufen' : 'Revoke AI consent'}</Button></div>
       <Feedback error={environment.error} success={environment.isSuccess} />
     </Panel>
+    <PaperlessPanel />
     <Panel title={t('notifications')} action={<Bell size={19} />}>
       <div className="form-stack">
         <Notice>{t('notificationNote')}</Notice>
@@ -166,5 +168,18 @@ function AccountSecurity() {
         <Button busy={changeEmail.isPending}>{de ? 'E-Mail ändern' : 'Change e-mail'}</Button>
       </form>
     </div>
+  </Panel>
+}
+
+function PaperlessPanel() {
+  const { language } = useLocale(); const de = language === 'de'
+  const status = usePaperless()
+  const s = status.data
+  return <Panel title="Paperless" action={<Archive size={19} />}>
+    {!s ? <p className="muted small">{de ? 'Prüfe …' : 'Checking…'}</p> : !s.configured ? <p className="muted small">{de
+      ? 'Nicht verbunden. Trag PAPERLESS_URL und PAPERLESS_TOKEN in die .env von FinSight ein und starte die App neu (Anleitung: docs/integrations/paperless.md).'
+      : 'Not connected. Set PAPERLESS_URL and PAPERLESS_TOKEN in FinSight\'s .env and restart (see docs/integrations/paperless.md).'}</p>
+      : s.reachable ? <p className="small"><Badge>{de ? 'Verbunden' : 'Connected'}</Badge> {de ? 'Kassenzettel lassen sich dort ablegen, Buchungsdetails zeigen passende Dokumente.' : 'Receipts can be archived there; booking details show matching documents.'} <a href={s.url} target="_blank" rel="noreferrer noopener">{s.url}</a></p>
+      : <Notice warning>{de ? `Eingerichtet, aber ${s.error === 'Paperless rejected the token' ? 'der Token wird abgelehnt' : 'Paperless ist nicht erreichbar'}.` : `Configured, but ${s.error ?? 'not reachable'}.`}</Notice>}
   </Panel>
 }
