@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Paperless-ngx: local compose project (`infrastructure/paperless`), receipts can be archived there, booking details list matching Paperless documents, settings show the connection (migration 0023).
+- Plan for importing the side business into Lexware Office via its public API (`docs/integrations/lexware-office.md`).
+
 - Aufräumen: select several merchants and sort them into one category, or accept all suggestions at once.
 - Early budget warnings: plan items at 90 % of their target, or projected above it after the first week, show under "Jetzt wichtig" and send the plan notification once per month.
 

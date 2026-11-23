@@ -270,6 +270,16 @@ async def extract_receipt(ident: str, db: Session = Depends(get_db), user=Depend
     return receipt_json(db, r)
 
 
+@router.post("/receipts/{ident}/paperless")
+def to_paperless(ident: str, db: Session = Depends(get_db), user=Depends(current_user)):
+    from .paperless import send_receipt
+    r = owned_receipt(db, ident, user)
+    if r.paperless_sent_at:
+        return {**receipt_json(db, r), "already_sent": True}
+    send_receipt(db, r, user)
+    return receipt_json(db, r)
+
+
 @router.get("/receipts/stats")
 def receipt_stats(months: int = Query(6, ge=1, le=24), db: Session = Depends(get_db), user=Depends(current_user)):
     today = local_today(db, user.id)

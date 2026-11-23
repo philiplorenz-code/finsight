@@ -347,6 +347,8 @@ class Receipt(Base):
     total: Mapped[Decimal | None] = mapped_column(Numeric(24, 8), nullable=True)
     transaction_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.id"), nullable=True)
     run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    paperless_task: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    paperless_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
