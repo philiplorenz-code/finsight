@@ -23,7 +23,7 @@ const defaultNotifications: Notifications = { enabled: false, server: '', topic:
 const toTime = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 const toMinutes = (time: string) => { const [h, m] = time.split(':').map(Number); return h * 60 + m }
 
-const EVENT_DE: Record<string, string> = { weekly: 'Wöchentlich', monthly: 'Monatlich', report_ready: 'Bericht fertig', anomaly: 'Auffälligkeit', import_changed: 'Import geändert', plan_exceeded: 'Soll überschritten' }
+const EVENT_DE: Record<string, string> = { weekly: 'Wöchentlich', monthly: 'Monatlich', report_ready: 'Bericht fertig', anomaly: 'Auffälligkeit', import_changed: 'Import geändert', plan_exceeded: 'Soll fast erreicht oder überschritten' }
 export default function SettingsPage() {
   const { t, language, setLanguage } = useLocale(); const { dark, toggle } = useTheme()
   const query = useQuery({ queryKey: ['settings'], queryFn: () => api<SettingsData>('/settings') })

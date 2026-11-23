@@ -275,4 +275,21 @@ def queue_plan_alerts(session: Session, owner_id: str, now=None) -> list[str]:
     for item_id in report["over"]:
         row = queue_notification(session, str(owner_id), "plan_exceeded", f"plan:{item_id}:{report['month']}", now)
         queued.append(row.id)
+    for item in early_warnings(report):
+        row = queue_notification(session, str(owner_id), "plan_exceeded", f"plan-warn:{item['id']}:{report['month']}", now)
+        queued.append(row.id)
     return queued
+
+
+def early_warnings(report: dict) -> list[dict]:
+    """Items close to their target in the running month: 90 % spent, or projected above target after a week."""
+    if not report["running"]:
+        return []
+    out = []
+    for item in report["items"]:
+        if item["status"] != "warning":
+            continue
+        near = item["amount"] > 0 and item["actual"] >= item["amount"] * WARN_SHARE
+        if near or report["days_elapsed"] >= 7:
+            out.append(item)
+    return out

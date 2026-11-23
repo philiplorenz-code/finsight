@@ -2,10 +2,19 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+
+import app.finance as finance
 from app.recurring import classify, infer_period, normalize_key
 from conftest import booking, upload
 
 D = Decimal
+FIXED = date(2026, 11, 22)
+
+
+@pytest.fixture(autouse=True)
+def pinned_today(monkeypatch):
+    monkeypatch.setattr(finance, "local_today", lambda db, user_id: FIXED)
 
 
 def series(payee, amount, start, months, step=1, category="Sonstiges", skip=(), prefix=None):
@@ -48,7 +57,7 @@ def test_classification_uses_category_and_keywords():
 
 
 def test_detects_contracts_totals_candidates_and_stopped(owner):
-    today = date.today()
+    today = FIXED
     start = date(today.year - 1, today.month, 5)
     rows = (series("Haftpflicht Muster Versicherung", 12, start, 12, category="Versicherung")
             + series("Netflix International", 13, start, 12, skip=(4,))
@@ -74,7 +83,7 @@ def test_detects_contracts_totals_candidates_and_stopped(owner):
 
 
 def test_decisions_survive_reimport_and_can_rename_reclassify(owner):
-    today = date.today()
+    today = FIXED
     start = date(today.year - 1, today.month, 5)
     assert upload(owner, series("Mystery Abbuchung", 20, start, 10, prefix="a")).status_code == 200
     item = items(owner)["Mystery Abbuchung"]
@@ -97,7 +106,7 @@ def test_decisions_survive_reimport_and_can_rename_reclassify(owner):
 
 
 def test_yes_no_contract_flag_is_not_a_contract_name_and_the_contract_id_groups(owner):
-    today = date.today()
+    today = FIXED
     start = date(today.year - 1, today.month, 5)
     rows = []
     for i, row in enumerate(series("Strom Muster", 55, start, 12, category="Strom")):

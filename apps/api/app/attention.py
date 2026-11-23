@@ -35,10 +35,14 @@ def attention(db: Session, user_id: str, today: date | None = None) -> list[dict
         elif item.due and item.due <= today:
             out.append({"kind": "overdue", "severity": "medium", "title": item.title, "person": item.person, "amount": item.amount,
                         "date": item.due.isoformat(), "direction": item.direction, "link": "/open-items"})
-    from .plan import plan_report
-    for p in plan_report(db, user_id, history=1)["items"]:
+    from .plan import early_warnings, plan_report
+    report = plan_report(db, user_id, history=1)
+    for p in report["items"]:
         if p["status"] == "over":
             out.append({"kind": "plan_over", "severity": "medium", "title": p["name"], "amount": p["actual"], "target": p["amount"], "link": "/plan"})
+    for p in early_warnings(report):
+        out.append({"kind": "plan_warning", "severity": "low", "title": p["name"], "amount": p["actual"], "target": p["amount"],
+                    "projected": p["projected"], "remaining": p["remaining"], "link": "/plan"})
     order = {"high": 0, "medium": 1, "low": 2}
     return sorted(out, key=lambda a: (order[a["severity"]], a.get("days_left", 99)))
 

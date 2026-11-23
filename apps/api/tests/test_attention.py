@@ -57,3 +57,24 @@ def test_reminders_are_queued_once(owner, db):
 def test_threshold_picks_the_tightest_reached():
     picks = {left: next(t for t in sorted(att.THRESHOLDS) if left <= t) for left in (13, 9, 6, 2, 0)}
     assert picks == {13: 14, 9: 14, 6: 7, 2: 2, 0: 2}
+
+
+def test_budget_close_to_target_shows_early_warning(owner, db, monkeypatch):
+    import app.plan as plan
+    monkeypatch.setattr(plan, "local_today", lambda db, user_id: date(2026, 11, 22))
+    rows = [booking("w1", "-95", day="2026-11-03", **{"Empfänger": "Synthetic Markt", "Kategorie": "Lebensmittel"})]
+    assert upload(owner, rows).status_code == 200
+    for a in owner.get("/api/accounts").json():
+        owner.patch(f"/api/accounts/{a['id']}", json={"ownership": "owned"})
+    owner.post("/api/plan-items", json={"name": "Essen", "amount": "100", "category": "Lebensmittel"})
+    owner.post("/api/plan-items", json={"name": "Luxus", "amount": "1000", "category": "Hobby"})
+    items = owner.get("/api/attention").json()["items"]
+    warn = [i for i in items if i["kind"] == "plan_warning"]
+    assert [i["title"] for i in warn] == ["Essen"] and warn[0]["remaining"] == "5"
+    user_id = db.scalar(select(User.id))
+    db.add(NotificationSettings(owner_id=user_id, enabled=True, server="https://ntfy.example.test", topic="synthetic-topic", events=["plan_exceeded"]))
+    db.commit()
+    assert len(plan.queue_plan_alerts(db, user_id)) == 1
+    assert plan.queue_plan_alerts(db, user_id) == plan.queue_plan_alerts(db, user_id)
+    keys = [n.dedupe_key for n in db.scalars(select(Notification))]
+    assert len(keys) == 1 and keys[0].startswith("plan-warn:")
