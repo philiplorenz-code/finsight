@@ -2,6 +2,7 @@ import hashlib
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
@@ -47,7 +48,7 @@ def current_user(request: Request, db: DBSession = Depends(get_db)):
 def require_csrf(request: Request, db: DBSession = Depends(get_db)):
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return
-    if request.url.path in {"/api/auth/setup", "/api/auth/login"}:
+    if request.url.path in {"/api/auth/setup", "/api/auth/login", "/api/auth/dev-login"}:
         # JSON-only endpoints and origin checking prevent login CSRF.
         origin = request.headers.get("origin")
         own_origin = str(request.base_url).rstrip("/")
@@ -101,10 +102,29 @@ def sign_in(user, db, response):
     return {"id": user.id, "email": user.email, "csrf_token": csrf}
 
 
+def dev_login_allowed(request):
+    """Password-free sign-in for local development: needs FINSIGHT_DEV_LOGIN and a localhost Host header."""
+    if not settings.dev_login:
+        return False
+    host = urlsplit(f"//{request.headers.get('host', '')}").hostname or ""
+    return host in {"localhost", "127.0.0.1", "::1"}
+
+
 @router.get("/status")
 def status(request: Request, db: DBSession = Depends(get_db)):
     return {"initialized": db.scalar(select(User.id).limit(1)) is not None,
-            "authenticated": session_for(request, db) is not None}
+            "authenticated": session_for(request, db) is not None,
+            "dev_login": dev_login_allowed(request)}
+
+
+@router.post("/dev-login")
+def dev_login(request: Request, response: Response, db: DBSession = Depends(get_db)):
+    if not dev_login_allowed(request):
+        raise HTTPException(404, "Not found")
+    user = db.scalar(select(User).where(User.email == settings.dev_login.strip().lower()))
+    if not user:
+        raise HTTPException(404, "Dev login user not found")
+    return sign_in(user, db, response)
 
 
 @router.post("/setup", status_code=201)

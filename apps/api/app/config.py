@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     max_uncompressed_bytes: int = 64 * 1024 * 1024
     max_import_rows: int = 100000
     allowed_origins: list[str] = []
+    # Development only: e-mail of the user signed in without a password from localhost. Empty = off.
+    dev_login: str = ""
 
 
 settings = Settings()

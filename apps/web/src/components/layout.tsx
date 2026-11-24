@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eraser, ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3, Landmark, Target, Briefcase, Receipt, FileBarChart, Sigma, Handshake, Coins, CalendarRange } from 'lucide-react'
+import { Eraser, ArrowDownToLine, ArrowLeftRight, Bell, ChevronRight, LayoutDashboard, LogOut, Menu, Moon, PiggyBank, Settings, ShieldCheck, Sparkles, Sun, Wallet, X, FileText, Gift, BarChart3, Landmark, Target, Briefcase, Receipt, FileBarChart, Sigma, Handshake, Coins, CalendarRange, Eye } from 'lucide-react'
 import { send } from '../lib/api'
 import { useLocale, type TranslationKey } from '../lib/i18n'
 import { Brand } from './auth'
@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme'
 const navigation = [
   { key: 'overview', path: '/', icon: LayoutDashboard }, { key: 'accounts', path: '/accounts', icon: Wallet },
   { key: 'transactions', path: '/transactions', icon: ArrowLeftRight }, { key: 'buckets', path: '/buckets', icon: PiggyBank }, { key: 'plan', path: '/plan', icon: Target }, { key: 'receipts', path: '/receipts', icon: Receipt }, { key: 'cash', path: '/cash', icon: Coins }, { key: 'tidy', path: '/tidy', icon: Eraser },
-  { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'analysis', path: '/analysis', icon: BarChart3 }, { key: 'averages', path: '/averages', icon: Sigma }, { key: 'report', path: '/report', icon: FileBarChart }, { key: 'yearReview', path: '/year', icon: CalendarRange }, { key: 'networth', path: '/net-worth', icon: Landmark }, { key: 'openItems', path: '/open-items', icon: Handshake }, { key: 'wishlist', path: '/wishlist', icon: Gift }, { key: 'business', path: '/business', icon: Briefcase }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
+  { key: 'contracts', path: '/contracts', icon: FileText }, { key: 'analysis', path: '/analysis', icon: BarChart3 }, { key: 'averages', path: '/averages', icon: Sigma }, { key: 'report', path: '/report', icon: FileBarChart }, { key: 'yearReview', path: '/year', icon: CalendarRange }, { key: 'watch', path: '/watch', icon: Eye }, { key: 'networth', path: '/net-worth', icon: Landmark }, { key: 'openItems', path: '/open-items', icon: Handshake }, { key: 'wishlist', path: '/wishlist', icon: Gift }, { key: 'business', path: '/business', icon: Briefcase }, { key: 'imports', path: '/imports', icon: ArrowDownToLine },
 ] as const
 export function Layout() {
   const { t, language, setLanguage } = useLocale()
@@ -21,7 +21,7 @@ export function Layout() {
   const sidebar = useRef<HTMLElement>(null)
   const location = useLocation()
   const client = useQueryClient()
-  const logout = useMutation({ mutationFn: () => send('/auth/logout'), onSuccess: () => { client.clear(); window.location.assign('/') } })
+  const logout = useMutation({ mutationFn: () => send('/auth/logout'), onSuccess: () => { try { sessionStorage.setItem('finsight.devLoginOff', '1') } catch { /* storage blocked */ } client.clear(); window.location.assign('/') } })
    const title = [...navigation, { key: 'insights', path: '/insights' }, { key: 'settings', path: '/settings' }, { key: 'settings', path: '/settings/mcp' }, { key: 'settings', path: '/mcp/authorize' }].find(n => n.path === location.pathname)?.key || 'overview'
   useEffect(() => {
     if (!open) return
