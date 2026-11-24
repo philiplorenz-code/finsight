@@ -118,6 +118,6 @@ function ContractDetail({ detail, de, kindName, busy, onClose, onDecide }: { det
       </div>
     </>}
     <h3>{t('evidence')}</h3><ul className="evidence-list">{detail.evidence?.map((e, i) => <li key={i}>{e.description}{e.transaction_id && <Link to={`/transactions?detail=${encodeURIComponent(e.transaction_id)}`}>{t('transactions')} →</Link>}</li>)}</ul>{!detail.evidence?.length && <p className="muted">{t('noValue')}</p>}
-    {detail.key && <TermForm contractKey={detail.key} />}
+    {detail.key && <TermForm contractKey={detail.key} name={detail.name} />}
   </Dialog>
 }

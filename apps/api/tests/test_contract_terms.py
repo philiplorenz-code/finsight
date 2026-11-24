@@ -34,3 +34,27 @@ def test_terms_api_and_upcoming(owner):
     assert owner.put("/api/contract-terms", params={"key": key}, json={"notice_days": -1}).status_code == 422
     assert owner.delete("/api/contract-terms", params={"key": key}).status_code == 204
     assert owner.delete("/api/contract-terms", params={"key": key}).status_code == 404
+
+
+def test_cancelled_contract_stops_deadline_and_reminders(owner, monkeypatch):
+    import app.attention as attention
+    monkeypatch.setattr(attention, "local_today", lambda db, user_id: date(2026, 7, 10), raising=False)
+    rows = [booking(f"s{m}", "-12", day=f"2026-0{m}-03", **{"Empfänger": "Synthetic Stream", "Kategorie": "Abo"}) for m in range(1, 7)]
+    assert upload(owner, rows).status_code == 200
+    for a in owner.get("/api/accounts").json():
+        owner.patch(f"/api/accounts/{a['id']}", json={"ownership": "owned"})
+    key = next(i["key"] for i in owner.get("/api/contracts").json()["items"] if i["name"] == "Synthetic Stream")
+    saved = owner.put("/api/contract-terms", params={"key": key}, json={"term_end": "2026-07-20", "notice_days": 30, "renew_months": 12,
+                                                                        "customer_number": "SYN-4711"}).json()
+    # deadline for July has passed, so the next chance is the renewed term
+    assert saved["cancel_by"] == "2027-06-20" and saved["customer_number"] == "SYN-4711"
+    done = owner.post("/api/contract-terms/cancel", params={"key": key}, json={}).json()
+    assert done["cancelled"] is True and done["cancelled_on"] == "2026-07-10" and done["term_end"] == "2027-07-20"
+    assert "cancel_by" not in done and done["customer_number"] == "SYN-4711"
+    assert not [i for i in owner.get("/api/attention").json()["items"] if i["kind"] == "deadline"]
+    # editing the term afterwards keeps the cancellation
+    again = owner.put("/api/contract-terms", params={"key": key}, json={"term_end": "2026-07-20", "notice_days": 30, "renew_months": 12, "note": "Synthetic"}).json()
+    assert again["cancelled"] is True
+    undone = owner.delete("/api/contract-terms/cancel", params={"key": key}).json()
+    assert undone["cancelled"] is False and undone["cancel_by"] == "2027-06-20"
+    assert owner.delete("/api/contract-terms/cancel", params={"key": key}).status_code == 404
