@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.auth import hasher
+from app.config import settings
 from app.models import Session, User
 
 
@@ -11,7 +12,7 @@ BODY = {"bootstrap_secret": "synthetic-bootstrap-secret", "email": "synthetic@ex
 
 def test_bootstrap_auth_csrf_expiry(client, db):
     assert client.get("/api/health").status_code == 200
-    assert client.get("/api/auth/status").json() == {"initialized": False, "authenticated": False}
+    assert client.get("/api/auth/status").json() == {"initialized": False, "authenticated": False, "dev_login": False}
     assert client.get("/api/accounts").status_code == 401
     assert client.post("/api/auth/setup", json={**BODY, "bootstrap_secret": "synthetic-wrong"}).status_code == 403
     assert client.post("/api/auth/setup", json=BODY, headers={"origin": "https://attacker.test"}).status_code == 403
@@ -68,3 +69,21 @@ def test_unexpected_errors_are_not_logged_or_echoed(owner, monkeypatch, caplog):
     assert response.status_code == 503
     assert "synthetic-sensitive-error-content" not in response.text
     assert "synthetic-sensitive-error-content" not in caplog.text
+
+
+def test_dev_login_only_when_enabled_and_local(client, monkeypatch):
+    assert client.post("/api/auth/setup", json=BODY).status_code == 201
+    client.cookies.clear()
+    local = {"host": "127.0.0.1:8080"}
+    assert client.post("/api/auth/dev-login", headers=local).status_code == 404
+    monkeypatch.setattr(settings, "dev_login", BODY["email"])
+    assert client.get("/api/auth/status", headers={"host": "finsight.example.test"}).json()["dev_login"] is False
+    assert client.post("/api/auth/dev-login", headers={"host": "finsight.example.test"}).status_code == 404
+    assert client.get("/api/auth/status", headers=local).json()["dev_login"] is True
+    assert client.post("/api/auth/dev-login", headers={**local, "origin": "https://attacker.test"}).status_code == 403
+    signed = client.post("/api/auth/dev-login", headers={"host": "localhost:5173"})
+    assert signed.status_code == 200 and signed.json()["email"] == BODY["email"]
+    assert client.get("/api/auth/me").status_code == 200
+    monkeypatch.setattr(settings, "dev_login", "synthetic-nobody@example.test")
+    client.cookies.clear()
+    assert client.post("/api/auth/dev-login", headers=local).status_code == 404

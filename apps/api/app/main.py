@@ -33,6 +33,7 @@ from .receipts import router as receipts_router
 from .device_import import public_router as device_public_router, router as device_router
 from .insights_extra import router as insights_extra_router
 from .forecast import router as forecast_router
+from .watch import router as watch_router
 from .health import router as health_router
 from .asof import router as asof_router
 from .wishlist import router as wishlist_router
@@ -93,6 +94,7 @@ app.include_router(device_router, prefix="/api", dependencies=[Depends(require_c
 app.include_router(device_public_router)  # bearer device key, no cookies -> no CSRF
 app.include_router(insights_extra_router, prefix="/api", dependencies=[Depends(require_csrf)])
 app.include_router(forecast_router, prefix="/api", dependencies=[Depends(require_csrf)])
+app.include_router(watch_router, prefix="/api", dependencies=[Depends(require_csrf)])
 
 # OAuth routes have absolute root discovery and /api/mcp paths. Their module
 # applies CSRF selectively: public OAuth exchanges must not inherit cookie CSRF.
