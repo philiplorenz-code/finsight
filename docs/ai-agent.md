@@ -215,6 +215,24 @@ for `/imports` or `/insights`. Only a public origin is accepted: private paths,
 credentials, query strings, fragments and header delimiters are rejected. An
 invalid/missing origin omits the link rather than exposing sensitive URL data.
 
+### Switching to OpenAI (needed for receipt photos)
+
+DeepSeek has no image input, so "Mit KI auslesen" on receipts fails with it. An OpenAI model handles both the
+analyst and receipt photos. In the real stack's `.env` (the owner edits it; the key never goes into git):
+
+```
+AI_PROVIDER_BASE_URL=https://api.openai.com/v1
+AI_MODEL=openai/gpt-4.1-mini
+AI_MODEL_ALLOWLIST=openai/gpt-4.1-mini
+AI_INPUT_EUR_PER_MILLION=0.40
+AI_OUTPUT_EUR_PER_MILLION=1.60
+AI_API_KEY=""
+```
+
+Paste the key between the quotes of `AI_API_KEY`, then `COMPOSE_PROJECT_NAME=finsight-handoff docker compose up -d api worker`.
+The prices are the USD list price taken as EUR, i.e. rounded up; budgets stay as configured. A receipt photo
+costs roughly 1,000–2,000 input tokens.
+
 ## Agent and budget semantics
 
 LangGraph executes a typed fixed plan, a bounded read-only tool iteration, and

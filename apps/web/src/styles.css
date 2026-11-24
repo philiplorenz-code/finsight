@@ -50,6 +50,7 @@
   .form-stack { display: flex; flex-direction: column; gap: 17px; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 6px; }
+  .letter-text { font: 0.92rem/1.5 Georgia, "Times New Roman", serif; white-space: pre-wrap; min-height: 18rem; width: 100%; }
   .checkbox { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
   .checkbox input { margin-top: 3px; }
   .feedback { display: flex; align-items: center; gap: 9px; border-radius: 8px; padding: 11px 13px; font-size: 12px; }
@@ -545,3 +546,4 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
 .paperless-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .paperless-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; }
 .paperless-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) { .dialog .form-grid { grid-template-columns: 1fr; } .letter-text { min-height: 14rem; font-size: 0.85rem; } }

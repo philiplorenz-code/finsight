@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Printer } from 'lucide-react'
 import { api } from '../lib/api'
@@ -25,7 +26,8 @@ function shift(month: string, by: number) {
 
 export default function ReportPage() {
   const { language } = useLocale(); const de = language === 'de'
-  const [month, setMonth] = useState<string | null>(null)
+  const [params] = useSearchParams()
+  const [month, setMonth] = useState<string | null>(() => /^\d{4}-\d{2}$/.test(params.get('month') ?? '') ? params.get('month') : null)
   const query = useQuery({ queryKey: ['report', month], queryFn: () => api<Report>(`/reports/monthly${month ? `?month=${month}` : ''}`) })
   const r = query.data
   const money = (v?: string | number | null) => formatMoney(String(v ?? 0), r?.currency ?? 'EUR', language)
@@ -47,6 +49,7 @@ export default function ReportPage() {
       action={r && <div className="badge-row no-print">
         <Button variant="outline" aria-label={de ? 'Vormonat' : 'Previous month'} onClick={() => setMonth(shift(r.month, -1))}><ChevronLeft size={16} /></Button>
         <Button variant="outline" aria-label={de ? 'Folgemonat' : 'Next month'} onClick={() => setMonth(shift(r.month, 1))}><ChevronRight size={16} /></Button>
+        <Link className="button button-outline" to="/year">{de ? 'Jahresrückblick' : 'Year in review'}</Link>
         <Button variant="outline" onClick={() => window.print()}><Printer size={16} />{de ? 'Drucken / PDF' : 'Print / PDF'}</Button>
       </div>} />
     <QueryState pending={query.isPending} error={query.error} retry={query.refetch}>{r && <>
