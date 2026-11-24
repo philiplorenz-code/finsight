@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Container images for Kubernetes: `Images` workflow pushes `ghcr.io/philiplorenz-code/finsight-api` and `finsight-web` (tag `sha-<commit>`); the web image takes `FINSIGHT_API_UPSTREAM` and `FINSIGHT_NGINX_RESOLVER` (compose defaults unchanged).
+
 - Account watch ("Konto im Blick", default: Freizeit): regular monthly budget vs. top-ups from other own accounts per month, with sources, spending, categories and calculated month-end balance.
 - Development login: with `FINSIGHT_DEV_LOGIN` set, opening FinSight via localhost signs that user in without a password.
 

@@ -1,0 +1,47 @@
+name: Images
+# Builds the API and web images for the Kubernetes deployment (repo 3kshetzner) and pushes them to GHCR.
+# Tags: sha-<short commit>, pinned in the cluster manifests. No data and no secrets go into the images.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: finsight-api
+            context: .
+            file: infrastructure/docker/api.Dockerfile
+          - name: finsight-web
+            context: apps/web
+            file: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v7
+      - id: tag
+        run: echo "sha=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ steps.tag.outputs.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:main
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

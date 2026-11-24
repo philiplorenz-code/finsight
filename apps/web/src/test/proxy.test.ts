@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import config from '../../nginx.conf?raw'
+import dockerfile from '../../Dockerfile?raw'
 
 describe('shipped proxy safety contract (not a deployed smoke test)', () => {
   it('preserves public non-default ports for same-origin auth validation', () => {
@@ -7,9 +8,11 @@ describe('shipped proxy safety contract (not a deployed smoke test)', () => {
     expect(config).not.toMatch(/proxy_set_header\s+Host\s+\$host;/)
     expect(config).toContain('proxy_pass http://finsight_api;')
   })
-  it('refreshes Docker DNS after API replacement without capturing the SPA consent route', () => {
-    expect(config).toContain('server api:8000 resolve;')
-    expect(config).toContain('resolver 127.0.0.11 valid=5s ipv6=off;')
+  it('re-resolves the API after replacement without capturing the SPA consent route', () => {
+    expect(config).toContain('server ${FINSIGHT_API_UPSTREAM} resolve;')
+    expect(config).toContain('resolver ${FINSIGHT_NGINX_RESOLVER} valid=5s ipv6=off;')
+    // Docker compose defaults are baked into the image; Kubernetes overrides them.
+    expect(dockerfile).toContain('FINSIGHT_API_UPSTREAM=api:8000 FINSIGHT_NGINX_RESOLVER=127.0.0.11 NGINX_ENVSUBST_FILTER=^FINSIGHT_')
     expect(config).toContain('location = /mcp {')
     expect(config).toContain('location = /mcp/ {')
     expect(config).not.toContain('location /mcp {')
