@@ -56,6 +56,7 @@ TOPICS: dict[str, tuple[tuple[str, ...], set[str]]] = {
     "wealth": (("vermögen", "net worth", "reich", "rücklage", "notfall"), {"net_worth", "health", "payoff_scenarios"}),
     "income": (("einnahm", "gehalt", "einkommen", "nebengewerbe", "steuer"), {"income_sources", "business", "recent_months", "health"}),
     "contracts": (("vertrag", "verträge", "versicher", "abo", "kündig"), {"recurring_contracts", "named_contracts", "fixed_vs_variable", "health"}),
+    "year": (("jahr", "vorjahr", "jährlich", "letzte 12", "im vergleich zu 20", "year", "annual"), {"recent_months", "spending_categories", "health"}),
     "forecast": (("prognose", "zukunft", "nächsten monate", "reicht", "forecast"), {"recent_months", "income_sources", "business", "health", "payoff_scenarios"}),
 }
 
@@ -133,7 +134,13 @@ def tool_tax_check(ctx: dict, args: NoArgs) -> dict | None:
     return {"tax_reserves": reserves} if reserves else None
 
 
+def tool_year_compare(ctx: dict, args: NoArgs) -> dict | None:
+    review = ctx.get("_year_review")
+    return {"year_review": review} if review else None
+
+
 TOOLS = {
+    "year_compare": (NoArgs, tool_year_compare),
     "contract_focus": (NoArgs, tool_contract_focus),
     "tax_check": (NoArgs, tool_tax_check),
     "focus_category": (FocusArgs, tool_focus_category),
@@ -147,6 +154,8 @@ def next_step(question: str, plan: dict, done: dict[str, dict | None]) -> tuple[
     topics = set(plan["topics"])
     if "focus_category" not in done:
         return "focus_category", {"question": question}
+    if "year_compare" not in done and "year" in topics:
+        return "year_compare", {}
     if "rank_levers" not in done and (topics & {"savings", "contracts"} or done["focus_category"]):
         return "rank_levers", {}
     if "contract_focus" not in done and topics & {"contracts", "savings"}:
@@ -263,6 +272,23 @@ def build_context(db: Session, user_id: str, include_names: bool = False, curren
                                     "vat_moved_to_pot": euro(t["moved_vat"]), "income_tax_reserve_needed": euro(t["income_tax_reserve"]),
                                     "income_tax_moved_to_pot": euro(t["moved_income_tax"]), "left_after_tax": euro(t["left"])}
     except Exception:  # the analyst must still work without the business module data
+        pass
+    try:
+        from .report import yearly_report
+        y = yearly_report(db, user_id, today.year, currency)
+        review = {"year": y["year"], "running": y["running"], "until": y["until"], "compared_with_previous_year_until": y["compared_until"],
+                  "data_since": y.get("data_since"),
+                  "this_year": {"income": euro(y["income"]), "spending": euro(y["expenses"]), "surplus": euro(y["surplus"])},
+                  "previous_year_same_period": {k: euro(v) for k, v in y["previous"].items()},
+                  "category_changes": [{"category": clean(c["name"], 40), "this_year": euro(c["amount"]), "previous_year": euro(c["previous"]),
+                                        "change": euro(c["change"])} for c in sorted(y["categories"], key=lambda c: -abs(Decimal(c["change"])))[:8]],
+                  "months": [{"month": m["month"], "spending": None if m["expenses"] is None else euro(m["expenses"]),
+                              "previous_year_spending": None if m["previous_expenses"] is None else euro(m["previous_expenses"])} for m in y["months"]],
+                  "merchant_count": y["merchant_count"], "new_merchants_count": len(y["new_merchants"])}
+        if include_names:
+            review["top_merchants"] = [{"name": clean(m["name"]), "this_year": euro(m["amount"]), "previous_year": euro(m["previous"])} for m in y["merchants"][:MAX_NAMES]]
+        ctx["_year_review"] = review
+    except Exception:  # the analyst must still work if the yearly report fails
         pass
     if include_names:
         named = sorted((i for i in live if i["status"] == "active" and i["monthly_cost"]), key=lambda i: -Decimal(str(i["monthly_cost"])))[:MAX_NAMES]

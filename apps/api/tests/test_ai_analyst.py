@@ -196,3 +196,18 @@ def test_contract_and_tax_tools_add_only_their_sections():
     extra2, trace2 = analyst.run_planner(q2, analyst.plan_for(q2), ctx)
     assert extra2["tax_reserves"]["vat_moved_to_pot"] == 150 and "top_contracts" not in extra2
     assert all(not k.startswith("_") for k in analyst.apply_plan(ctx, analyst.plan_for(q2)))
+
+
+def test_year_question_adds_the_year_review_without_merchant_names(owner, db):
+    user_id = seed(owner, db)
+    question = "Wie war mein Jahr im Vergleich zum Vorjahr?"
+    ctx = analyst.build_context(db, user_id)
+    review = ctx["_year_review"]
+    assert {"this_year", "previous_year_same_period", "category_changes", "months"} <= set(review) and "top_merchants" not in review
+    assert all(isinstance(v, int) for v in review["this_year"].values())
+    extra, trace = analyst.run_planner(question, analyst.plan_for(question), ctx)
+    assert [t["tool"] for t in trace][:2] == ["focus_category", "year_compare"] and extra["year_review"] == review
+    assert "top_merchants" in analyst.build_context(db, user_id, include_names=True)["_year_review"]
+    # a question without a year never sends it
+    other, _ = analyst.run_planner("Wie hoch ist mein Kredit?", analyst.plan_for("Wie hoch ist mein Kredit?"), ctx)
+    assert "year_review" not in other

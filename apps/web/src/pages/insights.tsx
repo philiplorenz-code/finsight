@@ -90,8 +90,8 @@ function EvidenceLinks({ evidence }: { evidence?: Evidence[] }) {
 
 type AskResult = { run_id: string; answer: string; sent: Record<string, unknown>; steps?: { tool: string; used: boolean }[]; input_tokens?: number | null; output_tokens?: number | null }
 type Preview = { context: Record<string, unknown>; system_prompt: string }
-const QUESTIONS_DE = ['Wo kann ich am meisten sparen?', 'Wie belastbar ist mein Überschuss, besonders mit dem Gewerbe?', 'Welche Versicherungen und Verträge sollte ich prüfen?', 'Kann ich mir meine Wünsche leisten, und in welcher Reihenfolge?', 'Was fällt dir an meinen Einnahmen und Ausgaben der letzten Monate auf?']
-const QUESTIONS_EN = ['Where can I save the most?', 'How reliable is my surplus, especially with the business?', 'Which insurances and contracts should I review?', 'Can I afford my wishes, and in which order?', 'What stands out in my income and spending lately?']
+const QUESTIONS_DE = ['Wo kann ich am meisten sparen?', 'Wie war mein Jahr im Vergleich zum Vorjahr?', 'Wie belastbar ist mein Überschuss, besonders mit dem Gewerbe?', 'Welche Versicherungen und Verträge sollte ich prüfen?', 'Kann ich mir meine Wünsche leisten, und in welcher Reihenfolge?', 'Was fällt dir an meinen Einnahmen und Ausgaben der letzten Monate auf?']
+const QUESTIONS_EN = ['Where can I save the most?', 'How was my year compared with last year?', 'How reliable is my surplus, especially with the business?', 'Which insurances and contracts should I review?', 'Can I afford my wishes, and in which order?', 'What stands out in my income and spending lately?']
 
 function Analyst({ enabled }: { enabled: boolean }) {
   const { language } = useLocale()

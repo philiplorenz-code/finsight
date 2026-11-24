@@ -14,6 +14,7 @@
 - Jahresrückblick (`/year`, `GET /api/reports/yearly`): income, spending, categories, merchants and months next to the year before; a running year is compared with the same days of the previous year, with a hint when data starts later.
 - Kündigungshelfer: customer number per contract, cancellation letter generated in the browser (copy, print/PDF), calendar file for the deadline, and "als gekündigt markieren", which freezes the end date and stops deadline reminders (migration `0024_contract_cancellation`).
 - Docs: switching the AI provider to OpenAI so receipt photos can be read.
+- KI-Analyst: questions about the year ("Wie war mein Jahr im Vergleich zum Vorjahr?") add a rounded year-vs-previous-year summary via the new `year_compare` planner tool; merchant names only with "Namen mitsenden".
 
 - Paperless-ngx: local compose project (`infrastructure/paperless`), receipts can be archived there, booking details list matching Paperless documents, settings show the connection (migration 0023).
 - Plan for importing the side business into Lexware Office via its public API (`docs/integrations/lexware-office.md`).
