@@ -71,7 +71,7 @@ export default function WatchPage() {
       {!w.account && <Notice>{de ? 'Wähle oben das Konto, das du beobachten willst.' : 'Pick the account to watch above.'}</Notice>}
       {w.account && s && <>
         <Notice>{w.budget_sources?.length
-          ? (de ? `Als Budget erkannt: ${w.budget_sources.map(b => `${money(b.amount)} von ${b.name} um den ${b.day}.`).join(', ')}. Alles andere, was von deinen Konten kommt, zählt als Nachschuss.`
+          ? (de ? `Als Budget erkannt: ${w.budget_sources.map(b => `${money(b.amount)} von ${b.name} um den ${b.day}.`).join(', ')} Alles andere, was von deinen Konten kommt, zählt als Nachschuss.`
             : `Detected budget: ${w.budget_sources.map(b => `${money(b.amount)} from ${b.name} around day ${b.day}`).join(', ')}. Everything else from your accounts is a top-up.`)
           : (de ? 'Kein regelmäßiges Budget erkannt. Jede Umbuchung von deinen Konten zählt als Nachschuss.' : 'No regular budget found. Every transfer from your accounts counts as a top-up.')}</Notice>
         <div className="stat-grid">

@@ -547,3 +547,5 @@ input, select, textarea { font-size: max(16px, 1em); } /* iOS zooms into inputs 
 .paperless-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; }
 .paperless-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 600px) { .dialog .form-grid { grid-template-columns: 1fr; } .letter-text { min-height: 14rem; font-size: 0.85rem; } }
+.stat-grid .detail-stat { flex-wrap: wrap; row-gap: 2px; }
+.stat-grid .detail-stat > small { flex-basis: 100%; text-align: right; }
